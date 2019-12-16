@@ -69,7 +69,13 @@ Typing
 
     make all
 
-in the shell, in the AutoMix folder where the AutoMix distribution was unzipped to, will compile all the programs that were distributed with this package. By default, for each example two executable programs are created the first using optimisation (for faster run times) and the second using the debugging flags to enable the user to debug the programs. The supplied programs have all been debugged but we acknowledge that use of a debugger can often help to understand how the program works. 
+in the shell, in the AutoMix folder where the AutoMix distribution was unzipped to, will compile all the programs that were distributed with this package.
+
+To compile all programs with debug information (`-g` flag enabled), type:
+
+    make alldebug
+
+instead. The supplied programs have all been debugged but we acknowledge that use of a debugger can often help to understand how the program works. 
 
 Any of the programs can also be made individually, with the appropriate make command (for example "make amtoy1" , see the Makefile for further examples).
 
