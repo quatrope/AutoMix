@@ -20,9 +20,6 @@
 # the version that allows debugging using a debugger such as gdb
 # Flags and compiler names should be changed as necessary.
 
-# C compiler
-CC=gcc
-
 # Normal optimised flags
 CFLAGS=-O3 -o
 
