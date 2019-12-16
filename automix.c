@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   /* ---counting variables ------------------- */
   int nsweep, count, nsweep2, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms,
       ntrytd;
-  int nburn, nsokal, nkeep, keep, nsweepr, *nacc, *ntry, *ksummary;
+  int nburn, nsokal, nkeep, keep, nsweepr;
 
   /* ---command line reading parameters ------ */
   int numargs, sametest;
@@ -111,26 +111,20 @@ int main(int argc, char *argv[]) {
   /* ---State parameters and variables ------- */
   int k, kmax, nkk, nkkn, nkmax, lendata;
   int kn = 0;
-  int *nk;
-  double *theta, *thetan;
-  double **data, *propk, *pk;
 
   /* ---Mixture parameters --------------------*/
   int Lkk, Lkkn, nparams, ldel, Lkmax;
   int l = 0;
   int ln = 0;
   int Lkkmin = 0;
-  int *Lk;
-  double ***mu, ****B, ****BBT, **detB;
-  double ***mumin, ****Bmin, ****BBTmin;
-  double **lambda, **lambdamin, **w, *logw, **lpdatagivenl, *palloc, *pallocn;
+  double **lpdatagivenl;
   double tol = 0.00001, costfnnew, minlambda;
   double costfn = 0.0;
   double costfnmin = 0.0;
 
   /* ---RWM parameters ------------------------*/
-  double *rwm, *rwmn, Z[1], *Znkk;
-  double **sig, accept, alphastar = 0.25;
+  double Z[1];
+  double accept, alphastar = 0.25;
   double gamma = 0.0;
 
   /* ---Probabilities ------------------------ */
@@ -139,13 +133,11 @@ int main(int argc, char *argv[]) {
 
   /* ---working arrays and variables --------- */
   int indic, stop, natann, forceann, mode;
-  int *init;
-  double sum, sigma, wnew, *sumw, sumwnew, sumlambda, *work, thresh;
+  double sum, sigma, wnew, *sumw, sumwnew, sumlambda, thresh;
   double wnewl1 = 0.0;
-  double *datamean, **M1;
 
   /* ---autocorrelation variables ------------ */
-  double *xr, var, tau;
+  double var, tau;
   int m;
 
   /* ---adaptation parameters ---------------- */
@@ -298,9 +290,9 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  nk = (int *)malloc(kmax * sizeof(int));
-  Lk = (int *)malloc(kmax * sizeof(int));
-  ksummary = (int *)malloc(kmax * sizeof(int));
+  int *nk = (int *)malloc(kmax * sizeof(int));
+  int *Lk = (int *)malloc(kmax * sizeof(int));
+  int *ksummary = (int *)malloc(kmax * sizeof(int));
 
   getnk(kmax, nk);
   nkmax = nk[0];
@@ -310,16 +302,16 @@ int main(int argc, char *argv[]) {
     ksummary[k1] = 0;
   }
 
-  lambda = (double **)malloc(kmax * sizeof(double *));
-  lambdamin = (double **)malloc(kmax * sizeof(double *));
-  mu = (double ***)malloc(kmax * sizeof(double **));
-  mumin = (double ***)malloc(kmax * sizeof(double **));
-  BBT = (double ****)malloc(kmax * sizeof(double ***));
-  BBTmin = (double ****)malloc(kmax * sizeof(double ***));
-  B = (double ****)malloc(kmax * sizeof(double ***));
-  Bmin = (double ****)malloc(kmax * sizeof(double ***));
-  detB = (double **)malloc(kmax * sizeof(double *));
-  sig = (double **)malloc(kmax * sizeof(double *));
+  double **lambda = (double **)malloc(kmax * sizeof(double *));
+  double **lambdamin = (double **)malloc(kmax * sizeof(double *));
+  double ***mu = (double ***)malloc(kmax * sizeof(double **));
+  double ***mumin = (double ***)malloc(kmax * sizeof(double **));
+  double ****BBT = (double ****)malloc(kmax * sizeof(double ***));
+  double ****BBTmin = (double ****)malloc(kmax * sizeof(double ***));
+  double ****B = (double ****)malloc(kmax * sizeof(double ***));
+  double ****Bmin = (double ****)malloc(kmax * sizeof(double ***));
+  double **detB = (double **)malloc(kmax * sizeof(double *));
+  double **sig = (double **)malloc(kmax * sizeof(double *));
   for (int k1 = 0; k1 < kmax; k1++) {
     nkk = nk[k1];
     lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
@@ -463,16 +455,16 @@ int main(int argc, char *argv[]) {
       nsweepr = max(nsweep2, 10000 * nkk);
       nburn = nsweepr / 10;
       nsweepr += nburn;
-      data = (double **)malloc(lendata * sizeof(double *));
+      double **data = (double **)malloc(lendata * sizeof(double *));
       for (int i1 = 0; i1 < lendata; i1++) {
         data[i1] = (double *)malloc(nkk * sizeof(double));
       }
-      rwm = (double *)malloc(nkk * sizeof(double));
-      rwmn = (double *)malloc(nkk * sizeof(double));
-      nacc = (int *)malloc(nkk * sizeof(int));
-      ntry = (int *)malloc(nkk * sizeof(int));
-      Znkk = (double *)malloc(nkk * sizeof(double));
-      init = (int *)malloc(nkk * sizeof(int));
+      double *rwm = (double *)malloc(nkk * sizeof(double));
+      double *rwmn = (double *)malloc(nkk * sizeof(double));
+      int *nacc = (int *)malloc(nkk * sizeof(int));
+      int *ntry = (int *)malloc(nkk * sizeof(int));
+      double *Znkk = (double *)malloc(nkk * sizeof(double));
+      int *init = (int *)malloc(nkk * sizeof(int));
 
       printf("\nRWM for Model %d", k1 + 1);
       fprintf(fpl, "\nRWM for Model %d", k1 + 1);
@@ -591,8 +583,8 @@ int main(int argc, char *argv[]) {
           }
         }
 
-        datamean = (double *)malloc(nkk * sizeof(double));
-        M1 = (double **)malloc(nkk * sizeof(double *));
+        double *datamean = (double *)malloc(nkk * sizeof(double));
+        double **M1 = (double **)malloc(nkk * sizeof(double *));
         for (int j1 = 0; j1 < nkk; j1++) {
           M1[j1] = (double *)malloc(nkk * sizeof(double));
         }
@@ -633,8 +625,8 @@ int main(int argc, char *argv[]) {
           lambda[k1][l1] = 1.0 / Lkk;
         }
 
-        w = (double **)malloc(lendata * sizeof(double *));
-        logw = (double *)malloc(Lkk * sizeof(double));
+        double **w = (double **)malloc(lendata * sizeof(double *));
+        double *logw = (double *)malloc(Lkk * sizeof(double));
         lpdatagivenl = (double **)malloc(lendata * sizeof(double *));
         for (int i1 = 0; i1 < lendata; i1++) {
           w[i1] = (double *)malloc(Lkk * sizeof(double));
@@ -1019,14 +1011,14 @@ int main(int argc, char *argv[]) {
   nkk = nk[k];
   Lkk = Lk[k];
 
-  theta = (double *)malloc(nkmax * sizeof(double));
-  thetan = (double *)malloc(nkmax * sizeof(double));
-  work = (double *)malloc(nkmax * sizeof(double));
-  palloc = (double *)malloc(Lkmax * sizeof(double));
-  pallocn = (double *)malloc(Lkmax * sizeof(double));
-  Znkk = (double *)malloc(nkmax * sizeof(double));
-  propk = (double *)malloc(kmax * sizeof(double));
-  pk = (double *)malloc(kmax * sizeof(double));
+  double *theta = (double *)malloc(nkmax * sizeof(double));
+  double *thetan = (double *)malloc(nkmax * sizeof(double));
+  double *work = (double *)malloc(nkmax * sizeof(double));
+  double *palloc = (double *)malloc(Lkmax * sizeof(double));
+  double *pallocn = (double *)malloc(Lkmax * sizeof(double));
+  double *Znkk = (double *)malloc(nkmax * sizeof(double));
+  double *propk = (double *)malloc(kmax * sizeof(double));
+  double *pk = (double *)malloc(kmax * sizeof(double));
 
   getic(k, nkk, theta);
 
@@ -1051,7 +1043,7 @@ int main(int argc, char *argv[]) {
   nkeep = nsweep / (2 * nsokal);
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
   keep = nburn + (nsweep - nkeep * nsokal);
-  xr = (double *)malloc(nkeep * sizeof(double));
+  double *xr = (double *)malloc(nkeep * sizeof(double));
 
   /* -----Start of main loop ----------------*/
   for (int sweep = 1; sweep <= (nburn + nsweep); sweep++) {
