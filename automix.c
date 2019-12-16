@@ -211,22 +211,19 @@ int main(int argc, char *argv[]) {
   sdrni(&seed);
 
   /* --- Section 3 - Initial File handling ---------------------  */
-
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_log.data");
-  fpl = fopen(fname1, "w");
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_pk.data");
-  fpp = fopen(fname1, "w");
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_ac.data");
-  fpac = fopen(fname1, "w");
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_adapt.data");
-  fpad = fopen(fname1, "w");
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_cf.data");
-  fpcf = fopen(fname1, "w");
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 30) * sizeof(*datafname));
+  sprintf(datafname, "%s_log.data", fname);
+  fpl = fopen(datafname, "w");
+  sprintf(datafname, "%s_pk.data", fname);
+  fpp = fopen(datafname, "w");
+  sprintf(datafname, "%s_ac.data", fname);
+  fpac = fopen(datafname, "w");
+  sprintf(datafname, "%s_adapt.data", fname);
+  fpad = fopen(datafname, "w");
+  sprintf(datafname, "%s_cf.data", fname);
+  fpcf = fopen(datafname, "w");
+  free(datafname);
 
   /* Print user options to log file */
 
