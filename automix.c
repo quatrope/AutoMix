@@ -362,35 +362,35 @@ int main(int argc, char *argv[]) {
     ksummary[k1] = 0;
   }
 
-  lambda = (double **)malloc(kmax * sizeof(double));
-  lambdamin = (double **)malloc(kmax * sizeof(double));
-  mu = (double ***)malloc(kmax * sizeof(double));
-  mumin = (double ***)malloc(kmax * sizeof(double));
-  BBT = (double ****)malloc(kmax * sizeof(double));
-  BBTmin = (double ****)malloc(kmax * sizeof(double));
-  B = (double ****)malloc(kmax * sizeof(double));
-  Bmin = (double ****)malloc(kmax * sizeof(double));
-  detB = (double **)malloc(kmax * sizeof(double));
-  sig = (double **)malloc(kmax * sizeof(double));
+  lambda = (double **)malloc(kmax * sizeof(double *));
+  lambdamin = (double **)malloc(kmax * sizeof(double *));
+  mu = (double ***)malloc(kmax * sizeof(double **));
+  mumin = (double ***)malloc(kmax * sizeof(double **));
+  BBT = (double ****)malloc(kmax * sizeof(double ***));
+  BBTmin = (double ****)malloc(kmax * sizeof(double ***));
+  B = (double ****)malloc(kmax * sizeof(double ***));
+  Bmin = (double ****)malloc(kmax * sizeof(double ***));
+  detB = (double **)malloc(kmax * sizeof(double *));
+  sig = (double **)malloc(kmax * sizeof(double *));
   for (k1 = 0; k1 < kmax; k1++) {
     nkk = nk[k1];
     lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     lambdamin[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
-    mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double));
-    mumin[k1] = (double **)malloc(Lkmaxmax * sizeof(double));
-    BBT[k1] = (double ***)malloc(Lkmaxmax * sizeof(double));
-    BBTmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double));
-    B[k1] = (double ***)malloc(Lkmaxmax * sizeof(double));
-    Bmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double));
+    mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
+    mumin[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
+    BBT[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    BBTmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    B[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    Bmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
     detB[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     sig[k1] = (double *)malloc(nkk * sizeof(double));
     for (l1 = 0; l1 < Lkmaxmax; l1++) {
       mu[k1][l1] = (double *)malloc(nkk * sizeof(double));
       mumin[k1][l1] = (double *)malloc(nkk * sizeof(double));
-      BBT[k1][l1] = (double **)malloc(nkk * sizeof(double));
-      BBTmin[k1][l1] = (double **)malloc(nkk * sizeof(double));
-      B[k1][l1] = (double **)malloc(nkk * sizeof(double));
-      Bmin[k1][l1] = (double **)malloc(nkk * sizeof(double));
+      BBT[k1][l1] = (double **)malloc(nkk * sizeof(double *));
+      BBTmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
+      B[k1][l1] = (double **)malloc(nkk * sizeof(double *));
+      Bmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       for (j1 = 0; j1 < nkk; j1++) {
         BBT[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         BBTmin[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
@@ -515,7 +515,7 @@ int main(int argc, char *argv[]) {
       nsweepr = max(nsweep2, 10000 * nkk);
       nburn = nsweepr / 10;
       nsweepr += nburn;
-      data = (double **)malloc(lendata * sizeof(double));
+      data = (double **)malloc(lendata * sizeof(double *));
       for (i1 = 0; i1 < lendata; i1++) {
         data[i1] = (double *)malloc(nkk * sizeof(double));
       }
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]) {
         }
 
         datamean = (double *)malloc(nkk * sizeof(double));
-        M1 = (double **)malloc(nkk * sizeof(double));
+        M1 = (double **)malloc(nkk * sizeof(double *));
         for (j1 = 0; j1 < nkk; j1++) {
           M1[j1] = (double *)malloc(nkk * sizeof(double));
         }
@@ -685,9 +685,9 @@ int main(int argc, char *argv[]) {
           lambda[k1][l1] = 1.0 / Lkk;
         }
 
-        w = (double **)malloc(lendata * sizeof(double));
+        w = (double **)malloc(lendata * sizeof(double *));
         logw = (double *)malloc(Lkk * sizeof(double));
-        lpdatagivenl = (double **)malloc(lendata * sizeof(double));
+        lpdatagivenl = (double **)malloc(lendata * sizeof(double *));
         for (i1 = 0; i1 < lendata; i1++) {
           w[i1] = (double *)malloc(Lkk * sizeof(double));
           lpdatagivenl[i1] = (double *)malloc(Lkk * sizeof(double));
