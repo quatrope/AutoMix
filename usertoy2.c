@@ -39,7 +39,8 @@ void getic(int k, int nkk, double *theta) {
 double lpost(int k, int nkk, double *theta, double *llh) {
   int i;
   double work[nkk], mu1[nkk], mu2[nkk], sig1, sig2, w1, w2;
-  double lp, lptemp, modw;
+  double lp, lptemp;
+  double modw = 0.0;
 
   sig1 = 1.0;
   sig2 = 2.0;

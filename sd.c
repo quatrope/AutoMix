@@ -136,7 +136,7 @@ void sdpseed_()
 void sdpseed()
 #endif
 {
-  printf("%d %d \n", JC, JT);
+    printf("%lu %lu \n", JC, JT);
 }
 
 #ifdef SUNF

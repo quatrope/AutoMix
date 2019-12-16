@@ -9,13 +9,13 @@
 
 extern double loggamma(double x);
 
-extern double sdrand();
+extern double sdrand(void);
 
 /* Hyperparameters */
 double alpha1 = 2.0, alpha2 = 1.0, beta1 = 0.1, beta2 = 2.0;
 
 /* Internal functions used in required user functions */
-double boxm();
+double boxm(void);
 
 /* Function to return number of models */
 void getkmax(int *kmax) {

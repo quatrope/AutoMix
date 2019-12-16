@@ -89,10 +89,15 @@ void fastfr(int nin, double *xreal, double *ximag) {
        where i = sqrt(-1), and both in(j) and out(j)
        are stored in xreal(j+1)+i*ximag(j+1)              */
 
-  double z, bcos, bsin, temp, cw1, cw2, cw3, sw1, sw2, sw3;
+  double z, bcos, bsin, temp, cw1, sw1;
+  double cw2 = 0.0;
+  double sw2 = 0.0;
+  double cw3 = 0.0;
+  double sw3 = 0.0;
   double xs0, xs1, xs2, xs3, ys0, ys1, ys2, ys3, x1, x2, x3, y1, y2, y3;
 
-  int i0, i1, i2, i3, ul[20], n, counta, countb, time, indic, test;
+  int i0, i1, i2, i3, ul[20], n, counta, countb, time, test;
+  int indic = 0;
   int j0, j1, j2, j3, j4, j5, j6, j7, j8, j9, j10, j11, j12, j13, j14, j15, j16,
       j17, j18, j19;
 

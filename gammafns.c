@@ -5,7 +5,7 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
-extern double sdrand();
+extern double sdrand(void);
 
 /* Taken from algama.f (PJG) - converted to C using appropriate machine
    constants by DIH 04/11/03 */

@@ -4,6 +4,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Data provided in user library - bundled with AutoMix software */
 #include "ddidata.h"
@@ -14,7 +15,7 @@
 
 extern double loggamma(double x);
 
-extern double sdrand();
+extern double sdrand(void);
 
 /* hyperparameters */
 double a = 3.0, b = 0.005;
@@ -28,7 +29,7 @@ double R0[3][3] = {
 double R1[2][2] = {{4.0, 0.0}, {0.0, 1 / 16.0}};
 
 /* Internal functions used in required user functions */
-double boxm2();
+double boxm2(void);
 
 void chol2(int nkk, double **B, int *posdef);
 
@@ -201,10 +202,11 @@ BEGIN_IC:
 double lpost(int k, int nkk, double *theta, double *llh1) {
 
   int i, j, j1, j2, posdef;
-  double lp, llh, alpha[9], gamma[6], **V, **U, sigmasq, tausq, **Vmin1,
-      **Umin1;
+  double lp, llh, alpha[9], gamma[6], **V, **U, **Vmin1, **Umin1;
+  double sigmasq = 0.0;
+  double tausq = 0.0;
   double detVmin1, detUmin1;
-  double temp[3][5], **C, detC, mu[5], datai[5], **tempmat, **tempmat2;
+  double temp[3][5], **C, mu[5], datai[5], **tempmat, **tempmat2;
   double **R0min1, **R1min1;
   double Y[467][5];
 

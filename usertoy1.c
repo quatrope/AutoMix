@@ -5,10 +5,10 @@
 
 #define tpi 6.283185307179586477
 
-extern double sdrand();
+extern double sdrand(void);
 
 /* Internal functions used in required user functions */
-double boxm();
+double boxm(void);
 
 /* Function to return number of models */
 void getkmax(int *kmax) {

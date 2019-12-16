@@ -82,7 +82,7 @@ double det(int k, int nkk, int l, double ****B);
 
 extern void sdrni(unsigned long *seed);
 
-extern double sdrand();
+extern double sdrand(void);
 
 /* Functions rgamma and loggamma can be found in gammafns.c bundled with
    with this software. */
@@ -148,7 +148,8 @@ int main(int argc, char *argv[]) {
 
   /* ---filename variables ------------------- */
   int check;
-  FILE *fpk, *fpl, *fpt[kmaxmax], *fpcf, *fpmix, *fplp, *fpp, *fpac, *fpad;
+  FILE *fpk, *fpl, *fpt[kmaxmax], *fpcf, *fplp, *fpp, *fpac, *fpad;
+  FILE *fpmix = NULL;
   char fname[18], fname1[18], kno[6];
 
   /* ---random no. variables ----------------- */
@@ -160,30 +161,39 @@ int main(int argc, char *argv[]) {
   int doperm;
 
   /* ---State parameters and variables ------- */
-  int k, kn, kmax, nkk, nkkn, nkmax, lendata;
+  int k, kmax, nkk, nkkn, nkmax, lendata;
+  int kn = 0;
   int *nk;
   double *theta, *thetan;
   double **data, *propk, *pk;
 
   /* ---Mixture parameters --------------------*/
-  int l, ln, Lkk, Lkkn, Lkkmin, nparams, ldel, Lkmax;
+  int Lkk, Lkkn, nparams, ldel, Lkmax;
+  int l = 0;
+  int ln = 0;
+  int Lkkmin = 0;
   int *Lk;
   double ***mu, ****B, ****BBT, **detB;
   double ***mumin, ****Bmin, ****BBTmin;
   double **lambda, **lambdamin, **w, *logw, **lpdatagivenl, *palloc, *pallocn;
-  double tol = 0.00001, costfn, costfnnew, costfnmin, minlambda;
+  double tol = 0.00001, costfnnew, minlambda;
+  double costfn = 0.0;
+  double costfnmin = 0.0;
 
   /* ---RWM parameters ------------------------*/
   double *rwm, *rwmn, Z[1], *Znkk;
-  double **sig, gamma, accept, alphastar = 0.25;
+  double **sig, accept, alphastar = 0.25;
+  double gamma = 0.0;
 
   /* ---Probabilities ------------------------ */
-  double lp, lpn, logratio, llh, llhn;
+  double lp, logratio, llh, llhn;
+  double lpn = 0.0;
 
   /* ---working arrays and variables --------- */
   int indic, stop, natann, forceann, mode;
   int *init;
-  double sum, sigma, wnew, wnewl1, *sumw, sumwnew, sumlambda, *work, thresh;
+  double sum, sigma, wnew, *sumw, sumwnew, sumlambda, *work, thresh;
+  double wnewl1 = 0.0;
   double *datamean, **M1;
 
   /* ---autocorrelation variables ------------ */
@@ -291,19 +301,19 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 3 - Initial File handling ---------------------  */
 
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_log.data");
   fpl = fopen(fname1, "w");
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_pk.data");
   fpp = fopen(fname1, "w");
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_ac.data");
   fpac = fopen(fname1, "w");
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_adapt.data");
   fpad = fopen(fname1, "w");
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_cf.data");
   fpcf = fopen(fname1, "w");
 
@@ -320,7 +330,7 @@ int main(int argc, char *argv[]) {
      If not default back to mode 0 */
 
   if (mode == 1) {
-    sprintf(fname1, fname);
+    sprintf(fname1, "%s", fname);
     strcat(fname1, "_mix.data");
     if ((fpmix = fopen(fname1, "r")) == NULL) {
       printf("\nMixture file doesn't exist:");
@@ -979,7 +989,7 @@ int main(int argc, char *argv[]) {
   /* Print mixture parameters to file (log and mix files) for reference
      and use in future runs. */
 
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_mix.data");
   fpmix = fopen(fname1, "w");
   fprintf(fpmix, "%d\n", kmax);
@@ -1025,17 +1035,17 @@ int main(int argc, char *argv[]) {
 
   /* --Section 6 - Secondary file handling -------------*/
 
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_k");
   strcat(fname1, ".data");
   fpk = fopen(fname1, "w");
-  sprintf(fname1, fname);
+  sprintf(fname1, "%s", fname);
   strcat(fname1, "_lp");
   strcat(fname1, ".data");
   fplp = fopen(fname1, "w");
 
   for (k1 = 0; k1 < kmax; k1++) {
-    sprintf(fname1, fname);
+    sprintf(fname1, "%s", fname);
     sprintf(kno, "%d", k1 + 1);
     strcat(fname1, "_theta");
     strcat(fname1, kno);
