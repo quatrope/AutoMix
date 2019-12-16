@@ -76,6 +76,8 @@ double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
 
 double det(int k, int nkk, int l, double ****B);
 
+void usage(char *invocation);
+
 /* ---main program-------------------------- */
 
 int main(int argc, char *argv[]) {
@@ -89,15 +91,11 @@ int main(int argc, char *argv[]) {
   int count, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms, ntrytd;
   int nburn, nsokal, nkeep, keep, nsweepr;
 
-  /* ---command line reading parameters ------ */
-  int sametest;
-  char word[20], selector[3], iparam[18];
-
   /* ---filename variables ------------------- */
   int check;
   FILE *fpk, *fpl, *fpt[kmaxmax], *fpcf, *fplp, *fpp, *fpac, *fpad;
   FILE *fpmix = NULL;
-  char fname[18], fname1[18], kno[6];
+  char fname1[18], kno[6];
 
   /* ---random no. variables ----------------- */
   double u, constt;
@@ -157,77 +155,56 @@ int main(int argc, char *argv[]) {
                specify integer degrees of freedom of student t variables
      fname ~ f ~ filename base */
 
-  /* Default values */
-
-  int nsweep = 100000;
-  int nsweep2 = 100000;
-  int numargs = argc - 1;
-  strcpy(fname, "output");
+  // Default values
+  int nsweep = 1E5;
+  int nsweep2 = 1E5;
+  char fname_default[] = "output";
+  char *fname = fname_default;
   int doperm = 1;
   unsigned long seed = 0;
   int mode = 0;
   int adapt = 1;
   int dof = 0;
 
-  /* Override defaults if user supplies command line options */
-
-  if (numargs > 0) {
-    for (int t1 = 1; t1 <= numargs; t1++) {
-
-      strcpy(word, argv[t1]);
-      for (int t2 = 0; t2 < 2; t2++) {
-        selector[t2] = word[t2];
+  // Override defaults if user supplies command line options
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "-f")) {
+      fname = argv[++i];
+      continue;
+    } else if (!strcmp(argv[i], "-N")) {
+      nsweep = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-n")) {
+      nsweep2 = atoi(argv[++i]);
+      nsweep2 = max(nsweep2, 1E5);
+      continue;
+    } else if (!strcmp(argv[i], "-s")) {
+      seed = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-p")) {
+      doperm = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-m")) {
+      mode = atoi(argv[++i]);
+      if (mode > 2 || mode < 0) {
+        printf("Error: Invalid mode entered. Mode must be {0, 1, 2}.\n");
+        usage(argv[0]);
+        return EXIT_FAILURE;
       }
-      selector[2] = '\0';
-      for (int t2 = 0; t2 < 17; t2++) {
-        iparam[t2] = word[t2 + 2];
-      }
-      iparam[17] = '\0';
-
-      sametest = strcmp(selector, "-f");
-      if (sametest == 0) {
-        strcpy(fname, iparam);
-        continue;
-      }
-      sametest = strcmp(selector, "-N");
-      if (sametest == 0) {
-        nsweep = atoi(iparam);
-        continue;
-      }
-
-      sametest = strcmp(selector, "-n");
-      if (sametest == 0) {
-        nsweep2 = max(atoi(iparam), 100000);
-        continue;
-      }
-
-      sametest = strcmp(selector, "-s");
-      if (sametest == 0) {
-        seed = atoi(iparam);
-        continue;
-      }
-      sametest = strcmp(selector, "-p");
-      if (sametest == 0) {
-        doperm = atoi(iparam);
-        continue;
-      }
-      sametest = strcmp(selector, "-m");
-      if (sametest == 0) {
-        mode = atoi(iparam);
-        continue;
-      }
-
-      sametest = strcmp(selector, "-a");
-      if (sametest == 0) {
-        adapt = atoi(iparam);
-        continue;
-      }
-
-      sametest = strcmp(selector, "-t");
-      if (sametest == 0) {
-        dof = atoi(iparam);
-        continue;
-      }
+      continue;
+    } else if (!strcmp(argv[i], "-a")) {
+      adapt = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-t")) {
+      dof = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
+      usage(argv[0]);
+      return EXIT_SUCCESS;
+    } else {
+      printf("Unrecognized argument: %s\n", argv[i]);
+      usage(argv[0]);
+      return EXIT_FAILURE;
     }
   }
 
@@ -1483,4 +1460,33 @@ double det(int k, int nkk, int l, double ****B) {
     out *= B[k][l][j1][j1];
   }
   return out;
+}
+
+void usage(char *invocation) {
+  char *name = strrchr(invocation, '/');
+  if (name == NULL) {
+    name = invocation;
+  } else {
+    name += 1;
+  }
+  printf("Usage: %s [-m int] [-N int] [-n int] [-a bool] \
+           [-p bool] [-s int] [-t int] [-f string] [-h, --help]\n",
+         name);
+  printf(
+      "-m int: Specify mode. 0 if mixture fitting, 1 if user supplied mixture params, \
+           2 if AutoRJ.\n");
+  printf("-N int: Number of reversible jump sweeps in stage 3.\n");
+  printf("-n int: max(n, 10000 * nk, 100000) sweeps in within-model RWM in "
+         "stage 1.\n");
+  printf("-a bool: 1 if RJ adaptation done in stage 3, 0 otherwise.\n");
+  printf("-p bool: 1 if random permutation done in stage 3 RJ move, 0 "
+         "otherwise.\n");
+  printf("-s int: random no. seed. 0 uses clock seed.\n");
+  printf(
+      "-t int: 0 if Normal random variables used in RWM and RJ moves, otherwise \
+           specify integer degrees of freedom of student t variables.\n");
+  printf("-f string: filename base.\n");
+  printf("-h, --help: Print this help and exit.");
+  printf(
+      "\n(c) Original code by David Hastie. Modifications by Martin Beroiz.\n");
 }
