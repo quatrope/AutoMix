@@ -29,6 +29,7 @@
 */
 
 #include <stdio.h>
+#include <time.h>
 
 #ifdef SUNF
 #ifndef DOUB
