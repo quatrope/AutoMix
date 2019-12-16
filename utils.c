@@ -103,6 +103,12 @@ float sdrand()
 }
 
 #ifdef SUNF
+void sdrni_(unsigned long *i);
+#else
+void sdrni(unsigned long *i);
+#endif
+
+#ifdef SUNF
 void sdrni_(i)
 #else
 void sdrni(i)
@@ -136,7 +142,7 @@ void sdpseed_()
 void sdpseed()
 #endif
 {
-    printf("%lu %lu \n", JC, JT);
+  printf("%lu %lu \n", JC, JT);
 }
 
 #ifdef SUNF
