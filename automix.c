@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "utils.h"
 
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
@@ -73,27 +74,6 @@ double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
                  double *datai);
 
 double det(int k, int nkk, int l, double ****B);
-
-/* --- External functions -----------------*/
-
-/* Random number functions sdrni and sdrand can be found in sd.c
-   bundled with this software. References for these functions can be
-   found within sd.c */
-
-extern void sdrni(unsigned long *seed);
-
-extern double sdrand(void);
-
-/* Functions rgamma and loggamma can be found in gammafns.c bundled with
-   with this software. */
-
-extern double rgamma(double s);
-
-extern double loggamma(double s);
-
-/* Function sokal is found in file sokal.c bundled with this software. */
-
-extern void sokal(int n, double *xreal, double *var, double *tau, int *m);
 
 /* --- User supplied functions ------------ */
 

@@ -54,42 +54,34 @@ alldebug: amtoy1d amtoy2d amcptd amcptrsd amrb9d amddid
 ###### Normal (already debugged) progs ############
 
 # Toy example 1
-amtoy1: automix.c usertoy1.o sd.o gammafns.o sokal.o
-	$(CC) $(CFLAGS) amtoy1 automix.c usertoy1.o sd.o gammafns.o sokal.o $(LIB)
+amtoy1: automix.c usertoy1.o utils.o
+	$(CC) $(CFLAGS) amtoy1 automix.c usertoy1.o utils.o $(LIB)
 
 # Toy example 2
-amtoy2: automix.c usertoy2.o sd.o gammafns.o sokal.o
-	$(CC) $(CFLAGS) amtoy2 automix.c usertoy2.o sd.o gammafns.o sokal.o $(LIB)
+amtoy2: automix.c usertoy2.o utils.o
+	$(CC) $(CFLAGS) amtoy2 automix.c usertoy2.o utils.o $(LIB)
 
 # Change point problem
-amcpt: automix.c usercpt.o gammafns.o sd.o sokal.o
-	$(CC) $(CFLAGS) amcpt automix.c usercpt.o sd.o gammafns.o sokal.o $(LIB)
+amcpt: automix.c usercpt.o utils.o
+	$(CC) $(CFLAGS) amcpt automix.c usercpt.o utils.o $(LIB)
 
 # Rescaled change point problem
-amcptrs: automix.c usercptrs.o gammafns.o sd.o sokal.o
-	$(CC) $(CFLAGS) amcptrs automix.c usercptrs.o sd.o gammafns.o sokal.o $(LIB)
+amcptrs: automix.c usercptrs.o utils.o
+	$(CC) $(CFLAGS) amcptrs automix.c usercptrs.o utils.o $(LIB)
 
 # Rb9 problem
-amrb9: automix.c userrb9.o gammafns.o sd.o sokal.o 
-	$(CC) $(CFLAGS) amrb9 automix.c userrb9.o sd.o gammafns.o sokal.o $(LIB)
+amrb9: automix.c userrb9.o utils.o
+	$(CC) $(CFLAGS) amrb9 automix.c userrb9.o utils.o $(LIB)
 
 # DDI Clinical trial problem
-amddi: automix.c ddidata.h userddi.o gammafns.o sd.o sokal.o 
-	$(CC) $(CFLAGS) amddi automix.c userddi.o sd.o gammafns.o sokal.o $(LIB)
+amddi: automix.c ddidata.h userddi.o utils.o
+	$(CC) $(CFLAGS) amddi automix.c userddi.o utils.o $(LIB)
 
 ### AutoMix dependencies (already debugged)
 
-# Calculates loggamma function
-gammafns.o: gammafns.c 
-	$(CC) $(DEPFLAGS) gammafns.c
-
-# Random number generator
-sd.o: sd.c
-	$(CC) $(DEPFLAGS) sd.c -DDOUB -DRETS
-
-# Calculates autocorrelation using Sokal's method (Green and Han,92)
-sokal.o: sokal.c
-	$(CC) $(DEPFLAGS) sokal.c
+# Utils
+utils.o: utils.c
+	$(CC) $(DEPFLAGS) utils.c -DDOUB -DRETS
 
 ### User supplied functions (already debugged)
 
@@ -120,45 +112,37 @@ userddi.o: userddi.c
 ###### Progs to be debugged ############
 
 # Toy example 1
-amtoy1d: automix.c usertoy1d.o sdd.o gammafnsd.o sokald.o
-	$(CC) $(CFLAGSD) amtoy1d automix.c usertoy1d.o sdd.o gammafnsd.o sokald.o $(LIB)
+amtoy1d: automix.c usertoy1d.o utilsd.o
+	$(CC) $(CFLAGSD) amtoy1d automix.c usertoy1d.o utilsd.o $(LIB)
 
 # Toy example 2
-amtoy2d: automix.c usertoy2d.o sdd.o gammafnsd.o sokald.o
-	$(CC) $(CFLAGSD) amtoy2d automix.c usertoy2d.o sdd.o gammafnsd.o sokald.o $(LIB)
+amtoy2d: automix.c usertoy2d.o utilsd.o
+	$(CC) $(CFLAGSD) amtoy2d automix.c usertoy2d.o utilsd.o $(LIB)
 
 # Change point problem
-amcptd: automix.c usercptd.o gammafnsd.o sdd.o sokald.o
-	$(CC) $(CFLAGSD) amcptd automix.c usercptd.o sdd.o gammafnsd.o sokald.o $(LIB)
+amcptd: automix.c usercptd.o utilsd.o
+	$(CC) $(CFLAGSD) amcptd automix.c usercptd.o utilsd.o $(LIB)
 
 # Rescaled change point problem
-amcptrsd: automix.c usercptrsd.o gammafnsd.o sdd.o sokald.o
-	$(CC) $(CFLAGSD) amcptrsd automix.c usercptrsd.o sdd.o gammafnsd.o sokald.o $(LIB)
+amcptrsd: automix.c usercptrsd.o utilsd.o
+	$(CC) $(CFLAGSD) amcptrsd automix.c usercptrsd.o utilsd.o $(LIB)
 
 # Rb9 problem
-amrb9d: automix.c userrb9d.o gammafnsd.o sdd.o sokald.o 
-	$(CC) $(CFLAGSD) amrb9d automix.c userrb9d.o sdd.o gammafnsd.o sokald.o $(LIB)
+amrb9d: automix.c userrb9d.o utilsd.o
+	$(CC) $(CFLAGSD) amrb9d automix.c userrb9d.o utilsd.o $(LIB)
 
 # DDI Clinical trial problem
-amddid: automix.c ddidata.h userddid.o gammafnsd.o sdd.o sokald.o 
-	$(CC) $(CFLAGSD) amddid automix.c userddid.o sdd.o gammafnsd.o sokald.o $(LIB)
+amddid: automix.c ddidata.h userddid.o utilsd.o
+	$(CC) $(CFLAGSD) amddid automix.c userddid.o utilsd.o $(LIB)
 
 # (Old) Toy problems compiled with automix2.c program, implementing
 # adaptation through regeneration (automix2.c not included in distribution) 
 
 ### AutoMix dependencies (to be debugged)
 
-# Calculates loggamma function
-gammafnsd.o: gammafns.c
-	$(CC) $(DEPFLAGSD) gammafns.c -o gammafnsd.o
-
 # Random number generator
-sdd.o: sd.c
-	$(CC) $(DEPFLAGSD) sd.c -DDOUB -DRETS -o sdd.o
-
-# Calculates autocorrelation using Sokal's method (Green and Han,92)
-sokald.o: sokal.c
-	$(CC) $(DEPFLAGSD) sokal.c -o sokald.o
+utilsd.o: utils.c
+	$(CC) $(DEPFLAGSD) utils.c -DDOUB -DRETS -o utilsd.o
 
 ### User supplied functions (to be debugged)
 
