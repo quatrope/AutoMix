@@ -82,12 +82,8 @@ int main(int argc, char *argv[]) {
 
   /*---Section 1 Declare Variables -------------------------*/
 
-  /* ---clock variables ---------------------- */
-  clock_t starttime, endtime;
-  double timesecs;
-
   /* ---indexing variables ------------------- */
-  int t1, t2, i1, i2, j1, j2, k1, l1, l2, sweep, remain;
+  int i2, j1, k1, l1, remain;
 
   /* ---counting variables ------------------- */
   int nsweep, count, nsweep2, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms,
@@ -158,7 +154,7 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 2 - Read in Comand Line Variables ----------------- */
 
-  starttime = clock();
+  clock_t starttime = clock();
 
   /* Definition of command line variables and explanation
 
@@ -190,14 +186,14 @@ int main(int argc, char *argv[]) {
   /* Override defaults if user supplies command line options */
 
   if (numargs > 0) {
-    for (t1 = 1; t1 <= numargs; t1++) {
+    for (int t1 = 1; t1 <= numargs; t1++) {
 
       strcpy(word, argv[t1]);
-      for (t2 = 0; t2 < 2; t2++) {
+      for (int t2 = 0; t2 < 2; t2++) {
         selector[t2] = word[t2];
       }
       selector[2] = '\0';
-      for (t2 = 0; t2 < 17; t2++) {
+      for (int t2 = 0; t2 < 17; t2++) {
         iparam[t2] = word[t2 + 2];
       }
       iparam[17] = '\0';
@@ -309,7 +305,7 @@ int main(int argc, char *argv[]) {
   getnk(kmax, nk);
   nkmax = nk[0];
   ksummary[0] = 0;
-  for (k1 = 1; k1 < kmax; k1++) {
+  for (int k1 = 1; k1 < kmax; k1++) {
     nkmax = max(nk[k1], nkmax);
     ksummary[k1] = 0;
   }
@@ -324,7 +320,7 @@ int main(int argc, char *argv[]) {
   Bmin = (double ****)malloc(kmax * sizeof(double ***));
   detB = (double **)malloc(kmax * sizeof(double *));
   sig = (double **)malloc(kmax * sizeof(double *));
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     nkk = nk[k1];
     lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     lambdamin[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
@@ -336,14 +332,14 @@ int main(int argc, char *argv[]) {
     Bmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
     detB[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     sig[k1] = (double *)malloc(nkk * sizeof(double));
-    for (l1 = 0; l1 < Lkmaxmax; l1++) {
+    for (int l1 = 0; l1 < Lkmaxmax; l1++) {
       mu[k1][l1] = (double *)malloc(nkk * sizeof(double));
       mumin[k1][l1] = (double *)malloc(nkk * sizeof(double));
       BBT[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       BBTmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       B[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       Bmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         BBT[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         BBTmin[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         B[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
@@ -375,7 +371,7 @@ int main(int argc, char *argv[]) {
       mode = 0;
       goto RWMSTART;
     }
-    for (k1 = 0; k1 < kmax; k1++) {
+    for (int k1 = 0; k1 < kmax; k1++) {
       if ((check = fscanf(fpmix, "%d", &j1)) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
         printf("\nContinuing using RWM to estimate parameters");
@@ -389,9 +385,9 @@ int main(int argc, char *argv[]) {
         goto RWMSTART;
       }
     }
-    for (k1 = 0; k1 < kmax; k1++) {
+    for (int k1 = 0; k1 < kmax; k1++) {
       nkk = nk[k1];
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         if ((check = fscanf(fpmix, "%lf", &(sig[k1][j1]))) == EOF) {
           printf("\nEnd of file encountered before parameters read:");
           printf("\nContinuing using RWM to estimate parameters");
@@ -406,14 +402,14 @@ int main(int argc, char *argv[]) {
         goto RWMSTART;
       }
       Lkk = Lk[k1];
-      for (l1 = 0; l1 < Lkk; l1++) {
+      for (int l1 = 0; l1 < Lkk; l1++) {
         if ((check = fscanf(fpmix, "%lf", &(lambda[k1][l1]))) == EOF) {
           printf("\nEnd of file encountered before parameters read:");
           printf("\nContinuing using RWM to estimate parameters");
           mode = 0;
           goto RWMSTART;
         }
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           if ((check = fscanf(fpmix, "%lf", &(mu[k1][l1][j1]))) == EOF) {
             printf("\nEnd of file encountered before parameters read:");
             printf("\nContinuing using RWM to estimate parameters");
@@ -421,8 +417,8 @@ int main(int argc, char *argv[]) {
             goto RWMSTART;
           }
         }
-        for (j1 = 0; j1 < nkk; j1++) {
-          for (j2 = 0; j2 <= j1; j2++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
+          for (int j2 = 0; j2 <= j1; j2++) {
             if ((check = fscanf(fpmix, "%lf", &(B[k1][l1][j1][j2]))) == EOF) {
               printf("\nEnd of file encountered before parameters read:");
               printf("\nContinuing using RWM to estimate parameters");
@@ -433,7 +429,7 @@ int main(int argc, char *argv[]) {
         }
       }
       sumlambda = 0.0;
-      for (l1 = 0; l1 < Lkk; l1++) {
+      for (int l1 = 0; l1 < Lkk; l1++) {
         sumlambda += lambda[k1][l1];
       }
       if (sumlambda < 0.99999 || sumlambda > 1.00001) {
@@ -443,7 +439,7 @@ int main(int argc, char *argv[]) {
         goto RWMSTART;
       }
       if (sumlambda < 1.0 || sumlambda > 1.0) {
-        for (l1 = 0; l1 < Lkk; l1++) {
+        for (int l1 = 0; l1 < Lkk; l1++) {
           lambda[k1][l1] /= sumlambda;
         }
       }
@@ -458,7 +454,7 @@ int main(int argc, char *argv[]) {
 
   RWMSTART:
 
-    for (k1 = 0; k1 < kmax; k1++) {
+    for (int k1 = 0; k1 < kmax; k1++) {
       /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
 
       nkk = nk[k1];
@@ -468,7 +464,7 @@ int main(int argc, char *argv[]) {
       nburn = nsweepr / 10;
       nsweepr += nburn;
       data = (double **)malloc(lendata * sizeof(double *));
-      for (i1 = 0; i1 < lendata; i1++) {
+      for (int i1 = 0; i1 < lendata; i1++) {
         data[i1] = (double *)malloc(nkk * sizeof(double));
       }
       rwm = (double *)malloc(nkk * sizeof(double));
@@ -484,7 +480,7 @@ int main(int argc, char *argv[]) {
       fprintf(fpad, "RWM for Model %d\n", k1 + 1);
       fflush(NULL);
       getic(k1, nkk, rwm);
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         rwmn[j1] = rwm[j1];
         sig[k1][j1] = 10.0;
         nacc[j1] = 0;
@@ -494,7 +490,7 @@ int main(int argc, char *argv[]) {
 
       i2 = 0;
       remain = nsweepr;
-      for (sweep = 1; sweep <= nsweepr; sweep++) {
+      for (int sweep = 1; sweep <= nsweepr; sweep++) {
         remain--;
         if ((sweep >= nburn) &&
             (fmod((sweep - nburn), ((nsweepr - nburn) / 10)) < tol)) {
@@ -508,12 +504,12 @@ int main(int argc, char *argv[]) {
           } else {
             gauss(Znkk, nkk);
           }
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             rwmn[j1] = rwm[j1] + sig[k1][j1] * Znkk[j1];
           }
           lpn = lpost(k1, nkk, rwmn, &llhn);
           if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
-            for (j1 = 0; j1 < nkk; j1++) {
+            for (int j1 = 0; j1 < nkk; j1++) {
               rwm[j1] = rwmn[j1];
             }
             lp = lpn;
@@ -521,10 +517,10 @@ int main(int argc, char *argv[]) {
           }
         } else {
           gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             rwmn[j1] = rwm[j1];
           }
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             if (dof > 0) {
               rt(Z, 1, dof);
             } else {
@@ -548,13 +544,13 @@ int main(int argc, char *argv[]) {
           }
         }
         if (remain < (10000 * nkk) && fmod(remain, 10.0) < 0.05) {
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             data[i2][j1] = rwm[j1];
           }
           i2++;
         }
         if (fmod(sweep, 100.0) < 0.05) {
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             fprintf(fpad, "%lf %lf ", sig[k1][j1],
                     (double)nacc[j1] / (double)ntry[j1]);
           }
@@ -583,7 +579,7 @@ int main(int argc, char *argv[]) {
           u = sdrand();
           init[l1] = (int)floor(lendata * u);
           if (l1 > 0) {
-            for (l2 = 0; l2 < l1; l2++) {
+            for (int l2 = 0; l2 < l1; l2++) {
               if (init[l2] == init[l1]) {
                 indic = 1;
                 break;
@@ -597,20 +593,20 @@ int main(int argc, char *argv[]) {
 
         datamean = (double *)malloc(nkk * sizeof(double));
         M1 = (double **)malloc(nkk * sizeof(double *));
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           M1[j1] = (double *)malloc(nkk * sizeof(double));
         }
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           datamean[j1] = 0.0;
-          for (i1 = 0; i1 < lendata; i1++) {
+          for (int i1 = 0; i1 < lendata; i1++) {
             datamean[j1] += data[i1][j1];
           }
           datamean[j1] /= ((double)lendata);
         }
-        for (j1 = 0; j1 < nkk; j1++) {
-          for (j2 = 0; j2 < nkk; j2++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
+          for (int j2 = 0; j2 < nkk; j2++) {
             M1[j1][j2] = 0;
-            for (i1 = 0; i1 < lendata; i1++) {
+            for (int i1 = 0; i1 < lendata; i1++) {
               M1[j1][j2] +=
                   (data[i1][j1] - datamean[j1]) * (data[i1][j2] - datamean[j2]);
             }
@@ -618,17 +614,17 @@ int main(int argc, char *argv[]) {
           }
         }
         sigma = 0.0;
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           sigma += M1[j1][j1];
         }
         sigma /= (10.0 * nkk);
 
-        for (l1 = 0; l1 < Lkk; l1++) {
-          for (j1 = 0; j1 < nkk; j1++) {
+        for (int l1 = 0; l1 < Lkk; l1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             mu[k1][l1][j1] = data[init[l1]][j1];
             BBT[k1][l1][j1][j1] = sigma;
             B[k1][l1][j1][j1] = BBT[k1][l1][j1][j1];
-            for (j2 = 0; j2 < j1; j2++) {
+            for (int j2 = 0; j2 < j1; j2++) {
               BBT[k1][l1][j1][j2] = 0.0;
               B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
             }
@@ -640,20 +636,20 @@ int main(int argc, char *argv[]) {
         w = (double **)malloc(lendata * sizeof(double *));
         logw = (double *)malloc(Lkk * sizeof(double));
         lpdatagivenl = (double **)malloc(lendata * sizeof(double *));
-        for (i1 = 0; i1 < lendata; i1++) {
+        for (int i1 = 0; i1 < lendata; i1++) {
           w[i1] = (double *)malloc(Lkk * sizeof(double));
           lpdatagivenl[i1] = (double *)malloc(Lkk * sizeof(double));
         }
 
-        for (i1 = 0; i1 < lendata; i1++) {
+        for (int i1 = 0; i1 < lendata; i1++) {
           sum = 0.0;
-          for (l1 = 0; l1 < Lkk; l1++) {
+          for (int l1 = 0; l1 < Lkk; l1++) {
             lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
             logw[l1] = log(lambda[k1][l1]) + lpdatagivenl[i1][l1];
             w[i1][l1] = exp(logw[l1]);
             sum += w[i1][l1];
           }
-          for (l1 = 0; l1 < Lkk; l1++) {
+          for (int l1 = 0; l1 < Lkk; l1++) {
             w[i1][l1] /= sum;
           }
         }
@@ -670,9 +666,9 @@ int main(int argc, char *argv[]) {
           forceann = 0;
           while (l1 < Lkk) {
             sumwnew = 0.0;
-            for (l2 = 0; l2 < Lkk; l2++) {
+            for (int l2 = 0; l2 < Lkk; l2++) {
               sumw[l2] = 0.0;
-              for (i1 = 0; i1 < lendata; i1++) {
+              for (int i1 = 0; i1 < lendata; i1++) {
                 sumw[l2] += w[i1][l2];
               }
               wnew = max(0.0, (sumw[l2] - nparams / 2.0));
@@ -683,25 +679,25 @@ int main(int argc, char *argv[]) {
             }
             lambda[k1][l1] = wnewl1 / sumwnew;
             sumlambda = 0.0;
-            for (l2 = 0; l2 < Lkk; l2++) {
+            for (int l2 = 0; l2 < Lkk; l2++) {
               sumlambda += lambda[k1][l2];
             }
-            for (l2 = 0; l2 < Lkk; l2++) {
+            for (int l2 = 0; l2 < Lkk; l2++) {
               lambda[k1][l2] /= sumlambda;
             }
 
             if (lambda[k1][l1] > 0.005) {
               /*changed to 0.005 from 0.0 -renormalise else */
-              for (j1 = 0; j1 < nkk; j1++) {
+              for (int j1 = 0; j1 < nkk; j1++) {
                 mu[k1][l1][j1] = 0.0;
-                for (i1 = 0; i1 < lendata; i1++) {
+                for (int i1 = 0; i1 < lendata; i1++) {
                   mu[k1][l1][j1] += data[i1][j1] * w[i1][l1];
                 }
                 mu[k1][l1][j1] /= sumw[l1];
 
-                for (j2 = 0; j2 <= j1; j2++) {
+                for (int j2 = 0; j2 <= j1; j2++) {
                   BBT[k1][l1][j1][j2] = 0.0;
-                  for (i1 = 0; i1 < lendata; i1++) {
+                  for (int i1 = 0; i1 < lendata; i1++) {
                     BBT[k1][l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
                                            (data[i1][j2] - mu[k1][l1][j2]) *
                                            w[i1][l1];
@@ -713,7 +709,7 @@ int main(int argc, char *argv[]) {
 
               chol(nkk, B[k1][l1]);
 
-              for (i1 = 0; i1 < lendata; i1++) {
+              for (int i1 = 0; i1 < lendata; i1++) {
                 lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
               }
               l1++;
@@ -725,46 +721,46 @@ int main(int argc, char *argv[]) {
               printf("%d(%d-n) ", Lkk, count);
               natann = 1;
               if (l1 < (Lkk - 1)) {
-                for (l2 = l1; l2 < (Lkk - 1); l2++) {
+                for (int l2 = l1; l2 < (Lkk - 1); l2++) {
                   lambda[k1][l2] = lambda[k1][l2 + 1];
-                  for (j1 = 0; j1 < nkk; j1++) {
+                  for (int j1 = 0; j1 < nkk; j1++) {
                     mu[k1][l2][j1] = mu[k1][l2 + 1][j1];
-                    for (j2 = 0; j2 <= j1; j2++) {
+                    for (int j2 = 0; j2 <= j1; j2++) {
                       BBT[k1][l2][j1][j2] = BBT[k1][l2 + 1][j1][j2];
                       B[k1][l2][j1][j2] = B[k1][l2 + 1][j1][j2];
                     }
                   }
-                  for (i1 = 0; i1 < lendata; i1++) {
+                  for (int i1 = 0; i1 < lendata; i1++) {
                     lpdatagivenl[i1][l2] = lpdatagivenl[i1][l2 + 1];
                   }
                 }
               }
               Lkk--;
               sumlambda = 0.0;
-              for (l2 = 0; l2 < Lkk; l2++) {
+              for (int l2 = 0; l2 < Lkk; l2++) {
                 sumlambda += lambda[k1][l2];
               }
-              for (l2 = 0; l2 < Lkk; l2++) {
+              for (int l2 = 0; l2 < Lkk; l2++) {
                 lambda[k1][l2] /= sumlambda;
               }
             }
 
             lpn = 0.0;
-            for (i1 = 0; i1 < lendata; i1++) {
+            for (int i1 = 0; i1 < lendata; i1++) {
               sum = 0.0;
-              for (l2 = 0; l2 < Lkk; l2++) {
+              for (int l2 = 0; l2 < Lkk; l2++) {
                 logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
                 w[i1][l2] = exp(logw[l2]);
                 sum += w[i1][l2];
               }
               if (sum > 0) {
-                for (l2 = 0; l2 < Lkk; l2++) {
+                for (int l2 = 0; l2 < Lkk; l2++) {
                   w[i1][l2] /= sum;
                 }
                 lpn += log(sum);
               } else {
                 /* if no component fits point well make equally likely */
-                for (l2 = 0; l2 < Lkk; l2++) {
+                for (int l2 = 0; l2 < Lkk; l2++) {
                   w[i1][l2] = 1.0 / Lkk;
                 }
                 lpn += (-500.0);
@@ -773,7 +769,7 @@ int main(int argc, char *argv[]) {
           }
 
           sum = 0.0;
-          for (l1 = 0; l1 < Lkk; l1++) {
+          for (int l1 = 0; l1 < Lkk; l1++) {
             sum += log(lendata * lambda[k1][l1] / 12.0);
           }
           costfnnew = (nparams / 2.0) * sum +
@@ -786,11 +782,11 @@ int main(int argc, char *argv[]) {
           if (count == 1 || costfnnew < costfnmin) {
             Lkkmin = Lkk;
             costfnmin = costfnnew;
-            for (l1 = 0; l1 < Lkk; l1++) {
+            for (int l1 = 0; l1 < Lkk; l1++) {
               lambdamin[k1][l1] = lambda[k1][l1];
-              for (j1 = 0; j1 < nkk; j1++) {
+              for (int j1 = 0; j1 < nkk; j1++) {
                 mumin[k1][l1][j1] = mu[k1][l1][j1];
-                for (j2 = 0; j2 <= j1; j2++) {
+                for (int j2 = 0; j2 <= j1; j2++) {
                   Bmin[k1][l1][j1][j2] = B[k1][l1][j1][j2];
                 }
               }
@@ -808,52 +804,52 @@ int main(int argc, char *argv[]) {
               forceann = 2;
               minlambda = lambda[k1][0];
               ldel = 0;
-              for (l1 = 1; l1 < Lkk; l1++) {
+              for (int l1 = 1; l1 < Lkk; l1++) {
                 if (minlambda > lambda[k1][l1]) {
                   minlambda = lambda[k1][l1];
                   ldel = l1;
                 }
               }
               if (ldel < (Lkk - 1)) {
-                for (l1 = ldel; l1 < (Lkk - 1); l1++) {
+                for (int l1 = ldel; l1 < (Lkk - 1); l1++) {
                   lambda[k1][l1] = lambda[k1][l1 + 1];
-                  for (j1 = 0; j1 < nkk; j1++) {
+                  for (int j1 = 0; j1 < nkk; j1++) {
                     mu[k1][l1][j1] = mu[k1][l1 + 1][j1];
-                    for (j2 = 0; j2 <= j1; j2++) {
+                    for (int j2 = 0; j2 <= j1; j2++) {
                       BBT[k1][l1][j1][j2] = BBT[k1][l1 + 1][j1][j2];
                       B[k1][l1][j1][j2] = B[k1][l1 + 1][j1][j2];
                     }
                   }
-                  for (i1 = 0; i1 < lendata; i1++) {
+                  for (int i1 = 0; i1 < lendata; i1++) {
                     lpdatagivenl[i1][l1] = lpdatagivenl[i1][l1 + 1];
                   }
                 }
               }
               Lkk--;
               sumlambda = 0.0;
-              for (l1 = 0; l1 < Lkk; l1++) {
+              for (int l1 = 0; l1 < Lkk; l1++) {
                 sumlambda += lambda[k1][l1];
               }
-              for (l1 = 0; l1 < Lkk; l1++) {
+              for (int l1 = 0; l1 < Lkk; l1++) {
                 lambda[k1][l1] /= sumlambda;
               }
 
               lpn = 0.0;
-              for (i1 = 0; i1 < lendata; i1++) {
+              for (int i1 = 0; i1 < lendata; i1++) {
                 sum = 0.0;
-                for (l2 = 0; l2 < Lkk; l2++) {
+                for (int l2 = 0; l2 < Lkk; l2++) {
                   logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
                   w[i1][l2] = exp(logw[l2]);
                   sum += w[i1][l2];
                 }
                 if (sum > 0) {
-                  for (l2 = 0; l2 < Lkk; l2++) {
+                  for (int l2 = 0; l2 < Lkk; l2++) {
                     w[i1][l2] /= sum;
                   }
                   lpn += log(sum);
                 } else {
                   /* if no component fits point well make equally likely */
-                  for (l2 = 0; l2 < Lkk; l2++) {
+                  for (int l2 = 0; l2 < Lkk; l2++) {
                     w[i1][l2] = 1.0 / Lkk;
                   }
                   lpn += (-500.0);
@@ -861,7 +857,7 @@ int main(int argc, char *argv[]) {
               }
 
               sum = 0.0;
-              for (l1 = 0; l1 < Lkk; l1++) {
+              for (int l1 = 0; l1 < Lkk; l1++) {
                 sum += log(lendata * lambda[k1][l1] / 12.0);
               }
               costfnnew = (nparams / 2.0) * sum +
@@ -878,12 +874,12 @@ int main(int argc, char *argv[]) {
           fflush(NULL);
         }
 
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           free(M1[j1]);
         }
         free(M1);
         free(datamean);
-        for (i1 = 0; i1 < lendata; i1++) {
+        for (int i1 = 0; i1 < lendata; i1++) {
           free(data[i1]);
           free(w[i1]);
           free(lpdatagivenl[i1]);
@@ -895,13 +891,13 @@ int main(int argc, char *argv[]) {
         free(sumw);
         free(init);
         Lk[k1] = Lkkmin;
-        for (l1 = 0; l1 < Lkkmin; l1++) {
+        for (int l1 = 0; l1 < Lkkmin; l1++) {
           lambda[k1][l1] = lambdamin[k1][l1];
-          for (j1 = 0; j1 < nkk; j1++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
             mu[k1][l1][j1] = mumin[k1][l1][j1];
           }
-          for (j1 = 0; j1 < nkk; j1++) {
-            for (j2 = 0; j2 <= j1; j2++) {
+          for (int j1 = 0; j1 < nkk; j1++) {
+            for (int j2 = 0; j2 <= j1; j2++) {
               B[k1][l1][j1][j2] = Bmin[k1][l1][j1][j2];
             }
           }
@@ -911,17 +907,17 @@ int main(int argc, char *argv[]) {
         /* Note only done if mode 2 (m=2).*/
         Lk[k1] = 1;
         lambda[k1][0] = 1.0;
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           mu[k1][0][j1] = 0.0;
-          for (i1 = 0; i1 < lendata; i1++) {
+          for (int i1 = 0; i1 < lendata; i1++) {
             mu[k1][0][j1] += data[i1][j1];
           }
           mu[k1][0][j1] /= ((double)lendata);
         }
-        for (j1 = 0; j1 < nkk; j1++) {
-          for (j2 = 0; j2 <= j1; j2++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
+          for (int j2 = 0; j2 <= j1; j2++) {
             B[k1][0][j1][j2] = 0.0;
-            for (i1 = 0; i1 < lendata; i1++) {
+            for (int i1 = 0; i1 < lendata; i1++) {
               B[k1][0][j1][j2] += (data[i1][j1] - mu[k1][0][j1]) *
                                   (data[i1][j2] - mu[k1][0][j2]);
             }
@@ -930,7 +926,7 @@ int main(int argc, char *argv[]) {
         }
         chol(nkk, B[k1][0]);
 
-        for (i1 = 0; i1 < lendata; i1++) {
+        for (int i1 = 0; i1 < lendata; i1++) {
           free(data[i1]);
         }
         free(data);
@@ -945,36 +941,36 @@ int main(int argc, char *argv[]) {
   strcat(fname1, "_mix.data");
   fpmix = fopen(fname1, "w");
   fprintf(fpmix, "%d\n", kmax);
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpmix, "%d\n", nk[k1]);
   }
 
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpl, "\nModel:%d\n", k1 + 1);
     Lkk = Lk[k1];
     nkk = nk[k1];
     fprintf(fpl, "\nARW params:\n");
-    for (j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < nkk; j1++) {
       fprintf(fpl, "%lf ", sig[k1][j1]);
     }
     fprintf(fpl, "\n");
     fprintf(fpl, "\nLkk:%d\n", Lkk);
-    for (j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < nkk; j1++) {
       fprintf(fpmix, "%lf\n", sig[k1][j1]);
     }
     fprintf(fpmix, "%d\n", Lkk);
-    for (l1 = 0; l1 < Lkk; l1++) {
+    for (int l1 = 0; l1 < Lkk; l1++) {
       fprintf(fpl, "\nComponent:%d\n", l1 + 1);
       fprintf(fpl, "lambda:%lf\n", lambda[k1][l1]);
       fprintf(fpmix, "%lf\n", lambda[k1][l1]);
       fprintf(fpl, "mu:\n");
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         fprintf(fpl, "%lf ", mu[k1][l1][j1]);
         fprintf(fpmix, "%lf\n", mu[k1][l1][j1]);
       }
       fprintf(fpl, "\nB:\n");
-      for (j1 = 0; j1 < nkk; j1++) {
-        for (j2 = 0; j2 <= j1; j2++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
+        for (int j2 = 0; j2 <= j1; j2++) {
           fprintf(fpl, "%lf ", B[k1][l1][j1][j2]);
           fprintf(fpmix, "%lf\n", B[k1][l1][j1][j2]);
         }
@@ -996,7 +992,7 @@ int main(int argc, char *argv[]) {
   strcat(fname1, ".data");
   fplp = fopen(fname1, "w");
 
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     sprintf(fname1, "%s", fname);
     sprintf(kno, "%d", k1 + 1);
     strcat(fname1, "_theta");
@@ -1016,7 +1012,7 @@ int main(int argc, char *argv[]) {
 
   constt = 100000.0;
   Lkmax = Lk[0];
-  for (k1 = 1; k1 < kmax; k1++) {
+  for (int k1 = 1; k1 < kmax; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
   k = (int)floor(kmax * sdrand());
@@ -1036,7 +1032,7 @@ int main(int argc, char *argv[]) {
 
   lp = lpost(k, nkk, theta, &llh);
 
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     pk[k1] = 1.0 / kmax;
     if (k1 == k) {
       propk[k1] = 1.0;
@@ -1058,7 +1054,7 @@ int main(int argc, char *argv[]) {
   xr = (double *)malloc(nkeep * sizeof(double));
 
   /* -----Start of main loop ----------------*/
-  for (sweep = 1; sweep <= (nburn + nsweep); sweep++) {
+  for (int sweep = 1; sweep <= (nburn + nsweep); sweep++) {
 
     /* --Section 8 - RWM within-model moves ---*/
 
@@ -1070,13 +1066,13 @@ int main(int argc, char *argv[]) {
       } else {
         gauss(Znkk, nkk);
       }
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
       }
       lpn = lpost(k, nkk, thetan, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         naccrwmb++;
-        for (j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < nkk; j1++) {
           theta[j1] = thetan[j1];
         }
         lp = lpn;
@@ -1084,10 +1080,10 @@ int main(int argc, char *argv[]) {
       }
     } else {
       /* else do component-wise RWM */
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         thetan[j1] = theta[j1];
       }
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         ntryrwms++;
         if (dof > 0) {
           rt(Z, 1, dof);
@@ -1114,23 +1110,23 @@ int main(int argc, char *argv[]) {
     ntrytd++;
     if (Lkk > 1) {
       sum = 0.0;
-      for (l1 = 0; l1 < Lkk; l1++) {
+      for (int l1 = 0; l1 < Lkk; l1++) {
         palloc[l1] = log(lambda[k][l1]) + lnormprob(k, nkk, l1, mu, B, theta);
         palloc[l1] = exp(palloc[l1]);
         sum += palloc[l1];
       }
       if (sum > 0) {
-        for (l1 = 0; l1 < Lkk; l1++) {
+        for (int l1 = 0; l1 < Lkk; l1++) {
           palloc[l1] /= sum;
         }
       } else {
-        for (l1 = 0; l1 < Lkk; l1++) {
+        for (int l1 = 0; l1 < Lkk; l1++) {
           palloc[l1] = 1.0 / Lkk;
         }
       }
       u = sdrand();
       thresh = 0.0;
-      for (l1 = 0; l1 < Lkk; l1++) {
+      for (int l1 = 0; l1 < Lkk; l1++) {
         thresh += palloc[l1];
         if (u < thresh) {
           l = l1;
@@ -1144,11 +1140,11 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.2 - Standardise state variable --------------- */
 
-    for (j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < nkk; j1++) {
       work[j1] = theta[j1] - mu[k][l][j1];
     }
-    for (j1 = 0; j1 < nkk; j1++) {
-      for (j2 = 0; j2 < j1; j2++) {
+    for (int j1 = 0; j1 < nkk; j1++) {
+      for (int j2 = 0; j2 < j1; j2++) {
         work[j1] = work[j1] - B[k][l][j1][j2] * work[j2];
       }
       work[j1] = work[j1] / B[k][l][j1][j1];
@@ -1163,7 +1159,7 @@ int main(int argc, char *argv[]) {
       gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
       u = sdrand();
       thresh = 0.0;
-      for (k1 = 0; k1 < kmax; k1++) {
+      for (int k1 = 0; k1 < kmax; k1++) {
         thresh += pk[k1];
         if (u < thresh) {
           kn = k1;
@@ -1178,7 +1174,7 @@ int main(int argc, char *argv[]) {
 
     u = sdrand();
     thresh = 0.0;
-    for (l1 = 0; l1 < Lkkn; l1++) {
+    for (int l1 = 0; l1 < Lkkn; l1++) {
       thresh += lambda[kn][l1];
       if (u < thresh) {
         ln = l1;
@@ -1191,12 +1187,12 @@ int main(int argc, char *argv[]) {
     if (nkk < nkkn) {
       if (dof > 0) {
         rt(&(work[nkk]), nkkn - nkk, dof);
-        for (j1 = nkk; j1 < nkkn; j1++) {
+        for (int j1 = nkk; j1 < nkkn; j1++) {
           logratio -= ltprob(dof, work[j1], &constt);
         }
       } else {
         gauss(&(work[nkk]), nkkn - nkk);
-        for (j1 = nkk; j1 < nkkn; j1++) {
+        for (int j1 = nkk; j1 < nkkn; j1++) {
           logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
         }
       }
@@ -1212,19 +1208,19 @@ int main(int argc, char *argv[]) {
         perm(work, nkk);
       }
       if (dof > 0) {
-        for (j1 = nkkn; j1 < nkk; j1++) {
+        for (int j1 = nkkn; j1 < nkk; j1++) {
           logratio += ltprob(dof, work[j1], &constt);
         }
       } else {
-        for (j1 = nkkn; j1 < nkk; j1++) {
+        for (int j1 = nkkn; j1 < nkk; j1++) {
           logratio -= (0.5 * pow(work[j1], 2.0) + logrtpi);
         }
       }
     }
 
-    for (j1 = 0; j1 < nkkn; j1++) {
+    for (int j1 = 0; j1 < nkkn; j1++) {
       thetan[j1] = mu[kn][ln][j1];
-      for (j2 = 0; j2 <= j1; j2++) {
+      for (int j2 = 0; j2 <= j1; j2++) {
         thetan[j1] += B[kn][ln][j1][j2] * work[j2];
       }
     }
@@ -1234,18 +1230,18 @@ int main(int argc, char *argv[]) {
 
     if (Lkkn > 1) {
       sum = 0.0;
-      for (l1 = 0; l1 < Lkkn; l1++) {
+      for (int l1 = 0; l1 < Lkkn; l1++) {
         pallocn[l1] =
             log(lambda[kn][l1]) + lnormprob(kn, nkkn, l1, mu, B, thetan);
         pallocn[l1] = exp(pallocn[l1]);
         sum += pallocn[l1];
       }
       if (sum > 0) {
-        for (l1 = 0; l1 < Lkkn; l1++) {
+        for (int l1 = 0; l1 < Lkkn; l1++) {
           pallocn[l1] /= sum;
         }
       } else {
-        for (l1 = 0; l1 < Lkkn; l1++) {
+        for (int l1 = 0; l1 < Lkkn; l1++) {
           pallocn[l1] = 1.0 / Lkkn;
         }
       }
@@ -1263,7 +1259,7 @@ int main(int argc, char *argv[]) {
     logratio += (log(detB[kn][ln]) - log(detB[k][l]));
 
     if (sdrand() < exp(max(-30.0, min(0.0, logratio)))) {
-      for (j1 = 0; j1 < nkkn; j1++) {
+      for (int j1 = 0; j1 < nkkn; j1++) {
         theta[j1] = thetan[j1];
       }
       lp = lpn;
@@ -1276,7 +1272,7 @@ int main(int argc, char *argv[]) {
 
     if (adapt == 1) {
       if (sweep > nburn) {
-        for (k1 = 0; k1 < kmax; k1++) {
+        for (int k1 = 0; k1 < kmax; k1++) {
           if (k1 == k) {
             propk[k1] = 1.0;
           } else {
@@ -1284,7 +1280,7 @@ int main(int argc, char *argv[]) {
           }
           pk[k1] += (gamma * (propk[k1] - pk[k1]));
         }
-        for (k1 = 0; k1 < kmax; k1++) {
+        for (int k1 = 0; k1 < kmax; k1++) {
           if (pk[k1] < pkllim) {
             reinit = 1;
           }
@@ -1293,7 +1289,7 @@ int main(int argc, char *argv[]) {
           reinit = 0;
           nreinit++;
           pkllim = 1.0 / (10.0 * nreinit);
-          for (k1 = 0; k1 < kmax; k1++) {
+          for (int k1 = 0; k1 < kmax; k1++) {
             pk[k1] = 1.0 / kmax;
           }
         }
@@ -1309,11 +1305,11 @@ int main(int argc, char *argv[]) {
 
       fprintf(fpk, "%d\n", k + 1);
       fprintf(fplp, "%lf %lf\n", lp, llh);
-      for (k1 = 0; k1 < kmax; k1++) {
+      for (int k1 = 0; k1 < kmax; k1++) {
         fprintf(fpp, "%lf ", pk[k1]);
       }
       fprintf(fpp, "\n");
-      for (j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < nkk; j1++) {
         fprintf(fpt[k], "%lf ", theta[j1]);
       }
       fprintf(fpt[k], "\n");
@@ -1348,12 +1344,12 @@ int main(int argc, char *argv[]) {
   fprintf(fpl, "\nAutocorrelation Time:\n");
   fprintf(fpl, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal, var,
           tau);
-  for (i1 = 0; i1 < m; i1++) {
+  for (int i1 = 0; i1 < m; i1++) {
     fprintf(fpac, "%lf\n", xr[i1]);
   }
 
   fprintf(fpl, "\nPosterior Model Probabilities:\n");
-  for (k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpl, "Model %d: %lf\n", k1 + 1,
             (double)ksummary[k1] / (double)nsweep);
   }
@@ -1363,8 +1359,8 @@ int main(int argc, char *argv[]) {
   fprintf(fpl, "Single RWM: %lf\n", (double)naccrwms / (double)ntryrwms);
   fprintf(fpl, "Auto RJ: %lf\n", (double)nacctd / (double)ntrytd);
 
-  endtime = clock();
-  timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
+  clock_t endtime = clock();
+  double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
   fprintf(fpl, "\nRun time:\n");
   fprintf(fpl, "Time: %lf\n", timesecs);
 
@@ -1376,11 +1372,11 @@ void gauss(double *z, int n) {
   /* Uses Box mueller method to simulate n N(0,1) variables and stores them
      in z */
 
-  int i, n1;
+  int n1;
   double u, v;
 
   n1 = n - 1;
-  for (i = 0; i < n1; i += 2) {
+  for (int i = 0; i < n1; i += 2) {
     u = sqrt(-2.0 * log(sdrand()));
     v = tpi * sdrand();
     z[i] = u * sin(v);
@@ -1403,12 +1399,9 @@ void rt(double *z, int n, int dof) {
      Chi-squared rvs simulated by rgamma function that simulates random gamma
      variables (see gammafns file for details)*/
 
-  int j1;
-  double s;
-
   gauss(z, n);
-  s = 0.5 * dof;
-  for (j1 = 0; j1 < n; j1++) {
+  double s = 0.5 * dof;
+  for (int j1 = 0; j1 < n; j1++) {
     z[j1] /= sqrt(rgamma(s) / s);
   }
   return;
@@ -1419,19 +1412,16 @@ void chol(int nkk, double **A) {
   /* Performs cholesky decompositon of A and returns result in the
      same matrix - adapted from PJG Fortran function*/
 
-  int j1, j2, j3;
-  double sum;
-
-  for (j1 = 0; j1 < nkk; j1++) {
-    sum = A[j1][j1];
-    for (j2 = 0; j2 < j1; j2++) {
+  for (int j1 = 0; j1 < nkk; j1++) {
+    double sum = A[j1][j1];
+    for (int j2 = 0; j2 < j1; j2++) {
       sum -= pow(A[j1][j2], 2);
     }
     A[j1][j1] = sqrt(sum);
 
-    for (j2 = j1 + 1; j2 < nkk; j2++) {
+    for (int j2 = j1 + 1; j2 < nkk; j2++) {
       sum = A[j2][j1];
-      for (j3 = 0; j3 < j1; j3++) {
+      for (int j3 = 0; j3 < j1; j3++) {
         sum -= A[j2][j3] * A[j1][j3];
       }
       A[j2][j1] = sum / A[j1][j1];
@@ -1442,13 +1432,11 @@ void chol(int nkk, double **A) {
 void perm(double *work, int nkk) {
 
   /* Randomly permutes the nkk-vector work */
-  int j1, j2;
-  double temp;
 
-  for (j1 = 0; j1 < (nkk - 1); j1++) {
-    j2 = j1 + (int)((nkk - j1) * sdrand());
+  for (int j1 = 0; j1 < (nkk - 1); j1++) {
+    int j2 = j1 + (int)((nkk - j1) * sdrand());
     if (j2 != j1) {
-      temp = work[j2];
+      double temp = work[j2];
       work[j2] = work[j1];
       work[j1] = temp;
     }
@@ -1480,21 +1468,20 @@ double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
      sqrt of cov matrices (for all models and all component)
      are supplied in mu and B */
 
-  int j1, j2;
   double work[nkk];
   double out;
 
-  for (j1 = 0; j1 < nkk; j1++) {
+  for (int j1 = 0; j1 < nkk; j1++) {
     work[j1] = datai[j1] - mu[k][l][j1];
   }
-  for (j1 = 0; j1 < nkk; j1++) {
-    for (j2 = 0; j2 < j1; j2++) {
+  for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j2 = 0; j2 < j1; j2++) {
       (work[j1]) -= B[k][l][j1][j2] * work[j2];
     }
     (work[j1]) /= B[k][l][j1][j1];
   }
   out = 0.0;
-  for (j1 = 0; j1 < nkk; j1++) {
+  for (int j1 = 0; j1 < nkk; j1++) {
     out += (work[j1] * work[j1]);
   }
   out = -0.5 * out - (nkk / 2.0) * log(tpi) - log(det(k, nkk, l, B));
@@ -1505,10 +1492,8 @@ double det(int k, int nkk, int l, double ****B) {
 
   /* Evaluates the determinant of a matrix in B corresponding to model k,
      component l. */
-  int j1;
-  double out;
-  out = 1.0;
-  for (j1 = 0; j1 < nkk; j1++) {
+  double out = 1.0;
+  for (int j1 = 0; j1 < nkk; j1++) {
     out *= B[k][l][j1][j1];
   }
   return out;
