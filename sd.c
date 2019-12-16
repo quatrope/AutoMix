@@ -7,75 +7,75 @@
  */
 
 /* Compilation flags:
-   -DSUBR sdrand is used as a subroutine sdrand(u) 
+   -DSUBR sdrand is used as a subroutine sdrand(u)
           instead of a function u = sdrand()
    -DSUNF generate Sun Fortran compatible entry names
           (with trailing _ symbol)
    -DDOUB sdrand or its argument are double precision
    -DBSD  solves problem with Sun Fortran, pre-Solaris versions
           (i.e. BSD), with single precision function option.
-	  Do not use this option for Solaris.
+          Do not use this option for Solaris.
    -DRETS returns effective seed in argument to sdrni;
           if used, it is essential to use a variable, not
           a constant, in calling sdrni.
    -DLOG  prints seed value in file "rnilog".
 
    Examples:
-	cc -c -o sd.o -DSUNF -DRETS sd.c
+        cc -c -o sd.o -DSUNF -DRETS sd.c
    (single precision Sun Fortran function, returning seed value from sdrni)
 
-	cc -c -o sdc.o sd.c
+        cc -c -o sdc.o sd.c
    (single precision C function)
 */
 
-#include<stdio.h>
+#include <stdio.h>
 
 #ifdef SUNF
 #ifndef DOUB
-#include<math.h>
+#include <math.h>
 #endif
 #endif
 
 static unsigned long JC, JT;
-static double Norm=4.656612873E-10;
+static double Norm = 4.656612873E-10;
 
 #ifdef SUNF
 #ifdef SUBR
-  void sdrand_(u)
+void sdrand_(u)
 #else
 #ifdef DOUB
-  double sdrand_()
+double sdrand_()
 #else
 #ifdef BSD
-  FLOATFUNCTIONTYPE sdrand_()
+FLOATFUNCTIONTYPE sdrand_()
 #else
-  float sdrand_()
+float sdrand_()
 #endif
 #endif
 #endif
 #else
 #ifdef SUBR
-  void sdrand(u)
+void sdrand(u)
 #else
 #ifdef DOUB
-  double sdrand()
+double sdrand()
 #else
-  float sdrand()
+float sdrand()
 #endif
 #endif
 #endif
 
 #ifdef SUBR
 #ifdef DOUB
-  double *u;
+    double *u;
 #else
-  float *u;
+    float *u;
 #endif
 #endif
 
 {
-  JC = (JC * 69069) & 037777777777;	/* congruential part */
-  JT ^= JT >> 15;	/* tausworthe part */
+  JC = (JC * 69069) & 037777777777; /* congruential part */
+  JT ^= JT >> 15;                   /* tausworthe part */
   JT ^= (JT << 17) & 037777777777;
 
 #ifdef SUBR
@@ -86,72 +86,78 @@ static double Norm=4.656612873E-10;
 #endif
 #else
 #ifdef DOUB
-  return(((JT ^ JC) >> 1) * Norm);
+  return (((JT ^ JC) >> 1) * Norm);
 #else
 #ifdef SUNF
 #ifdef BSD
   RETURNFLOAT((float)((JT ^ JC) >> 1) * Norm);
 #else
-  return((float)((JT ^ JC) >> 1) * Norm);
+  return ((float)((JT ^ JC) >> 1) * Norm);
 #endif
 #else
-  return((float)((JT ^ JC) >> 1) * Norm);
+  return ((float)((JT ^ JC) >> 1) * Norm);
 #endif
 #endif
 #endif
-
 }
 
 #ifdef SUNF
-  void sdrni_(i)
+void sdrni_(i)
 #else
-  void sdrni(i)
+void sdrni(i)
 #endif
 
-unsigned long *i;
+    unsigned long *i;
 {
 #ifdef LOG
-	FILE *stream;
+  FILE *stream;
 #endif
-	unsigned long k=*i;
-	if(k==0) k=time(0);
-	JT = k/65536; JC = k-65536*JT;
-	JT = 65536*JT+1; JC = 32768*JC+1;
+  unsigned long k = *i;
+  if (k == 0)
+    k = time(0);
+  JT = k / 65536;
+  JC = k - 65536 * JT;
+  JT = 65536 * JT + 1;
+  JC = 32768 * JC + 1;
 #ifdef LOG
-	stream = fopen("rnilog","a+");
-	fprintf(stream,"%12d\n",k);
-	fclose(stream);
+  stream = fopen("rnilog", "a+");
+  fprintf(stream, "%12d\n", k);
+  fclose(stream);
 #endif
 #ifdef RETS
-	*i = k;
+  *i = k;
 #endif
 }
 
 #ifdef SUNF
-  void sdpseed_()
+void sdpseed_()
 #else
-  void sdpseed()
+void sdpseed()
 #endif
 {
-printf("%d %d \n",JC,JT);
+  printf("%d %d \n", JC, JT);
 }
 
 #ifdef SUNF
-  void sdset_(i,j)
+void sdset_(i, j)
 #else
-  void sdset(i,j)
+void sdset(i, j)
 #endif
-unsigned long *i,*j;
+    unsigned long *i,
+    *j;
 {
-JC = *i; JT = *j;
+  JC = *i;
+  JT = *j;
 }
 
 #ifdef SUNF
-  void sdget_(i,j)
+void sdget_(i, j)
 #else
-  void sdget(i,j)
+void sdget(i, j)
 #endif
-unsigned long *i,*j;
+    unsigned long *i,
+    *j;
 {
-*i = JC; *j = JT;
+  *i = JC;
+  *j = JT;
 }
