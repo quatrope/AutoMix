@@ -86,12 +86,11 @@ int main(int argc, char *argv[]) {
   int i2, j1, k1, l1, remain;
 
   /* ---counting variables ------------------- */
-  int nsweep, count, nsweep2, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms,
-      ntrytd;
+  int count, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms, ntrytd;
   int nburn, nsokal, nkeep, keep, nsweepr;
 
   /* ---command line reading parameters ------ */
-  int numargs, sametest;
+  int sametest;
   char word[20], selector[3], iparam[18];
 
   /* ---filename variables ------------------- */
@@ -101,12 +100,7 @@ int main(int argc, char *argv[]) {
   char fname[18], fname1[18], kno[6];
 
   /* ---random no. variables ----------------- */
-  unsigned long seed;
   double u, constt;
-  int dof;
-
-  /* ---logical variables -------------------- */
-  int doperm;
 
   /* ---State parameters and variables ------- */
   int k, kmax, nkk, nkkn, nkmax, lendata;
@@ -132,7 +126,7 @@ int main(int argc, char *argv[]) {
   double lpn = 0.0;
 
   /* ---working arrays and variables --------- */
-  int indic, stop, natann, forceann, mode;
+  int indic, stop, natann, forceann;
   double sum, sigma, wnew, *sumw, sumwnew, sumlambda, thresh;
   double wnewl1 = 0.0;
 
@@ -141,7 +135,7 @@ int main(int argc, char *argv[]) {
   int m;
 
   /* ---adaptation parameters ---------------- */
-  int adapt, reinit, nreinit;
+  int reinit, nreinit;
   double pkllim;
 
   /* --- Section 2 - Read in Comand Line Variables ----------------- */
@@ -165,15 +159,15 @@ int main(int argc, char *argv[]) {
 
   /* Default values */
 
-  nsweep = 100000;
-  nsweep2 = 100000;
-  numargs = argc - 1;
+  int nsweep = 100000;
+  int nsweep2 = 100000;
+  int numargs = argc - 1;
   strcpy(fname, "output");
-  doperm = 1;
-  seed = 0;
-  mode = 0;
-  adapt = 1;
-  dof = 0;
+  int doperm = 1;
+  unsigned long seed = 0;
+  int mode = 0;
+  int adapt = 1;
+  int dof = 0;
 
   /* Override defaults if user supplies command line options */
 
