@@ -8,3 +8,7 @@ script:
   - make all
   - ./amtoy1
   - ./amtoy2
+  - make clean
+  - make alldebug
+  - ./amtoy1d
+  - ./amtoy2d

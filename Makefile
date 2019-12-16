@@ -48,7 +48,8 @@ LIB=-lm
 
 ###### Type "make all" to make all files in the folder #####
 
-all: amtoy1 amtoy2 amcpt amcptrs amrb9 amddi amtoy1d amtoy2d amcptd amcptrsd amrb9d amddid
+all: amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
+alldebug: amtoy1d amtoy2d amcptd amcptrsd amrb9d amddid
 
 ###### Normal (already debugged) progs ############
 
@@ -115,7 +116,7 @@ userrb9.o: userrb9.c
 # DDI clinical trial problem
 userddi.o: userddi.c
 	$(CC) $(DEPFLAGS) userddi.c
- 
+
 ###### Progs to be debugged ############
 
 # Toy example 1
@@ -149,53 +150,45 @@ amddid: automix.c ddidata.h userddid.o gammafnsd.o sdd.o sokald.o
 
 # Calculates loggamma function
 gammafnsd.o: gammafns.c
-	cp gammafns.c gammafnsd.c 
-	$(CC) $(DEPFLAGSD) gammafnsd.c
+	$(CC) $(DEPFLAGSD) gammafns.c -o gammafnsd.o
 
 # Random number generator
 sdd.o: sd.c
-	cp sd.c sdd.c
-	$(CC) $(DEPFLAGSD) sdd.c -DDOUB -DRETS
+	$(CC) $(DEPFLAGSD) sd.c -DDOUB -DRETS -o sdd.o
 
 # Calculates autocorrelation using Sokal's method (Green and Han,92)
 sokald.o: sokal.c
-	cp sokal.c sokald.c
-	$(CC) $(DEPFLAGSD) sokald.c
+	$(CC) $(DEPFLAGSD) sokal.c -o sokald.o
 
 ### User supplied functions (to be debugged)
 
 # Toy example 1
 usertoy1d.o: usertoy1.c
-	cp usertoy1.c usertoy1d.c
-	$(CC) $(DEPFLAGSD) usertoy1d.c
+	$(CC) $(DEPFLAGSD) usertoy1.c -o usertoy1d.o
 
 # Toy example 2
 usertoy2d.o: usertoy2.c
-	cp usertoy2.c usertoy2d.c
-	$(CC) $(DEPFLAGSD) usertoy2d.c
+	$(CC) $(DEPFLAGSD) usertoy2.c -o usertoy2d.o
 
 # Change point problem
 usercptd.o: usercpt.c
-	cp usercpt.c usercptd.c
-	$(CC) $(DEPFLAGSD) usercptd.c
+	$(CC) $(DEPFLAGSD) usercpt.c -o usercptd.o
 
 # Rescaled change point problem
 usercptrsd.o: usercptrs.c
-	cp usercptrs.c usercptrsd.c
-	$(CC) $(DEPFLAGSD) usercptrsd.c
+	$(CC) $(DEPFLAGSD) usercptrs.c -o usercptrsd.o
 
 # Rb9 problem
 userrb9d.o: userrb9.c
-	cp userrb9.c userrb9d.c
-	$(CC) $(DEPFLAGSD) userrb9d.c
+	$(CC) $(DEPFLAGSD) userrb9.c -o userrb9d.o
 
 # DDI clinical trial problem
 userddid.o: userddi.c
-	cp userddi.c userddid.c
-	$(CC) $(DEPFLAGSD) userddid.c
+	$(CC) $(DEPFLAGSD) userddi.c -o userddid.o
 
 ###### Type "make clean" to remove all executables and object files ####
 
 clean:
-	rm *.o
-	rm am*
+	- rm *.o
+	- rm -r *.dSYM
+	- rm am*
