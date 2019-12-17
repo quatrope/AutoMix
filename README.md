@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/martinberoiz/automixagain2.svg?branch=master)](https://travis-ci.org/martinberoiz/automixagain2)
+[![Build Status](https://travis-ci.org/martinberoiz/automixagain.svg?branch=master)](https://travis-ci.org/martinberoiz/automixagain)
 ![Style Format](https://img.shields.io/badge/style-clang--format-success)
 
 # AutoMix
