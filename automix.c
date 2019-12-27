@@ -91,12 +91,6 @@ int main(int argc, char *argv[]) {
   int count, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms, ntrytd;
   int nburn, nsokal, nkeep, keep, nsweepr;
 
-  /* ---filename variables ------------------- */
-  int check;
-  FILE *fpk, *fpl, *fpt[kmaxmax], *fpcf, *fplp, *fpp, *fpac, *fpad;
-  FILE *fpmix = NULL;
-  char fname1[18], kno[6];
-
   /* ---random no. variables ----------------- */
   double u, constt;
 
@@ -212,18 +206,17 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 3 - Initial File handling ---------------------  */
   unsigned long fname_len = strlen(fname);
-  char *datafname = (char *)malloc((fname_len + 30) * sizeof(*datafname));
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_log.data", fname);
-  fpl = fopen(datafname, "w");
+  FILE *fpl = fopen(datafname, "w");
   sprintf(datafname, "%s_pk.data", fname);
-  fpp = fopen(datafname, "w");
+  FILE *fpp = fopen(datafname, "w");
   sprintf(datafname, "%s_ac.data", fname);
-  fpac = fopen(datafname, "w");
+  FILE *fpac = fopen(datafname, "w");
   sprintf(datafname, "%s_adapt.data", fname);
-  fpad = fopen(datafname, "w");
+  FILE *fpad = fopen(datafname, "w");
   sprintf(datafname, "%s_cf.data", fname);
-  fpcf = fopen(datafname, "w");
-  free(datafname);
+  FILE *fpcf = fopen(datafname, "w");
 
   /* Print user options to log file */
 
@@ -237,10 +230,11 @@ int main(int argc, char *argv[]) {
   /* Check user has supplied mixture parameters if trying to use mode 1.
      If not default back to mode 0 */
 
+  FILE *fpmix = NULL;
   if (mode == 1) {
-    sprintf(fname1, "%s", fname);
-    strcat(fname1, "_mix.data");
-    if ((fpmix = fopen(fname1, "r")) == NULL) {
+    sprintf(datafname, "%s_mix.data", fname);
+    fpmix = fopen(datafname, "r");
+    if (fpmix == NULL) {
       printf("\nMixture file doesn't exist:");
       printf("\nContinuing using RWM to estimate parameters");
       mode = 0;
@@ -319,7 +313,7 @@ int main(int argc, char *argv[]) {
     printf("\nInvalid mode entered. Mode must be 0,1,2");
     return -100;
   } else if (mode == 1) {
-    if ((check = fscanf(fpmix, "%d", &k1)) == EOF) {
+    if (fscanf(fpmix, "%d", &k1) == EOF) {
       printf("\nEnd of file encountered before parameters read:");
       printf("\nContinuing using RWM to estimate parameters");
       mode = 0;
@@ -332,7 +326,7 @@ int main(int argc, char *argv[]) {
       goto RWMSTART;
     }
     for (int k1 = 0; k1 < kmax; k1++) {
-      if ((check = fscanf(fpmix, "%d", &j1)) == EOF) {
+      if (fscanf(fpmix, "%d", &j1) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
         printf("\nContinuing using RWM to estimate parameters");
         mode = 0;
@@ -348,14 +342,14 @@ int main(int argc, char *argv[]) {
     for (int k1 = 0; k1 < kmax; k1++) {
       nkk = nk[k1];
       for (int j1 = 0; j1 < nkk; j1++) {
-        if ((check = fscanf(fpmix, "%lf", &(sig[k1][j1]))) == EOF) {
+        if (fscanf(fpmix, "%lf", &(sig[k1][j1])) == EOF) {
           printf("\nEnd of file encountered before parameters read:");
           printf("\nContinuing using RWM to estimate parameters");
           mode = 0;
           goto RWMSTART;
         }
       }
-      if ((check = fscanf(fpmix, "%d", &(Lk[k1]))) == EOF) {
+      if (fscanf(fpmix, "%d", &(Lk[k1])) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
         printf("\nContinuing using RWM to estimate parameters");
         mode = 0;
@@ -363,14 +357,14 @@ int main(int argc, char *argv[]) {
       }
       Lkk = Lk[k1];
       for (int l1 = 0; l1 < Lkk; l1++) {
-        if ((check = fscanf(fpmix, "%lf", &(lambda[k1][l1]))) == EOF) {
+        if (fscanf(fpmix, "%lf", &(lambda[k1][l1])) == EOF) {
           printf("\nEnd of file encountered before parameters read:");
           printf("\nContinuing using RWM to estimate parameters");
           mode = 0;
           goto RWMSTART;
         }
         for (int j1 = 0; j1 < nkk; j1++) {
-          if ((check = fscanf(fpmix, "%lf", &(mu[k1][l1][j1]))) == EOF) {
+          if (fscanf(fpmix, "%lf", &(mu[k1][l1][j1])) == EOF) {
             printf("\nEnd of file encountered before parameters read:");
             printf("\nContinuing using RWM to estimate parameters");
             mode = 0;
@@ -379,7 +373,7 @@ int main(int argc, char *argv[]) {
         }
         for (int j1 = 0; j1 < nkk; j1++) {
           for (int j2 = 0; j2 <= j1; j2++) {
-            if ((check = fscanf(fpmix, "%lf", &(B[k1][l1][j1][j2]))) == EOF) {
+            if (fscanf(fpmix, "%lf", &(B[k1][l1][j1][j2])) == EOF) {
               printf("\nEnd of file encountered before parameters read:");
               printf("\nContinuing using RWM to estimate parameters");
               mode = 0;
@@ -897,9 +891,8 @@ int main(int argc, char *argv[]) {
   /* Print mixture parameters to file (log and mix files) for reference
      and use in future runs. */
 
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_mix.data");
-  fpmix = fopen(fname1, "w");
+  sprintf(datafname, "%s_mix.data", fname);
+  fpmix = fopen(datafname, "w");
   fprintf(fpmix, "%d\n", kmax);
   for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpmix, "%d\n", nk[k1]);
@@ -943,23 +936,17 @@ int main(int argc, char *argv[]) {
 
   /* --Section 6 - Secondary file handling -------------*/
 
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_k");
-  strcat(fname1, ".data");
-  fpk = fopen(fname1, "w");
-  sprintf(fname1, "%s", fname);
-  strcat(fname1, "_lp");
-  strcat(fname1, ".data");
-  fplp = fopen(fname1, "w");
+  sprintf(datafname, "%s_k.data", fname);
+  FILE *fpk = fopen(datafname, "w");
+  sprintf(datafname, "%s_lp.data", fname);
+  FILE *fplp = fopen(datafname, "w");
 
+  FILE *fpt[kmaxmax];
   for (int k1 = 0; k1 < kmax; k1++) {
-    sprintf(fname1, "%s", fname);
-    sprintf(kno, "%d", k1 + 1);
-    strcat(fname1, "_theta");
-    strcat(fname1, kno);
-    strcat(fname1, ".data");
-    fpt[k1] = fopen(fname1, "w");
+    sprintf(datafname, "%s_theta%d.data", fname, k1 + 1);
+    fpt[k1] = fopen(datafname, "w");
   }
+  free(datafname);
 
   /* --Section 7 - Final initialisation of variables ----*/
 
