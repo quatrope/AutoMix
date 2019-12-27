@@ -90,8 +90,7 @@ int main(int argc, char *argv[]) {
   int i2, l1, remain;
 
   /* ---counting variables ------------------- */
-  int count, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms, ntrytd;
-  int nburn, nsokal, nkeep, keep, nsweepr;
+  int count, nburn, nsokal, nkeep, keep, nsweepr;
 
   /* ---random no. variables ----------------- */
   double u, constt;
@@ -350,11 +349,7 @@ int main(int argc, char *argv[]) {
         }
         u = sdrand();
         if (sweep > nburn && u < 0.1) {
-          if (dof > 0) {
-            rt(Znkk, nkk, dof);
-          } else {
-            gauss(Znkk, nkk);
-          }
+          rt(Znkk, nkk, dof);
           for (int j1 = 0; j1 < nkk; j1++) {
             rwmn[j1] = rwm[j1] + sig[k1][j1] * Znkk[j1];
           }
@@ -372,11 +367,7 @@ int main(int argc, char *argv[]) {
             rwmn[j1] = rwm[j1];
           }
           for (int j1 = 0; j1 < nkk; j1++) {
-            if (dof > 0) {
-              rt(Z, 1, dof);
-            } else {
-              gauss(Z, 1);
-            }
+            rt(Z, 1, dof);
             rwmn[j1] = rwm[j1] + sig[k1][j1] * Z[0];
             lpn = lpost(k1, nkk, rwmn, &llhn);
             accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
@@ -847,12 +838,12 @@ int main(int argc, char *argv[]) {
 
   /* --Section 7 - Final initialisation of variables ----*/
 
-  naccrwmb = 0;
-  ntryrwmb = 0;
-  naccrwms = 0;
-  ntryrwms = 0;
-  nacctd = 0;
-  ntrytd = 0;
+  int naccrwmb = 0;
+  int ntryrwmb = 0;
+  int naccrwms = 0;
+  int ntryrwms = 0;
+  int nacctd = 0;
+  int ntrytd = 0;
 
   constt = 100000.0;
   Lkmax = Lk[0];
@@ -905,11 +896,7 @@ int main(int argc, char *argv[]) {
     /* Every 10 sweeps to block RWM */
     if (fmod(sweep, 10) < 0.05) {
       ntryrwmb++;
-      if (dof > 0) {
-        rt(Znkk, nkk, dof);
-      } else {
-        gauss(Znkk, nkk);
-      }
+      rt(Znkk, nkk, dof);
       for (int j1 = 0; j1 < nkk; j1++) {
         thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
       }
@@ -929,11 +916,7 @@ int main(int argc, char *argv[]) {
       }
       for (int j1 = 0; j1 < nkk; j1++) {
         ntryrwms++;
-        if (dof > 0) {
-          rt(Z, 1, dof);
-        } else {
-          gauss(Z, 1);
-        }
+        rt(Z, 1, dof);
         thetan[j1] = theta[j1] + sig[k][j1] * Z[0];
         lpn = lpost(k, nkk, thetan, &llhn);
         if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
@@ -1029,13 +1012,12 @@ int main(int argc, char *argv[]) {
     /* --Section 9.4 Propose new state ----------------*/
 
     if (nkk < nkkn) {
+      rt(&(work[nkk]), nkkn - nkk, dof);
       if (dof > 0) {
-        rt(&(work[nkk]), nkkn - nkk, dof);
         for (int j1 = nkk; j1 < nkkn; j1++) {
           logratio -= ltprob(dof, work[j1], &constt);
         }
       } else {
-        gauss(&(work[nkk]), nkkn - nkk);
         for (int j1 = nkk; j1 < nkkn; j1++) {
           logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
         }
@@ -1241,12 +1223,17 @@ void rt(double *z, int n, int dof) {
   /* Simulates n random t variable with dof degrees of freedom
      by simulating standard normals and chi-squared random variables.
      Chi-squared rvs simulated by rgamma function that simulates random gamma
-     variables (see gammafns file for details)*/
+     variables (see gammafns file for details).
+     If dof is 0 return n gaussian random variables instead.
+   */
 
   gauss(z, n);
-  double s = 0.5 * dof;
-  for (int j1 = 0; j1 < n; j1++) {
-    z[j1] /= sqrt(rgamma(s) / s);
+  if (dof > 0) {
+    double s = 0.5 * dof;
+    double denom = sqrt(rgamma(s) / s);
+    for (int j1 = 0; j1 < n; j1++) {
+      z[j1] /= denom;
+    }
   }
   return;
 }
