@@ -76,6 +76,8 @@ double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
 
 double det(int k, int nkk, int l, double ****B);
 
+int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
+                        double **lambda, double ***mu, double ****B);
 void usage(char *invocation);
 
 /* ---main program-------------------------- */
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
   /*---Section 1 Declare Variables -------------------------*/
 
   /* ---indexing variables ------------------- */
-  int i2, j1, k1, l1, remain;
+  int i2, l1, remain;
 
   /* ---counting variables ------------------- */
   int count, naccrwmb, naccrwms, nacctd, ntryrwmb, ntryrwms, ntrytd;
@@ -227,20 +229,6 @@ int main(int argc, char *argv[]) {
   fprintf(fpl, "n: %d\n", nsweep2);
   fprintf(fpl, "N: %d\n", nsweep);
 
-  /* Check user has supplied mixture parameters if trying to use mode 1.
-     If not default back to mode 0 */
-
-  FILE *fpmix = NULL;
-  if (mode == 1) {
-    sprintf(datafname, "%s_mix.data", fname);
-    fpmix = fopen(datafname, "r");
-    if (fpmix == NULL) {
-      printf("\nMixture file doesn't exist:");
-      printf("\nContinuing using RWM to estimate parameters");
-      mode = 0;
-    }
-  }
-
   /* --- Section 4.0 - Read in key variables from user functions -*/
 
   getkmax(&kmax);
@@ -309,105 +297,14 @@ int main(int argc, char *argv[]) {
      the user supplied functions or unavailable go straight to section 5.2
      where initial within-model RWM are performed */
 
-  if (mode > 2) {
-    printf("\nInvalid mode entered. Mode must be 0,1,2");
-    return -100;
-  } else if (mode == 1) {
-    if (fscanf(fpmix, "%d", &k1) == EOF) {
-      printf("\nEnd of file encountered before parameters read:");
-      printf("\nContinuing using RWM to estimate parameters");
+  if (mode == 1) {
+    int ok = read_mixture_params(fname, kmax, nk, sig, Lk, lambda, mu, B);
+    if (ok == EXIT_FAILURE) {
       mode = 0;
-      goto RWMSTART;
     }
-    if (k1 != kmax) {
-      printf("\nFile kmax contradicts getkmax function:");
-      printf("\nContinuing using RWM to estimate parameters");
-      mode = 0;
-      goto RWMSTART;
-    }
-    for (int k1 = 0; k1 < kmax; k1++) {
-      if (fscanf(fpmix, "%d", &j1) == EOF) {
-        printf("\nEnd of file encountered before parameters read:");
-        printf("\nContinuing using RWM to estimate parameters");
-        mode = 0;
-        goto RWMSTART;
-      }
-      if (j1 != nk[k1]) {
-        printf("\nFile kmax contradicts getnk function:");
-        printf("\nContinuing using RWM to estimate parameters");
-        mode = 0;
-        goto RWMSTART;
-      }
-    }
-    for (int k1 = 0; k1 < kmax; k1++) {
-      nkk = nk[k1];
-      for (int j1 = 0; j1 < nkk; j1++) {
-        if (fscanf(fpmix, "%lf", &(sig[k1][j1])) == EOF) {
-          printf("\nEnd of file encountered before parameters read:");
-          printf("\nContinuing using RWM to estimate parameters");
-          mode = 0;
-          goto RWMSTART;
-        }
-      }
-      if (fscanf(fpmix, "%d", &(Lk[k1])) == EOF) {
-        printf("\nEnd of file encountered before parameters read:");
-        printf("\nContinuing using RWM to estimate parameters");
-        mode = 0;
-        goto RWMSTART;
-      }
-      Lkk = Lk[k1];
-      for (int l1 = 0; l1 < Lkk; l1++) {
-        if (fscanf(fpmix, "%lf", &(lambda[k1][l1])) == EOF) {
-          printf("\nEnd of file encountered before parameters read:");
-          printf("\nContinuing using RWM to estimate parameters");
-          mode = 0;
-          goto RWMSTART;
-        }
-        for (int j1 = 0; j1 < nkk; j1++) {
-          if (fscanf(fpmix, "%lf", &(mu[k1][l1][j1])) == EOF) {
-            printf("\nEnd of file encountered before parameters read:");
-            printf("\nContinuing using RWM to estimate parameters");
-            mode = 0;
-            goto RWMSTART;
-          }
-        }
-        for (int j1 = 0; j1 < nkk; j1++) {
-          for (int j2 = 0; j2 <= j1; j2++) {
-            if (fscanf(fpmix, "%lf", &(B[k1][l1][j1][j2])) == EOF) {
-              printf("\nEnd of file encountered before parameters read:");
-              printf("\nContinuing using RWM to estimate parameters");
-              mode = 0;
-              goto RWMSTART;
-            }
-          }
-        }
-      }
-      sumlambda = 0.0;
-      for (int l1 = 0; l1 < Lkk; l1++) {
-        sumlambda += lambda[k1][l1];
-      }
-      if (sumlambda < 0.99999 || sumlambda > 1.00001) {
-        printf("\nComponents weights read do not sum to one for k=%d:", k1);
-        printf("\nContinuing using RWM to estimate parameters");
-        mode = 0;
-        goto RWMSTART;
-      }
-      if (sumlambda < 1.0 || sumlambda > 1.0) {
-        for (int l1 = 0; l1 < Lkk; l1++) {
-          lambda[k1][l1] /= sumlambda;
-        }
-      }
-    }
-    if (!(fpmix == NULL)) {
-      fclose(fpmix);
-    }
-
   } else if (mode == 0 || mode == 2) {
 
     /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
-
-  RWMSTART:
-
     for (int k1 = 0; k1 < kmax; k1++) {
       /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
 
@@ -892,7 +789,7 @@ int main(int argc, char *argv[]) {
      and use in future runs. */
 
   sprintf(datafname, "%s_mix.data", fname);
-  fpmix = fopen(datafname, "w");
+  FILE *fpmix = fopen(datafname, "w");
   fprintf(fpmix, "%d\n", kmax);
   for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpmix, "%d\n", nk[k1]);
@@ -1444,6 +1341,101 @@ double det(int k, int nkk, int l, double ****B) {
     out *= B[k][l][j1][j1];
   }
   return out;
+}
+
+int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
+                        double **lambda, double ***mu, double ****B) {
+  /* Check user has supplied mixture parameters if trying to use mode 1.
+     If not default back to mode 0 */
+  char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
+  sprintf(datafname, "%s_mix.data", fname);
+  FILE *fpmix = fopen(datafname, "r");
+  free(datafname);
+  if (fpmix == NULL) {
+    printf("\nProblem opening mixture file:");
+    printf("\nContinuing using RWM to estimate parameters");
+    return EXIT_FAILURE;
+  }
+  int k1;
+  if (fscanf(fpmix, "%d", &k1) == EOF) {
+    printf("\nEnd of file encountered before parameters read:");
+    printf("\nContinuing using RWM to estimate parameters");
+    return EXIT_FAILURE;
+  }
+  if (k1 != kmax) {
+    printf("\nFile kmax contradicts getkmax function:");
+    printf("\nContinuing using RWM to estimate parameters");
+    return EXIT_FAILURE;
+  }
+  for (int k = 0; k < kmax; k++) {
+    int nkk;
+    if (fscanf(fpmix, "%d", &nkk) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      printf("\nContinuing using RWM to estimate parameters");
+      return EXIT_FAILURE;
+    }
+    if (nkk != nk[k]) {
+      printf("\nFile kmax contradicts getnk function:");
+      printf("\nContinuing using RWM to estimate parameters");
+      return EXIT_FAILURE;
+    }
+  }
+  for (int k = 0; k < kmax; k++) {
+    int nkk = nk[k];
+    for (int l = 0; l < nkk; l++) {
+      if (fscanf(fpmix, "%lf", &(sig[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        printf("\nContinuing using RWM to estimate parameters");
+        return EXIT_FAILURE;
+      }
+    }
+    if (fscanf(fpmix, "%d", &(Lk[k])) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      printf("\nContinuing using RWM to estimate parameters");
+      return EXIT_FAILURE;
+    }
+    int Lkk = Lk[k];
+    for (int l = 0; l < Lkk; l++) {
+      if (fscanf(fpmix, "%lf", &(lambda[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        printf("\nContinuing using RWM to estimate parameters");
+        return EXIT_FAILURE;
+      }
+      for (int i = 0; i < nkk; i++) {
+        if (fscanf(fpmix, "%lf", &(mu[k][l][i])) == EOF) {
+          printf("\nEnd of file encountered before parameters read:");
+          printf("\nContinuing using RWM to estimate parameters");
+          return EXIT_FAILURE;
+        }
+      }
+      for (int i = 0; i < nkk; i++) {
+        for (int j = 0; j <= i; j++) {
+          if (fscanf(fpmix, "%lf", &(B[k][l][i][j])) == EOF) {
+            printf("\nEnd of file encountered before parameters read:");
+            printf("\nContinuing using RWM to estimate parameters");
+            return EXIT_FAILURE;
+          }
+        }
+      }
+    }
+    double sumlambda = 0.0;
+    for (int l = 0; l < Lkk; l++) {
+      sumlambda += lambda[k][l];
+    }
+    double sumlambda_tol = 1E-5;
+    if (fabs(sumlambda - 1.0) > sumlambda_tol) {
+      printf("\nComponents weights read do not sum to one for k=%d:", k);
+      printf("\nContinuing using RWM to estimate parameters");
+      return EXIT_FAILURE;
+    }
+    if (sumlambda != 1.0) {
+      for (int l = 0; l < Lkk; l++) {
+        lambda[k][l] /= sumlambda;
+      }
+    }
+  }
+  fclose(fpmix);
+  return EXIT_SUCCESS;
 }
 
 void usage(char *invocation) {
