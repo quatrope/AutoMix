@@ -80,6 +80,9 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
                         double **lambda, double ***mu, double ****B);
 void usage(char *invocation);
 
+void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
+                      FILE *fpad, double **sig, int dof, double **data);
+
 /* ---main program-------------------------- */
 
 int main(int argc, char *argv[]) {
@@ -87,20 +90,20 @@ int main(int argc, char *argv[]) {
   /*---Section 1 Declare Variables -------------------------*/
 
   /* ---indexing variables ------------------- */
-  int i2, l1, remain;
+  int l1;
 
   /* ---counting variables ------------------- */
-  int count, nburn, nsokal, nkeep, keep, nsweepr;
+  int count, nburn, nsokal, nkeep, keep;
 
   /* ---random no. variables ----------------- */
   double u, constt;
 
   /* ---State parameters and variables ------- */
-  int k, kmax, nkk, nkkn, nkmax, lendata;
+  int k, kmax, nkk, nkkn, nkmax;
   int kn = 0;
 
   /* ---Mixture parameters --------------------*/
-  int Lkk, Lkkn, nparams, ldel, Lkmax;
+  int Lkk, Lkkn, ldel, Lkmax;
   int l = 0;
   int ln = 0;
   int Lkkmin = 0;
@@ -111,7 +114,6 @@ int main(int argc, char *argv[]) {
 
   /* ---RWM parameters ------------------------*/
   double Z[1];
-  double accept, alphastar = 0.25;
   double gamma = 0.0;
 
   /* ---Probabilities ------------------------ */
@@ -305,106 +307,15 @@ int main(int argc, char *argv[]) {
 
     /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
     for (int k1 = 0; k1 < kmax; k1++) {
-      /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
-
-      nkk = nk[k1];
-      nparams = nkk + (nkk * (nkk + 1)) / 2;
-      lendata = 1000 * nkk;
-      nsweepr = max(nsweep2, 10000 * nkk);
-      nburn = nsweepr / 10;
-      nsweepr += nburn;
+      int nkk = nk[k1];
+      int lendata = 1000 * nkk;
       double **data = (double **)malloc(lendata * sizeof(double *));
-      for (int i1 = 0; i1 < lendata; i1++) {
-        data[i1] = (double *)malloc(nkk * sizeof(double));
+      for (int i = 0; i < lendata; i++) {
+        data[i] = (double *)malloc(nkk * sizeof(double));
       }
-      double *rwm = (double *)malloc(nkk * sizeof(double));
-      double *rwmn = (double *)malloc(nkk * sizeof(double));
-      int *nacc = (int *)malloc(nkk * sizeof(int));
-      int *ntry = (int *)malloc(nkk * sizeof(int));
-      double *Znkk = (double *)malloc(nkk * sizeof(double));
-      int *init = (int *)malloc(nkk * sizeof(int));
-
-      printf("\nRWM for Model %d", k1 + 1);
-      fprintf(fpl, "\nRWM for Model %d", k1 + 1);
-      fprintf(fpcf, "RWM for Model %d\n", k1 + 1);
-      fprintf(fpad, "RWM for Model %d\n", k1 + 1);
-      fflush(NULL);
-      getic(k1, nkk, rwm);
-      for (int j1 = 0; j1 < nkk; j1++) {
-        rwmn[j1] = rwm[j1];
-        sig[k1][j1] = 10.0;
-        nacc[j1] = 0;
-        ntry[j1] = 0;
-      }
-      lp = lpost(k1, nkk, rwm, &llh);
-
-      i2 = 0;
-      remain = nsweepr;
-      for (int sweep = 1; sweep <= nsweepr; sweep++) {
-        remain--;
-        if ((sweep >= nburn) &&
-            (fmod((sweep - nburn), ((nsweepr - nburn) / 10)) < tol)) {
-          printf("\nNo. of iterations remaining: %d", remain);
-          fflush(NULL);
-        }
-        u = sdrand();
-        if (sweep > nburn && u < 0.1) {
-          rt(Znkk, nkk, dof);
-          for (int j1 = 0; j1 < nkk; j1++) {
-            rwmn[j1] = rwm[j1] + sig[k1][j1] * Znkk[j1];
-          }
-          lpn = lpost(k1, nkk, rwmn, &llhn);
-          if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
-            for (int j1 = 0; j1 < nkk; j1++) {
-              rwm[j1] = rwmn[j1];
-            }
-            lp = lpn;
-            llh = llhn;
-          }
-        } else {
-          gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
-          for (int j1 = 0; j1 < nkk; j1++) {
-            rwmn[j1] = rwm[j1];
-          }
-          for (int j1 = 0; j1 < nkk; j1++) {
-            rt(Z, 1, dof);
-            rwmn[j1] = rwm[j1] + sig[k1][j1] * Z[0];
-            lpn = lpost(k1, nkk, rwmn, &llhn);
-            accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
-            if (sdrand() < accept) {
-              (nacc[j1])++;
-              (ntry[j1])++;
-              rwm[j1] = rwmn[j1];
-              lp = lpn;
-              llh = llhn;
-              sig[k1][j1] = max(0, sig[k1][j1] - gamma * (alphastar - 1));
-            } else {
-              (ntry[j1])++;
-              rwmn[j1] = rwm[j1];
-              sig[k1][j1] = max(0, sig[k1][j1] - gamma * (alphastar));
-            }
-          }
-        }
-        if (remain < (10000 * nkk) && fmod(remain, 10.0) < 0.05) {
-          for (int j1 = 0; j1 < nkk; j1++) {
-            data[i2][j1] = rwm[j1];
-          }
-          i2++;
-        }
-        if (fmod(sweep, 100.0) < 0.05) {
-          for (int j1 = 0; j1 < nkk; j1++) {
-            fprintf(fpad, "%lf %lf ", sig[k1][j1],
-                    (double)nacc[j1] / (double)ntry[j1]);
-          }
-          fprintf(fpad, "\n");
-        }
-      }
-      free(init);
-      free(rwm);
-      free(rwmn);
-      free(nacc);
-      free(ntry);
-      free(Znkk);
+      int nparams = nkk + (nkk * (nkk + 1)) / 2;
+      /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
+      rwn_within_model(k1, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
 
       /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
       /* Note only done if mode 0 (m=0) if mode m=2, go to section 5.2.3*/
@@ -412,6 +323,7 @@ int main(int argc, char *argv[]) {
          Figueiredo and Jain, 2002 (see thesis for full reference) */
 
       printf("\nMixture Fitting: Model %d", k1 + 1);
+      int *init;
       if (mode == 0) {
         Lkk = Lkmaxmax;
         init = (int *)malloc(Lkk * sizeof(int));
@@ -1423,6 +1335,104 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
   }
   fclose(fpmix);
   return EXIT_SUCCESS;
+}
+
+void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
+                      FILE *fpad, double **sig, int dof, double **data) {
+  int nkk = nk[k1];
+  int nsweepr = max(nsweep2, 10000 * nkk);
+  int nburn = nsweepr / 10;
+  double alphastar = 0.25;
+  nsweepr += nburn;
+  double *rwm = (double *)malloc(nkk * sizeof(double));
+  double *rwmn = (double *)malloc(nkk * sizeof(double));
+  int *nacc = (int *)malloc(nkk * sizeof(int));
+  int *ntry = (int *)malloc(nkk * sizeof(int));
+  double *Znkk = (double *)malloc(nkk * sizeof(double));
+
+  printf("\nRWM for Model %d", k1 + 1);
+  fprintf(fpl, "\nRWM for Model %d", k1 + 1);
+  fprintf(fpcf, "RWM for Model %d\n", k1 + 1);
+  fprintf(fpad, "RWM for Model %d\n", k1 + 1);
+  fflush(NULL);
+  getic(k1, nkk, rwm);
+  for (int j1 = 0; j1 < nkk; j1++) {
+    rwmn[j1] = rwm[j1];
+    sig[k1][j1] = 10.0;
+    nacc[j1] = 0;
+    ntry[j1] = 0;
+  }
+  double llh, llhn, lpn;
+  double lp = lpost(k1, nkk, rwm, &llh);
+
+  int i2 = 0;
+  int remain = nsweepr;
+  double tol = 1E-5;
+  for (int sweep = 1; sweep <= nsweepr; sweep++) {
+    remain--;
+    if ((sweep >= nburn) &&
+        (fmod((sweep - nburn), ((nsweepr - nburn) / 10)) < tol)) {
+      printf("\nNo. of iterations remaining: %d", remain);
+      fflush(NULL);
+    }
+    double u = sdrand();
+    if (sweep > nburn && u < 0.1) {
+      rt(Znkk, nkk, dof);
+      for (int i = 0; i < nkk; i++) {
+        rwmn[i] = rwm[i] + sig[k1][i] * Znkk[i];
+      }
+      lpn = lpost(k1, nkk, rwmn, &llhn);
+      if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
+        for (int i = 0; i < nkk; i++) {
+          rwm[i] = rwmn[i];
+        }
+        lp = lpn;
+        llh = llhn;
+      }
+    } else {
+      double gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
+      for (int i = 0; i < nkk; i++) {
+        rwmn[i] = rwm[i];
+      }
+      for (int i = 0; i < nkk; i++) {
+        double Z;
+        rt(&Z, 1, dof);
+        rwmn[i] = rwm[i] + sig[k1][i] * Z;
+        lpn = lpost(k1, nkk, rwmn, &llhn);
+        double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
+        if (sdrand() < accept) {
+          (nacc[i])++;
+          (ntry[i])++;
+          rwm[i] = rwmn[i];
+          lp = lpn;
+          llh = llhn;
+          sig[k1][i] = max(0, sig[k1][i] - gamma * (alphastar - 1));
+        } else {
+          (ntry[i])++;
+          rwmn[i] = rwm[i];
+          sig[k1][i] = max(0, sig[k1][i] - gamma * (alphastar));
+        }
+      }
+    }
+    if (remain < (10000 * nkk) && fmod(remain, 10.0) < 0.05) {
+      for (int i = 0; i < nkk; i++) {
+        data[i2][i] = rwm[i];
+      }
+      i2++;
+    }
+    if (fmod(sweep, 100.0) < 0.05) {
+      for (int i = 0; i < nkk; i++) {
+        fprintf(fpad, "%lf %lf ", sig[k1][i],
+                (double)nacc[i] / (double)ntry[i]);
+      }
+      fprintf(fpad, "\n");
+    }
+  }
+  free(rwm);
+  free(rwmn);
+  free(nacc);
+  free(ntry);
+  free(Znkk);
 }
 
 void usage(char *invocation) {
