@@ -103,17 +103,15 @@ int main(int argc, char *argv[]) {
   double u, constt;
 
   /* ---State parameters and variables ------- */
-  int k, kmax, nkk, nkkn, nkmax;
+  int kmax, nkk, nkkn, nkmax;
   int kn = 0;
 
   /* ---Mixture parameters --------------------*/
   int Lkk, Lkkn, Lkmax;
-  int l = 0;
   int ln = 0;
   double tol = 0.00001;
 
   /* ---RWM parameters ------------------------*/
-  double Z[1];
   double gamma = 0.0;
 
   /* ---Probabilities ------------------------ */
@@ -393,7 +391,7 @@ int main(int argc, char *argv[]) {
   for (int k1 = 1; k1 < kmax; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
-  k = (int)floor(kmax * sdrand());
+  int k = (int)floor(kmax * sdrand());
   nkk = nk[k];
   Lkk = Lk[k];
 
@@ -437,7 +435,7 @@ int main(int argc, char *argv[]) {
     /* --Section 8 - RWM within-model moves ---*/
 
     /* Every 10 sweeps to block RWM */
-    if (fmod(sweep, 10) < 0.05) {
+    if (sweep % 10 == 0) {
       ntryrwmb++;
       rt(Znkk, nkk, dof);
       for (int j1 = 0; j1 < nkk; j1++) {
@@ -446,21 +444,18 @@ int main(int argc, char *argv[]) {
       lpn = lpost(k, nkk, thetan, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         naccrwmb++;
-        for (int j1 = 0; j1 < nkk; j1++) {
-          theta[j1] = thetan[j1];
-        }
+        memcpy(theta, thetan, nkk * sizeof(*thetan));
         lp = lpn;
         llh = llhn;
       }
     } else {
       /* else do component-wise RWM */
+      memcpy(thetan, theta, nkk * sizeof(*thetan));
       for (int j1 = 0; j1 < nkk; j1++) {
-        thetan[j1] = theta[j1];
-      }
-      for (int j1 = 0; j1 < nkk; j1++) {
+        double Z;
         ntryrwms++;
-        rt(Z, 1, dof);
-        thetan[j1] = theta[j1] + sig[k][j1] * Z[0];
+        rt(&Z, 1, dof);
+        thetan[j1] = theta[j1] + sig[k][j1] * Z;
         lpn = lpost(k, nkk, thetan, &llhn);
         if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
           naccrwms++;
@@ -476,31 +471,30 @@ int main(int argc, char *argv[]) {
     /* --- Section 9 Reversible Jump Moves -------------------*/
 
     /* --Section 9.1 - Allocate current position to a component --*/
-
+    int l = 0;
     ntrytd++;
     if (Lkk > 1) {
-      sum = 0.0;
-      for (int l1 = 0; l1 < Lkk; l1++) {
-        palloc[l1] =
-            log(lambda[k][l1]) + lnormprob(nkk, l1, mu[k], B[k], theta);
-        palloc[l1] = exp(palloc[l1]);
-        sum += palloc[l1];
+      double sum = 0.0;
+      for (int i = 0; i < Lkk; i++) {
+        palloc[i] = log(lambda[k][i]) + lnormprob(nkk, i, mu[k], B[k], theta);
+        palloc[i] = exp(palloc[i]);
+        sum += palloc[i];
       }
       if (sum > 0) {
-        for (int l1 = 0; l1 < Lkk; l1++) {
-          palloc[l1] /= sum;
+        for (int i = 0; i < Lkk; i++) {
+          palloc[i] /= sum;
         }
       } else {
-        for (int l1 = 0; l1 < Lkk; l1++) {
-          palloc[l1] = 1.0 / Lkk;
+        for (int i = 0; i < Lkk; i++) {
+          palloc[i] = 1.0 / Lkk;
         }
       }
       u = sdrand();
       thresh = 0.0;
-      for (int l1 = 0; l1 < Lkk; l1++) {
-        thresh += palloc[l1];
+      for (int i = 0; i < Lkk; i++) {
+        thresh += palloc[i];
         if (u < thresh) {
-          l = l1;
+          l = i;
           break;
         }
       }
@@ -511,14 +505,14 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.2 - Standardise state variable --------------- */
 
-    for (int j1 = 0; j1 < nkk; j1++) {
-      work[j1] = theta[j1] - mu[k][l][j1];
+    for (int i = 0; i < nkk; i++) {
+      work[i] = theta[i] - mu[k][l][i];
     }
-    for (int j1 = 0; j1 < nkk; j1++) {
-      for (int j2 = 0; j2 < j1; j2++) {
-        work[j1] = work[j1] - B[k][l][j1][j2] * work[j2];
+    for (int i = 0; i < nkk; i++) {
+      for (int j = 0; j < i; j++) {
+        work[i] = work[i] - B[k][l][i][j] * work[j];
       }
-      work[j1] = work[j1] / B[k][l][j1][j1];
+      work[i] = work[i] / B[k][l][i][i];
     }
 
     /* --Section 9.3 - Choose proposed new model and component ----*/
@@ -558,8 +552,8 @@ int main(int argc, char *argv[]) {
     if (nkk < nkkn) {
       rt(&(work[nkk]), nkkn - nkk, dof);
       if (dof > 0) {
-        for (int j1 = nkk; j1 < nkkn; j1++) {
-          logratio -= ltprob(dof, work[j1], &constt);
+        for (int i = nkk; i < nkkn; i++) {
+          logratio -= ltprob(dof, work[i], &constt);
         }
       } else {
         for (int j1 = nkk; j1 < nkkn; j1++) {
@@ -1398,14 +1392,21 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
     fflush(NULL);
   }
 
-  for (int j1 = 0; j1 < nkk; j1++) {
-    free(M1[j1]);
+  for (int i = 0; i < Lkmaxmax; i++) {
+    for (int j = 0; j < nkk; j++) {
+      free(BBT[i][j]);
+    }
+    free(BBT[i]);
+  }
+  free(BBT);
+  for (int i = 0; i < nkk; i++) {
+    free(M1[i]);
   }
   free(M1);
   free(datamean);
-  for (int i1 = 0; i1 < lendata; i1++) {
-    free(w[i1]);
-    free(lpdatagivenl[i1]);
+  for (int i = 0; i < lendata; i++) {
+    free(w[i]);
+    free(lpdatagivenl[i]);
   }
   free(w);
   free(lpdatagivenl);
@@ -1413,17 +1414,29 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   free(sumw);
   free(init);
   Lk[model_k] = Lkkmin;
-  for (int l1 = 0; l1 < Lkkmin; l1++) {
-    lambda_k[l1] = lambdamin[l1];
-    for (int j1 = 0; j1 < nkk; j1++) {
-      mu_k[l1][j1] = mumin[l1][j1];
+  for (int i = 0; i < Lkkmin; i++) {
+    lambda_k[i] = lambdamin[i];
+    for (int j = 0; j < nkk; j++) {
+      mu_k[i][j] = mumin[i][j];
     }
-    for (int j1 = 0; j1 < nkk; j1++) {
-      for (int j2 = 0; j2 <= j1; j2++) {
-        B_k[l1][j1][j2] = Bmin[l1][j1][j2];
+    for (int j = 0; j < nkk; j++) {
+      for (int l = 0; l <= j; l++) {
+        B_k[i][j][l] = Bmin[i][j][l];
       }
     }
   }
+  for (int i = 0; i < Lkmaxmax; i++) {
+    for (int j = 0; j < nkk; j++) {
+      free(Bmin[i][j]);
+    }
+    free(Bmin[i]);
+  }
+  free(Bmin);
+  for (int i = 0; i < Lkmaxmax; i++) {
+    free(mumin[i]);
+  }
+  free(mumin);
+  free(lambdamin);
 }
 
 void fit_autorj(int model_k, double *lambda_k, int *Lk, int *nk, double **mu_k,
