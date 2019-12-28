@@ -69,7 +69,7 @@ void chol(int nkk, double **B);
 
 void perm(double *work, int nkk);
 
-double ltprob(int dof, double z, double *constt);
+double ltprob(int dof, double z);
 
 double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai);
 
@@ -93,43 +93,6 @@ void usage(char *invocation);
 /* ---main program-------------------------- */
 
 int main(int argc, char *argv[]) {
-
-  /*---Section 1 Declare Variables -------------------------*/
-
-  /* ---counting variables ------------------- */
-  int nburn, nsokal, nkeep, keep;
-
-  /* ---random no. variables ----------------- */
-  double u, constt;
-
-  /* ---State parameters and variables ------- */
-  int kmax, nkk, nkkn, nkmax;
-  int kn = 0;
-
-  /* ---Mixture parameters --------------------*/
-  int Lkk, Lkkn, Lkmax;
-  int ln = 0;
-  double tol = 0.00001;
-
-  /* ---RWM parameters ------------------------*/
-  double gamma = 0.0;
-
-  /* ---Probabilities ------------------------ */
-  double lp, logratio, llh, llhn;
-  double lpn = 0.0;
-
-  /* ---working arrays and variables --------- */
-  double sum, thresh;
-
-  /* ---autocorrelation variables ------------ */
-  double var, tau;
-  int m;
-
-  /* ---adaptation parameters ---------------- */
-  int reinit, nreinit;
-  double pkllim;
-
-  /* --- Section 2 - Read in Comand Line Variables ----------------- */
 
   clock_t starttime = clock();
 
@@ -200,7 +163,6 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   }
-
   sdrni(&seed);
 
   /* --- Section 3 - Initial File handling ---------------------  */
@@ -228,6 +190,7 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 4.0 - Read in key variables from user functions -*/
 
+  int kmax;
   getkmax(&kmax);
   if (kmax > kmaxmax) {
     printf("\nError:kmax too large \n");
@@ -239,15 +202,9 @@ int main(int argc, char *argv[]) {
 
   int *nk = (int *)malloc(kmax * sizeof(int));
   int *Lk = (int *)malloc(kmax * sizeof(int));
-  int *ksummary = (int *)malloc(kmax * sizeof(int));
+  int *ksummary = (int *)calloc(kmax, sizeof(int));
 
   getnk(kmax, nk);
-  nkmax = nk[0];
-  ksummary[0] = 0;
-  for (int k1 = 1; k1 < kmax; k1++) {
-    nkmax = max(nk[k1], nkmax);
-    ksummary[k1] = 0;
-  }
 
   double **lambda = (double **)malloc(kmax * sizeof(double *));
   double ***mu = (double ***)malloc(kmax * sizeof(double **));
@@ -255,7 +212,7 @@ int main(int argc, char *argv[]) {
   double **detB = (double **)malloc(kmax * sizeof(double *));
   double **sig = (double **)malloc(kmax * sizeof(double *));
   for (int k1 = 0; k1 < kmax; k1++) {
-    nkk = nk[k1];
+    int nkk = nk[k1];
     lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
     B[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
@@ -329,8 +286,8 @@ int main(int argc, char *argv[]) {
 
   for (int k1 = 0; k1 < kmax; k1++) {
     fprintf(fpl, "\nModel:%d\n", k1 + 1);
-    Lkk = Lk[k1];
-    nkk = nk[k1];
+    int Lkk = Lk[k1];
+    int nkk = nk[k1];
     fprintf(fpl, "\nARW params:\n");
     for (int j1 = 0; j1 < nkk; j1++) {
       fprintf(fpl, "%lf ", sig[k1][j1]);
@@ -386,15 +343,18 @@ int main(int argc, char *argv[]) {
   int nacctd = 0;
   int ntrytd = 0;
 
-  constt = 100000.0;
-  Lkmax = Lk[0];
+  int Lkmax = Lk[0];
   for (int k1 = 1; k1 < kmax; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
   int k = (int)floor(kmax * sdrand());
-  nkk = nk[k];
-  Lkk = Lk[k];
+  int nkk = nk[k];
+  int Lkk = Lk[k];
 
+  int nkmax = nk[0];
+  for (int k1 = 1; k1 < kmax; k1++) {
+    nkmax = max(nk[k1], nkmax);
+  }
   double *theta = (double *)malloc(nkmax * sizeof(double));
   double *thetan = (double *)malloc(nkmax * sizeof(double));
   double *work = (double *)malloc(nkmax * sizeof(double));
@@ -406,7 +366,8 @@ int main(int argc, char *argv[]) {
 
   getic(k, nkk, theta);
 
-  lp = lpost(k, nkk, theta, &llh);
+  double llh;
+  double lp = lpost(k, nkk, theta, &llh);
 
   for (int k1 = 0; k1 < kmax; k1++) {
     pk[k1] = 1.0 / kmax;
@@ -416,17 +377,17 @@ int main(int argc, char *argv[]) {
       propk[k1] = 0.0;
     }
   }
-  nreinit = 1;
-  reinit = 0;
-  pkllim = 1.0 / 10.0;
+  int nreinit = 1;
+  int reinit = 0;
+  int pkllim = 1.0 / 10.0;
 
-  tol = 0.5 / nsweep;
-  nburn = max(10000, (int)(nsweep / 10));
+  double tol = 0.5 / nsweep;
+  int nburn = max(10000, (int)(nsweep / 10));
 
-  nsokal = 1;
-  nkeep = nsweep / (2 * nsokal);
+  int nsokal = 1;
+  int nkeep = nsweep / (2 * nsokal);
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
-  keep = nburn + (nsweep - nkeep * nsokal);
+  int keep = nburn + (nsweep - nkeep * nsokal);
   double *xr = (double *)malloc(nkeep * sizeof(double));
 
   /* -----Start of main loop ----------------*/
@@ -441,7 +402,8 @@ int main(int argc, char *argv[]) {
       for (int j1 = 0; j1 < nkk; j1++) {
         thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
       }
-      lpn = lpost(k, nkk, thetan, &llhn);
+      double llhn;
+      double lpn = lpost(k, nkk, thetan, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         naccrwmb++;
         memcpy(theta, thetan, nkk * sizeof(*thetan));
@@ -456,7 +418,8 @@ int main(int argc, char *argv[]) {
         ntryrwms++;
         rt(&Z, 1, dof);
         thetan[j1] = theta[j1] + sig[k][j1] * Z;
-        lpn = lpost(k, nkk, thetan, &llhn);
+        double llhn;
+        double lpn = lpost(k, nkk, thetan, &llhn);
         if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
           naccrwms++;
           theta[j1] = thetan[j1];
@@ -473,6 +436,7 @@ int main(int argc, char *argv[]) {
     /* --Section 9.1 - Allocate current position to a component --*/
     int l = 0;
     ntrytd++;
+    int ln = 0;
     if (Lkk > 1) {
       double sum = 0.0;
       for (int i = 0; i < Lkk; i++) {
@@ -489,8 +453,8 @@ int main(int argc, char *argv[]) {
           palloc[i] = 1.0 / Lkk;
         }
       }
-      u = sdrand();
-      thresh = 0.0;
+      double u = sdrand();
+      double thresh = 0.0;
       for (int i = 0; i < Lkk; i++) {
         thresh += palloc[i];
         if (u < thresh) {
@@ -516,14 +480,16 @@ int main(int argc, char *argv[]) {
     }
 
     /* --Section 9.3 - Choose proposed new model and component ----*/
-
+    int kn = 0;
+    double gamma = 0.0;
+    double logratio;
     if (kmax == 1) {
       kn = k;
       logratio = 0.0;
     } else {
       gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
-      u = sdrand();
-      thresh = 0.0;
+      double u = sdrand();
+      double thresh = 0.0;
       for (int k1 = 0; k1 < kmax; k1++) {
         thresh += pk[k1];
         if (u < thresh) {
@@ -534,11 +500,11 @@ int main(int argc, char *argv[]) {
       logratio = log(pk[k]) - log(pk[kn]);
     }
 
-    nkkn = nk[kn];
-    Lkkn = Lk[kn];
+    int nkkn = nk[kn];
+    int Lkkn = Lk[kn];
 
-    u = sdrand();
-    thresh = 0.0;
+    double u = sdrand();
+    double thresh = 0.0;
     for (int l1 = 0; l1 < Lkkn; l1++) {
       thresh += lambda[kn][l1];
       if (u < thresh) {
@@ -553,7 +519,7 @@ int main(int argc, char *argv[]) {
       rt(&(work[nkk]), nkkn - nkk, dof);
       if (dof > 0) {
         for (int i = nkk; i < nkkn; i++) {
-          logratio -= ltprob(dof, work[i], &constt);
+          logratio -= ltprob(dof, work[i]);
         }
       } else {
         for (int j1 = nkk; j1 < nkkn; j1++) {
@@ -573,7 +539,7 @@ int main(int argc, char *argv[]) {
       }
       if (dof > 0) {
         for (int j1 = nkkn; j1 < nkk; j1++) {
-          logratio += ltprob(dof, work[j1], &constt);
+          logratio += ltprob(dof, work[j1]);
         }
       } else {
         for (int j1 = nkkn; j1 < nkk; j1++) {
@@ -593,7 +559,7 @@ int main(int argc, char *argv[]) {
        for acceptance ratio (reverse move) ---------*/
 
     if (Lkkn > 1) {
-      sum = 0.0;
+      double sum = 0.0;
       for (int l1 = 0; l1 < Lkkn; l1++) {
         pallocn[l1] =
             log(lambda[kn][l1]) + lnormprob(nkkn, l1, mu[kn], B[kn], thetan);
@@ -614,8 +580,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* --Section 9.6 - Work out acceptance probability  and new state --*/
-
-    lpn = lpost(kn, nkkn, thetan, &llhn);
+    double llhn;
+    double lpn = lpost(kn, nkkn, thetan, &llhn);
 
     logratio += (lpn - lp);
     logratio += (log(pallocn[ln]) - log(palloc[l]));
@@ -704,6 +670,8 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 11 - Write log file ----------------------*/
 
+  double var, tau;
+  int m;
   sokal(nkeep, xr, &var, &tau, &m);
   fprintf(fpl, "\nAutocorrelation Time:\n");
   fprintf(fpl, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal, var,
@@ -732,7 +700,6 @@ int main(int argc, char *argv[]) {
 }
 
 void gauss(double *z, int n) {
-
   /* Uses Box mueller method to simulate n N(0,1) variables and stores them
      in z */
 
@@ -757,7 +724,6 @@ void gauss(double *z, int n) {
 }
 
 void rt(double *z, int n, int dof) {
-
   /* Simulates n random t variable with dof degrees of freedom
      by simulating standard normals and chi-squared random variables.
      Chi-squared rvs simulated by rgamma function that simulates random gamma
@@ -777,7 +743,6 @@ void rt(double *z, int n, int dof) {
 }
 
 void chol(int nkk, double **A) {
-
   /* Performs cholesky decompositon of A and returns result in the
      same matrix - adapted from PJG Fortran function*/
 
@@ -799,7 +764,6 @@ void chol(int nkk, double **A) {
 }
 
 void perm(double *work, int nkk) {
-
   /* Randomly permutes the nkk-vector work */
 
   for (int j1 = 0; j1 < (nkk - 1); j1++) {
@@ -813,24 +777,17 @@ void perm(double *work, int nkk) {
   return;
 }
 
-double ltprob(int dof, double z, double *constt) {
-
+double ltprob(int dof, double z) {
   /* Evaluates the log of p.d.f. of a t variable with dof degrees of freedom
      at point z */
 
-  double out;
-
-  /* only calculate const of proportionality once */
-  if ((*constt) > 10000.0) {
-    *constt =
-        loggamma(0.5 * (dof + 1)) - loggamma(0.5 * dof) - 0.5 * log(dof * pi);
-  }
-  out = (*constt) - 0.5 * (dof + 1) * log(1.0 + pow(z, 2.0) / dof);
+  double constt =
+      loggamma(0.5 * (dof + 1)) - loggamma(0.5 * dof) - 0.5 * log(dof * pi);
+  double out = constt - 0.5 * (dof + 1) * log(1.0 + pow(z, 2.0) / dof);
   return out;
 }
 
 double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai) {
-
   /* Evaluates log of p.d.f. for a multivariate normal for model
      k, of dimension nkk, component l. The summary of means and
      sqrt of cov matrices (for all models and all component)
