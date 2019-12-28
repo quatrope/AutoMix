@@ -1164,10 +1164,10 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
     for (int j1 = 0; j1 < nkk; j1++) {
       mu[k1][l1][j1] = data[init[l1]][j1];
       BBT[l1][j1][j1] = sigma;
-      B[k1][l1][j1][j1] = BBT[l1][j1][j1];
+      B[k1][l1][j1][j1] = sigma;
       for (int j2 = 0; j2 < j1; j2++) {
         BBT[l1][j1][j2] = 0.0;
-        B[k1][l1][j1][j2] = BBT[l1][j1][j2];
+        B[k1][l1][j1][j2] = 0.0;
       }
     }
     chol(nkk, B[k1][l1]);
