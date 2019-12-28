@@ -86,6 +86,9 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
                               double ***mu, double ****B, double **lambda,
                               FILE *fpcf, int *Lk);
 
+void fit_autorj(int k1, double **lambda, int *Lk, int *nk, double ***mu,
+                double ****B, double **data);
+
 void usage(char *invocation);
 
 /* ---main program-------------------------- */
@@ -306,32 +309,12 @@ int main(int argc, char *argv[]) {
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
-        Lk[k1] = 1;
-        lambda[k1][0] = 1.0;
-        for (int j1 = 0; j1 < nkk; j1++) {
-          mu[k1][0][j1] = 0.0;
-          for (int i1 = 0; i1 < lendata; i1++) {
-            mu[k1][0][j1] += data[i1][j1];
-          }
-          mu[k1][0][j1] /= ((double)lendata);
-        }
-        for (int j1 = 0; j1 < nkk; j1++) {
-          for (int j2 = 0; j2 <= j1; j2++) {
-            B[k1][0][j1][j2] = 0.0;
-            for (int i1 = 0; i1 < lendata; i1++) {
-              B[k1][0][j1][j2] += (data[i1][j1] - mu[k1][0][j1]) *
-                                  (data[i1][j2] - mu[k1][0][j2]);
-            }
-            B[k1][0][j1][j2] /= ((double)(lendata - 1));
-          }
-        }
-        chol(nkk, B[k1][0]);
-
-        for (int i1 = 0; i1 < lendata; i1++) {
-          free(data[i1]);
-        }
-        free(data);
+        fit_autorj(k1, lambda, Lk, nk, mu, B, data);
       }
+      for (int i1 = 0; i1 < lendata; i1++) {
+        free(data[i1]);
+      }
+      free(data);
     }
   }
 
@@ -1421,13 +1404,11 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   free(M1);
   free(datamean);
   for (int i1 = 0; i1 < lendata; i1++) {
-    free(data[i1]);
     free(w[i1]);
     free(lpdatagivenl[i1]);
   }
   free(w);
   free(lpdatagivenl);
-  free(data);
   free(logw);
   free(sumw);
   free(init);
@@ -1443,6 +1424,32 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
       }
     }
   }
+}
+
+void fit_autorj(int k1, double **lambda, int *Lk, int *nk, double ***mu,
+                double ****B, double **data) {
+  int nkk = nk[k1];
+  int lendata = 1000 * nkk;
+  Lk[k1] = 1;
+  lambda[k1][0] = 1.0;
+  for (int j1 = 0; j1 < nkk; j1++) {
+    mu[k1][0][j1] = 0.0;
+    for (int i1 = 0; i1 < lendata; i1++) {
+      mu[k1][0][j1] += data[i1][j1];
+    }
+    mu[k1][0][j1] /= ((double)lendata);
+  }
+  for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j2 = 0; j2 <= j1; j2++) {
+      B[k1][0][j1][j2] = 0.0;
+      for (int i1 = 0; i1 < lendata; i1++) {
+        B[k1][0][j1][j2] +=
+            (data[i1][j1] - mu[k1][0][j1]) * (data[i1][j2] - mu[k1][0][j2]);
+      }
+      B[k1][0][j1][j2] /= ((double)(lendata - 1));
+    }
+  }
+  chol(nkk, B[k1][0]);
 }
 
 void usage(char *invocation) {
