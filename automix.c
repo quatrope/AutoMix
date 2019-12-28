@@ -48,12 +48,12 @@
 /* Global constants (please feel free to change as required)
 
    nkmaxmax = maximum dimension of any one model under consideration
-   kmaxmax = maximum number of models
+   NMODELS_MAX = maximum number of models
    Lkmaxmax = initial number of mixture components fitted in stage 2 of
               AutoMix algorithm */
 
 #define nkmaxmax 20
-#define kmaxmax 15
+#define NMODELS_MAX 15
 #define Lkmaxmax 30
 #define tpi 6.283185307179586477
 #define pi 3.141592653589793238
@@ -190,28 +190,29 @@ int main(int argc, char *argv[]) {
 
   /* --- Section 4.0 - Read in key variables from user functions -*/
 
-  int kmax;
-  getkmax(&kmax);
-  if (kmax > kmaxmax) {
+  // nmodels is the number of models
+  int nmodels;
+  getkmax(&nmodels);
+  if (nmodels > NMODELS_MAX) {
     printf("\nError:kmax too large \n");
     return 0;
-  } else if (kmax < 0) {
+  } else if (nmodels < 0) {
     printf("\nError:negative kmax \n");
     return 0;
   }
 
-  int *nk = (int *)malloc(kmax * sizeof(int));
-  int *Lk = (int *)malloc(kmax * sizeof(int));
-  int *ksummary = (int *)calloc(kmax, sizeof(int));
+  int *nk = (int *)malloc(nmodels * sizeof(int));
+  int *Lk = (int *)malloc(nmodels * sizeof(int));
+  int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
-  getnk(kmax, nk);
+  getnk(nmodels, nk);
 
-  double **lambda = (double **)malloc(kmax * sizeof(double *));
-  double ***mu = (double ***)malloc(kmax * sizeof(double **));
-  double ****B = (double ****)malloc(kmax * sizeof(double ***));
-  double **detB = (double **)malloc(kmax * sizeof(double *));
-  double **sig = (double **)malloc(kmax * sizeof(double *));
-  for (int k1 = 0; k1 < kmax; k1++) {
+  double **lambda = (double **)malloc(nmodels * sizeof(double *));
+  double ***mu = (double ***)malloc(nmodels * sizeof(double **));
+  double ****B = (double ****)malloc(nmodels * sizeof(double ***));
+  double **detB = (double **)malloc(nmodels * sizeof(double *));
+  double **sig = (double **)malloc(nmodels * sizeof(double *));
+  for (int k1 = 0; k1 < nmodels; k1++) {
     int nkk = nk[k1];
     lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
@@ -236,43 +237,39 @@ int main(int argc, char *argv[]) {
      performed */
 
   if (mode == 1) {
-    int ok = read_mixture_params(fname, kmax, nk, sig, Lk, lambda, mu, B);
+    int ok = read_mixture_params(fname, nmodels, nk, sig, Lk, lambda, mu, B);
     if (ok == EXIT_FAILURE) {
-      mode = 0;
+      return EXIT_FAILURE;
     }
-  } else if (mode == 0 || mode == 2) {
+  }
+  /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
+  for (int model_k = 0; model_k < nmodels; model_k++) {
+    int nkk = nk[model_k];
+    int lendata = 1000 * nkk;
+    double **data = (double **)malloc(lendata * sizeof(*data));
+    data[0] = (double *)malloc(lendata * nkk * sizeof(**data));
+    for (int i = 1; i < lendata; i++) {
+      data[i] = data[i - 1] + nkk;
+    }
+    /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
+    rwn_within_model(model_k, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
 
-    /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
-    for (int model_k = 0; model_k < kmax; model_k++) {
-      int nkk = nk[model_k];
-      int lendata = 1000 * nkk;
-      double **data = (double **)malloc(lendata * sizeof(*data));
-      data[0] = (double *)malloc(lendata * nkk * sizeof(**data));
-      for (int i = 1; i < lendata; i++) {
-        data[i] = data[i - 1] + nkk;
-      }
-      /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
-      rwn_within_model(model_k, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
-
+    printf("\nMixture Fitting: Model %d", model_k + 1);
+    if (mode == 0) {
       /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
-      /* Note only done if mode 0 (m=0) if mode m=2, go to section 5.2.3*/
       /* Mixture fitting done component wise EM algorithm described in
          Figueiredo and Jain, 2002 (see thesis for full reference) */
-
-      printf("\nMixture Fitting: Model %d", model_k + 1);
-      if (mode == 0) {
-        fit_mixture_from_samples(nk[model_k], data, lendata, mu[model_k],
-                                 B[model_k], lambda[model_k], fpcf,
-                                 Lk + model_k);
-      } else if (mode == 2) {
-        /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
-        /* Note only done if mode 2 (m=2).*/
-        fit_autorj(lambda[model_k], Lk + model_k, nk[model_k], mu[model_k],
-                   B[model_k], data, lendata);
-      }
-      free(data[0]);
-      free(data);
+      fit_mixture_from_samples(nk[model_k], data, lendata, mu[model_k],
+                               B[model_k], lambda[model_k], fpcf, Lk + model_k);
     }
+    if (mode == 2) {
+      /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
+      /* Note only done if mode 2 (m=2).*/
+      fit_autorj(lambda[model_k], Lk + model_k, nk[model_k], mu[model_k],
+                 B[model_k], data, lendata);
+    }
+    free(data[0]);
+    free(data);
   }
 
   /* Print mixture parameters to file (log and mix files) for reference
@@ -280,12 +277,12 @@ int main(int argc, char *argv[]) {
 
   sprintf(datafname, "%s_mix.data", fname);
   FILE *fpmix = fopen(datafname, "w");
-  fprintf(fpmix, "%d\n", kmax);
-  for (int k1 = 0; k1 < kmax; k1++) {
+  fprintf(fpmix, "%d\n", nmodels);
+  for (int k1 = 0; k1 < nmodels; k1++) {
     fprintf(fpmix, "%d\n", nk[k1]);
   }
 
-  for (int k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < nmodels; k1++) {
     fprintf(fpl, "\nModel:%d\n", k1 + 1);
     int Lkk = Lk[k1];
     int nkk = nk[k1];
@@ -328,8 +325,8 @@ int main(int argc, char *argv[]) {
   sprintf(datafname, "%s_lp.data", fname);
   FILE *fplp = fopen(datafname, "w");
 
-  FILE *fpt[kmaxmax];
-  for (int k1 = 0; k1 < kmax; k1++) {
+  FILE *fpt[NMODELS_MAX];
+  for (int k1 = 0; k1 < nmodels; k1++) {
     sprintf(datafname, "%s_theta%d.data", fname, k1 + 1);
     fpt[k1] = fopen(datafname, "w");
   }
@@ -345,15 +342,15 @@ int main(int argc, char *argv[]) {
   int ntrytd = 0;
 
   int Lkmax = Lk[0];
-  for (int k1 = 1; k1 < kmax; k1++) {
+  for (int k1 = 1; k1 < nmodels; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
-  int k = (int)floor(kmax * sdrand());
+  int k = (int)floor(nmodels * sdrand());
   int nkk = nk[k];
   int Lkk = Lk[k];
 
   int nkmax = nk[0];
-  for (int k1 = 1; k1 < kmax; k1++) {
+  for (int k1 = 1; k1 < nmodels; k1++) {
     nkmax = max(nk[k1], nkmax);
   }
   double *theta = (double *)malloc(nkmax * sizeof(double));
@@ -362,16 +359,16 @@ int main(int argc, char *argv[]) {
   double *palloc = (double *)malloc(Lkmax * sizeof(double));
   double *pallocn = (double *)malloc(Lkmax * sizeof(double));
   double *Znkk = (double *)malloc(nkmax * sizeof(double));
-  double *propk = (double *)malloc(kmax * sizeof(double));
-  double *pk = (double *)malloc(kmax * sizeof(double));
+  double *propk = (double *)malloc(nmodels * sizeof(double));
+  double *pk = (double *)malloc(nmodels * sizeof(double));
 
   getic(k, nkk, theta);
 
   double llh;
   double lp = lpost(k, nkk, theta, &llh);
 
-  for (int k1 = 0; k1 < kmax; k1++) {
-    pk[k1] = 1.0 / kmax;
+  for (int k1 = 0; k1 < nmodels; k1++) {
+    pk[k1] = 1.0 / nmodels;
     if (k1 == k) {
       propk[k1] = 1.0;
     } else {
@@ -484,14 +481,14 @@ int main(int argc, char *argv[]) {
     int kn = 0;
     double gamma = 0.0;
     double logratio;
-    if (kmax == 1) {
+    if (nmodels == 1) {
       kn = k;
       logratio = 0.0;
     } else {
       gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
       double u = sdrand();
       double thresh = 0.0;
-      for (int k1 = 0; k1 < kmax; k1++) {
+      for (int k1 = 0; k1 < nmodels; k1++) {
         thresh += pk[k1];
         if (u < thresh) {
           kn = k1;
@@ -603,7 +600,7 @@ int main(int argc, char *argv[]) {
 
     if (adapt == 1) {
       if (sweep > nburn) {
-        for (int k1 = 0; k1 < kmax; k1++) {
+        for (int k1 = 0; k1 < nmodels; k1++) {
           if (k1 == k) {
             propk[k1] = 1.0;
           } else {
@@ -611,7 +608,7 @@ int main(int argc, char *argv[]) {
           }
           pk[k1] += (gamma * (propk[k1] - pk[k1]));
         }
-        for (int k1 = 0; k1 < kmax; k1++) {
+        for (int k1 = 0; k1 < nmodels; k1++) {
           if (pk[k1] < pkllim) {
             reinit = 1;
           }
@@ -620,8 +617,8 @@ int main(int argc, char *argv[]) {
           reinit = 0;
           nreinit++;
           pkllim = 1.0 / (10.0 * nreinit);
-          for (int k1 = 0; k1 < kmax; k1++) {
-            pk[k1] = 1.0 / kmax;
+          for (int k1 = 0; k1 < nmodels; k1++) {
+            pk[k1] = 1.0 / nmodels;
           }
         }
       }
@@ -636,7 +633,7 @@ int main(int argc, char *argv[]) {
 
       fprintf(fpk, "%d\n", k + 1);
       fprintf(fplp, "%lf %lf\n", lp, llh);
-      for (int k1 = 0; k1 < kmax; k1++) {
+      for (int k1 = 0; k1 < nmodels; k1++) {
         fprintf(fpp, "%lf ", pk[k1]);
       }
       fprintf(fpp, "\n");
@@ -682,7 +679,7 @@ int main(int argc, char *argv[]) {
   }
 
   fprintf(fpl, "\nPosterior Model Probabilities:\n");
-  for (int k1 = 0; k1 < kmax; k1++) {
+  for (int k1 = 0; k1 < nmodels; k1++) {
     fprintf(fpl, "Model %d: %lf\n", k1 + 1,
             (double)ksummary[k1] / (double)nsweep);
   }
@@ -825,8 +822,8 @@ double det(int nkk, int l, double ***B_k) {
   return out;
 }
 
-int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
-                        double **lambda, double ***mu, double ****B) {
+int read_mixture_params(char *fname, int nmodels, int *nk, double **sig,
+                        int *Lk, double **lambda, double ***mu, double ****B) {
   /* Check user has supplied mixture parameters if trying to use mode 1.
      If not default back to mode 0 */
   char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
@@ -844,12 +841,12 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
     printf("\nContinuing using RWM to estimate parameters");
     return EXIT_FAILURE;
   }
-  if (k1 != kmax) {
-    printf("\nFile kmax contradicts getkmax function:");
+  if (k1 != nmodels) {
+    printf("\nFile nmodels contradicts getkmax function:");
     printf("\nContinuing using RWM to estimate parameters");
     return EXIT_FAILURE;
   }
-  for (int k = 0; k < kmax; k++) {
+  for (int k = 0; k < nmodels; k++) {
     int nkk;
     if (fscanf(fpmix, "%d", &nkk) == EOF) {
       printf("\nEnd of file encountered before parameters read:");
@@ -862,7 +859,7 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
       return EXIT_FAILURE;
     }
   }
-  for (int k = 0; k < kmax; k++) {
+  for (int k = 0; k < nmodels; k++) {
     int nkk = nk[k];
     for (int l = 0; l < nkk; l++) {
       if (fscanf(fpmix, "%lf", &(sig[k][l])) == EOF) {

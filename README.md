@@ -99,21 +99,22 @@ The sampler is run by typing the name of the executable, followed by run-time fl
 The flags can be summarised as follows (I is assumed to be a positive
 integer):
 
-  - **-mD** controls the mode of the sampler. D=0 is mixture fitting;
+  - **-m D** controls the mode of the sampler. D=0 is mixture fitting;
       - `D=1` skips stage 1 and 2 if a file containing the mixture parameters is supplied;
       - `D=2` fits AutoMix version of AutoRJ sampler (see Green, 2003 - full reference in thesis).
       - Default uses `D=0`.
-  - **-nI** run the sampler for `max(I,nkk*10000,100000)` iterations in the stage 1 RWM for each model k. (Default uses I=100000)
-  - **-NI** run the sampler for I Reversible jump iterations in stage 3. (Default uses I=100000).
-  - **-sI** initialises the random number generator with seed I. (Default uses clock as seed).
-  - **-aA** controls whether or not adaptation is done in stage 3 RJ. If `A=0` no adaptation is done, if `A=1` adaptation is done. (Default has `A=1`).
-  - **-pP** controls whether or not random permutation is done in stage 3 RJ. If `P=0` no permutation is done, if `P=1` permutation is done. Default has `P=0`.
-  - **-tI**	  Controls whether standard Normal or t distributed variables are used in RWM and in RJ moves. If `I=0` Normal variables are used, otherwise t-distributed variables with I degrees of freedom are used. Default `I=0`. 
-  - **-fF** Uses the string F as the bases for filenames (e.g. if `F=output`, filenames are `output_log.data`, `output_mix.data` etc). (Default is `F=output`)
+  - **-n I** run the sampler for `max(I,nkk*10000,100000)` iterations in the stage 1 RWM for each model k. (Default uses I=100000)
+  - **-N I** run the sampler for I Reversible jump iterations in stage 3. (Default uses I=100000).
+  - **-s I** initialises the random number generator with seed I. (Default uses clock as seed).
+  - **-a A** controls whether or not adaptation is done in stage 3 RJ. If `A=0` no adaptation is done, if `A=1` adaptation is done. (Default has `A=1`).
+  - **-p P** controls whether or not random permutation is done in stage 3 RJ. If `P=0` no permutation is done, if `P=1` permutation is done. Default has `P=0`.
+  - **-t I**	  Controls whether standard Normal or t distributed variables are used in RWM and in RJ moves. If `I=0` Normal variables are used, otherwise t-distributed variables with I degrees of freedom are used. Default `I=0`.
+  - **-f F** Uses the string F as the bases for filenames (e.g. if `F=output`, filenames are `output_log.data`, `output_mix.data` etc). (Default is `F=output`)
+  - **-h, --help** Prints help information on command line arguments and exit.
 
 As an example, typing
 
-    amtoy1 -m0 -N1000000 -p1 -ftoy1
+    amtoy1 -m 0 -N 1000000 -p 1 -f toy1
 
 runs the optimized mixture fitting version of the toy1 problem (see thesis, section 5.5.1) with 1 million RJ sweeps, enabling permutation and storing the output in files of the type `toy1_***.data`.
 Running the sampler produces a summary of how the run is progressing.
