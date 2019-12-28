@@ -33,6 +33,8 @@
 
 /* Standard library files */
 
+#define VERSION "1.1"
+
 #include "user.h"
 #include "utils.h"
 #include <fcntl.h>
@@ -138,6 +140,9 @@ int main(int argc, char *argv[]) {
       continue;
     } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
       usage(argv[0]);
+      return EXIT_SUCCESS;
+    } else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--version")) {
+      printf("Version %s\n", VERSION);
       return EXIT_SUCCESS;
     } else {
       printf("Unrecognized argument: %s\n", argv[i]);
@@ -1278,6 +1283,7 @@ void usage(char *invocation) {
   } else {
     name += 1;
   }
+  printf("%s version %s\n", name, VERSION);
   printf("Usage: %s [-m int] [-N int] [-n int] [-a bool] \
            [-p bool] [-s int] [-t int] [-f string] [-h, --help]\n",
          name);

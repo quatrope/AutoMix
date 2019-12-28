@@ -106,7 +106,8 @@ integer):
   - **-p P** controls whether or not random permutation is done in stage 3 RJ. If `P=0` no permutation is done, if `P=1` permutation is done. Default has `P=0`.
   - **-t I**	  Controls whether standard Normal or t distributed variables are used in RWM and in RJ moves. If `I=0` Normal variables are used, otherwise t-distributed variables with I degrees of freedom are used. Default `I=0`.
   - **-f F** Uses the string F as the bases for filenames (e.g. if `F=output`, filenames are `output_log.data`, `output_mix.data` etc). (Default is `F=output`)
-  - **-h, --help** Prints help information on command line arguments and exit.
+  - **-h, --help** Prints help information on command line arguments and exits.
+  - **-v, --version** Prints version number and exits.
 
 As an example, typing
 

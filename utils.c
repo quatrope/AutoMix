@@ -1,6 +1,8 @@
 #include "utils.h"
 #include <math.h>
+#ifndef DOUB
 #define DOUB
+#endif
 /* Combined congruential and Tauseworthe generators from SuperDuper
  * package. Should work on machines with unsigned long of at least 32
  * bits. JC and JT must be initialized to values with 0 < JC < 2^32 and
