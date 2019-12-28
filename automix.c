@@ -71,10 +71,9 @@ void perm(double *work, int nkk);
 
 double ltprob(int dof, double z, double *constt);
 
-double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
-                 double *datai);
+double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai);
 
-double det(int k, int nkk, int l, double ****B);
+double det(int nkk, int l, double ***B_k);
 
 int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
                         double **lambda, double ***mu, double ****B);
@@ -83,11 +82,11 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
                       FILE *fpad, double **sig, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
-                              double ***mu, double ****B, double **lambda,
+                              double **mu_k, double ***B_k, double *lambda_k,
                               FILE *fpcf, int *Lk);
 
-void fit_autorj(int k1, double **lambda, int *Lk, int *nk, double ***mu,
-                double ****B, double **data, int lendata);
+void fit_autorj(int k1, double *lambda_k, int *Lk, int *nk, double **mu_k,
+                double ***B_k, double **data, int lendata);
 
 void usage(char *invocation);
 
@@ -307,12 +306,13 @@ int main(int argc, char *argv[]) {
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
-        fit_mixture_from_samples(model_k, nk, data, lendata, mu, B, lambda, fpcf,
-                                 Lk);
+        fit_mixture_from_samples(model_k, nk, data, lendata, mu[model_k],
+                                 B[model_k], lambda[model_k], fpcf, Lk);
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
-        fit_autorj(model_k, lambda, Lk, nk, mu, B, data, lendata);
+        fit_autorj(model_k, lambda[model_k], Lk, nk, mu[model_k], B[model_k],
+                   data, lendata);
       }
       free(data[0]);
       free(data);
@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
         }
         fprintf(fpl, "\n");
       }
-      detB[k1][l1] = det(k1, nkk, l1, B);
+      detB[k1][l1] = det(nkk, l1, B[k1]);
     }
   }
   fflush(NULL);
@@ -481,7 +481,8 @@ int main(int argc, char *argv[]) {
     if (Lkk > 1) {
       sum = 0.0;
       for (int l1 = 0; l1 < Lkk; l1++) {
-        palloc[l1] = log(lambda[k][l1]) + lnormprob(k, nkk, l1, mu, B, theta);
+        palloc[l1] =
+            log(lambda[k][l1]) + lnormprob(nkk, l1, mu[k], B[k], theta);
         palloc[l1] = exp(palloc[l1]);
         sum += palloc[l1];
       }
@@ -601,7 +602,7 @@ int main(int argc, char *argv[]) {
       sum = 0.0;
       for (int l1 = 0; l1 < Lkkn; l1++) {
         pallocn[l1] =
-            log(lambda[kn][l1]) + lnormprob(kn, nkkn, l1, mu, B, thetan);
+            log(lambda[kn][l1]) + lnormprob(nkkn, l1, mu[kn], B[kn], thetan);
         pallocn[l1] = exp(pallocn[l1]);
         sum += pallocn[l1];
       }
@@ -834,8 +835,7 @@ double ltprob(int dof, double z, double *constt) {
   return out;
 }
 
-double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
-                 double *datai) {
+double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai) {
 
   /* Evaluates log of p.d.f. for a multivariate normal for model
      k, of dimension nkk, component l. The summary of means and
@@ -846,29 +846,29 @@ double lnormprob(int k, int nkk, int l, double ***mu, double ****B,
   double out;
 
   for (int j1 = 0; j1 < nkk; j1++) {
-    work[j1] = datai[j1] - mu[k][l][j1];
+    work[j1] = datai[j1] - mu_k[l][j1];
   }
   for (int j1 = 0; j1 < nkk; j1++) {
     for (int j2 = 0; j2 < j1; j2++) {
-      (work[j1]) -= B[k][l][j1][j2] * work[j2];
+      (work[j1]) -= B_k[l][j1][j2] * work[j2];
     }
-    (work[j1]) /= B[k][l][j1][j1];
+    (work[j1]) /= B_k[l][j1][j1];
   }
   out = 0.0;
   for (int j1 = 0; j1 < nkk; j1++) {
     out += (work[j1] * work[j1]);
   }
-  out = -0.5 * out - (nkk / 2.0) * log(tpi) - log(det(k, nkk, l, B));
+  out = -0.5 * out - (nkk / 2.0) * log(tpi) - log(det(nkk, l, B_k));
   return out;
 }
 
-double det(int k, int nkk, int l, double ****B) {
+double det(int nkk, int l, double ***B_k) {
 
   /* Evaluates the determinant of a matrix in B corresponding to model k,
      component l. */
   double out = 1.0;
   for (int j1 = 0; j1 < nkk; j1++) {
-    out *= B[k][l][j1][j1];
+    out *= B_k[l][j1][j1];
   }
   return out;
 }
@@ -1067,7 +1067,7 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
 }
 
 void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
-                              double ***mu, double ****B, double **lambda,
+                              double **mu_k, double ***B_k, double *lambda_k,
                               FILE *fpcf, int *Lk) {
   int Lkk = Lkmaxmax;
   int *init = (int *)malloc(Lkk * sizeof(int));
@@ -1097,9 +1097,6 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   for (int l1 = 0; l1 < Lkmaxmax; l1++) {
     mumin[l1] = (double *)malloc(nkk * sizeof(double));
   }
-  double ***B_k = B[model_k];
-  double **mu_k = mu[model_k];
-  double *lambda_k = lambda[model_k];
 
   while (l1 < Lkk) {
     int indic = 0;
@@ -1171,7 +1168,7 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   for (int i1 = 0; i1 < lendata; i1++) {
     double sum = 0.0;
     for (int l1 = 0; l1 < Lkk; l1++) {
-      lpdatagivenl[i1][l1] = lnormprob(model_k, nkk, l1, mu, B, data[i1]);
+      lpdatagivenl[i1][l1] = lnormprob(nkk, l1, mu_k, B_k, data[i1]);
       logw[l1] = log(lambda_k[l1]) + lpdatagivenl[i1][l1];
       w[i1][l1] = exp(logw[l1]);
       sum += w[i1][l1];
@@ -1239,7 +1236,7 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
         chol(nkk, B_k[l1]);
 
         for (int i1 = 0; i1 < lendata; i1++) {
-          lpdatagivenl[i1][l1] = lnormprob(model_k, nkk, l1, mu, B, data[i1]);
+          lpdatagivenl[i1][l1] = lnormprob(nkk, l1, mu_k, B_k, data[i1]);
         }
         l1++;
 
@@ -1429,13 +1426,10 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   }
 }
 
-void fit_autorj(int model_k, double **lambda, int *Lk, int *nk, double ***mu,
-                double ****B, double **data, int lendata) {
+void fit_autorj(int model_k, double *lambda_k, int *Lk, int *nk, double **mu_k,
+                double ***B_k, double **data, int lendata) {
   int nkk = nk[model_k];
   Lk[model_k] = 1;
-  double ***B_k = B[model_k];
-  double **mu_k = mu[model_k];
-  double *lambda_k = lambda[model_k];
   lambda_k[0] = 1.0;
   for (int j = 0; j < nkk; j++) {
     mu_k[0][j] = 0.0;
