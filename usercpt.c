@@ -17,37 +17,33 @@ extern double loggamma(double x);
 double alpha = 1.0, beta = 200.0, lambda = 3.0;
 
 /* Function to return number of models */
-void getkmax(int *kmax) {
-  *kmax = 6;
-  return;
-}
+int get_nmodels(void) { return 6; }
 
 /* Function to return the dimension of each model */
-void getnk(int kmax, int *nk) {
-  int k;
-  for (k = 0; k < kmax; k++) {
-    /* model k has k+1 changepoints and k+2 rates */
-    nk[k] = 2 * k + 3;
+void load_model_dims(int nmodels, int *model_dims) {
+  for (int k = 0; k < nmodels; k++) {
+    /* model k has k + 1 changepoints and k + 2 rates */
+    model_dims[k] = 2 * k + 3;
   }
   return;
 }
 
 /* Function to return initial conditions for RWM runs */
-void getic(int k, int nkk, double *rwm) {
-  int j;
-
-  for (j = 0; j < k + 2; j++) {
+void get_rwm_init(int model_k, int mdim, double *rwm) {
+  // void getic(int k, int nkk, double *rwm) {
+  for (int j = 0; j < model_k + 2; j++) {
     rwm[j] = alpha / beta;
   }
-  for (j = 1; j < k + 2; j++) {
-    rwm[k + 1 + j] = (40907.0 * j) / (k + 2);
+  for (int j = 1; j < model_k + 2; j++) {
+    rwm[model_k + 1 + j] = (40907.0 * j) / (model_k + 2);
   }
 }
 
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 */
 
-double lpost(int k, int nkk, double *theta, double *llh1) {
+// double lpost(int k, int nkk, double *theta, double *llh1) {
+double logpost(int k, int nkk, double *theta, double *llh1) {
 
   int i, j, nsteps = (k + 1), nsofar, nj;
   double lp, llh, logl, abcon, top;

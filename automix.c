@@ -189,8 +189,7 @@ int main(int argc, char *argv[]) {
   /* --- Section 4.0 - Read in key variables from user functions -*/
 
   // nmodels is the number of models
-  int nmodels;
-  getkmax(&nmodels);
+  int nmodels = get_nmodels();
   if (nmodels > NMODELS_MAX) {
     printf("\nError:kmax too large \n");
     return 0;
@@ -202,8 +201,7 @@ int main(int argc, char *argv[]) {
   int *model_dims = (int *)malloc(nmodels * sizeof(int));
   int *Lk = (int *)malloc(nmodels * sizeof(int));
   int *ksummary = (int *)calloc(nmodels, sizeof(int));
-
-  getnk(nmodels, model_dims);
+  load_model_dims(nmodels, model_dims);
 
   double **lambda = (double **)malloc(nmodels * sizeof(double *));
   double ***mu = (double ***)malloc(nmodels * sizeof(double **));
@@ -362,10 +360,10 @@ int main(int argc, char *argv[]) {
   double *propk = (double *)malloc(nmodels * sizeof(double));
   double *pk = (double *)malloc(nmodels * sizeof(double));
 
-  getic(k, mdim, theta);
+  get_rwm_init(k, mdim, theta);
 
   double llh;
-  double lp = lpost(k, mdim, theta, &llh);
+  double lp = logpost(k, mdim, theta, &llh);
 
   for (int k1 = 0; k1 < nmodels; k1++) {
     pk[k1] = 1.0 / nmodels;
@@ -401,7 +399,7 @@ int main(int argc, char *argv[]) {
         thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
       }
       double llhn;
-      double lpn = lpost(k, mdim, thetan, &llhn);
+      double lpn = logpost(k, mdim, thetan, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         naccrwmb++;
         memcpy(theta, thetan, mdim * sizeof(*thetan));
@@ -417,7 +415,7 @@ int main(int argc, char *argv[]) {
         rt(&Z, 1, dof);
         thetan[j1] = theta[j1] + sig[k][j1] * Z;
         double llhn;
-        double lpn = lpost(k, mdim, thetan, &llhn);
+        double lpn = logpost(k, mdim, thetan, &llhn);
         if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
           naccrwms++;
           theta[j1] = thetan[j1];
@@ -579,7 +577,7 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.6 - Work out acceptance probability  and new state --*/
     double llhn;
-    double lpn = lpost(kn, mdim_kn, thetan, &llhn);
+    double lpn = logpost(kn, mdim_kn, thetan, &llhn);
 
     logratio += (lpn - lp);
     logratio += (log(pallocn[ln]) - log(palloc[l]));
@@ -924,7 +922,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
   fprintf(fpcf, "RWM for Model %d\n", model_k + 1);
   fprintf(fpad, "RWM for Model %d\n", model_k + 1);
   fflush(NULL);
-  getic(model_k, mdim, rwm);
+  get_rwm_init(model_k, mdim, rwm);
   for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
     sig[model_k][j1] = 10.0;
@@ -932,7 +930,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
     ntry[j1] = 0;
   }
   double llh, llhn, lpn;
-  double lp = lpost(model_k, mdim, rwm, &llh);
+  double lp = logpost(model_k, mdim, rwm, &llh);
 
   int i2 = 0;
   int remain = nsweepr;
@@ -950,7 +948,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
       for (int i = 0; i < mdim; i++) {
         rwmn[i] = rwm[i] + sig[model_k][i] * Znkk[i];
       }
-      lpn = lpost(model_k, mdim, rwmn, &llhn);
+      lpn = logpost(model_k, mdim, rwmn, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         for (int i = 0; i < mdim; i++) {
           rwm[i] = rwmn[i];
@@ -967,7 +965,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
         double Z;
         rt(&Z, 1, dof);
         rwmn[i] = rwm[i] + sig[model_k][i] * Z;
-        lpn = lpost(model_k, mdim, rwmn, &llhn);
+        lpn = logpost(model_k, mdim, rwmn, &llhn);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
         if (sdrand() < accept) {
           (nacc[i])++;

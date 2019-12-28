@@ -38,22 +38,18 @@ double det2(int nkk, double **B);
 double lnormprob2(int nkk, double **B, double *mu, double *datai);
 
 /* Function to return number of models */
-void getkmax(int *kmax) {
-  *kmax = 2;
-  return;
-}
+int get_nmodels(void) { return 2; }
 
 /* Function to return the dimension of each model */
-void getnk(int kmax, int *nk) {
-
-  nk[0] = 16;
-  nk[1] = 10;
+void load_model_dims(int nmodels, int *model_dims) {
+  model_dims[0] = 16;
+  model_dims[1] = 10;
   return;
 }
 
 /* Function to return initial conditions for RWM runs */
 
-void getic(int k, int nkk, double *rwm) {
+void get_rwm_init(int k, int mdim, double *rwm) {
   int i, j, j1, j2, posdef;
   double u, alpha[9], gamma[6], Vmin1[3][3], Umin1[2][2], V[3][3], U[2][2];
   double sigmasq, tausq;
@@ -199,7 +195,7 @@ BEGIN_IC:
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 - prior settings as in Han and Carlin, 2001*/
 
-double lpost(int k, int nkk, double *theta, double *llh1) {
+double logpost(int k, int mdim, double *theta, double *llh1) {
 
   int i, j, j1, j2, posdef;
   double lp, llh, alpha[9], gamma[6], **V, **U, **Vmin1, **Umin1;

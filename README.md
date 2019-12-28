@@ -31,33 +31,29 @@ For each example to which the user wishes to apply the AutoMix sampler the user 
 
 These functions must have names and arguments detailed below and return the following information:
 
-1. A function to get the number of models:
+1. A function that returns the number of models:
 
-    ```void getkmax(int *kmax)```
+    ```int get_nmodels(void)```
 
-    On exit from the function the (integer) number of models under consideration should be contained in `kmax`.
+2. A function to load the dimension of each model in the :
 
-2. A function to get the dimension of each model:
+    ```void load_model_dims(int nmodels, int *model_dims)```
 
-    ```void getnk(int kmax,int *nk)```
-
-Given the number of models kmax, on exit from the function the vector nk should contain the dimensions of the models. In particular the dimension of model k should be in n[k-1], for k=1,...,kmax (Note that although models run from 1,...,kmax, the vectors run from the element 0 in C)
+Given the number of models `nmodels`, on exit from the function the vector `model_dims` should contain the dimensions of the models.
 
 3. A function to get initial conditions (possibly random) for the RWM for a given model:
 
-    ```void getic(int k, int nkk, double *rwm)```
+    ```void get_rwm_init(int model_k, int mdim, double *rwm)```
 
-Given the model index k, and the dimension nkk of that model, on exit from the function the vector rwm should contain the initial conditions. In particular, rwm[j-1] should contain the (possibly random) intial state for component j of the parameter vector associated with model k, (j=1,...,nkk).
+Given the model index k, and the dimension `model_k` of that model, on exit from the function the vector `rwm` should contain the initial conditions. In particular, rwm[j-1] should contain the (possibly random) intial state for component j of the parameter vector associated with model k, (j=1,...,mdim).
     
 If random initial states are used, the user must also declare the random number functions in the file (see the example files).   
 
 4.  A function to return the log of the target function pi evaluated at a given point in the state space, up to an additive constant.
 
-    ```double lpost(int k,int nkk,double *theta,double *llh1)```
+    ```double logpost(int model_k, int mdim, double *theta, double *llh)```
 
-Given the model index k, and parameter vector theta (of dimension nkk), the function must return the log of the target function (up to an additive constant) evaluated at this point. If pi is a posterior distribution, the double `*llh1` should contain the likelihood evaluated at this point (although this is only necessary for returning the likelihood to output file, and can contain any other value if preferred).
-
-Any other functions used by these four functions should also be declared in the user file. They should also be defined if they are not defined in other files that are linked at compile time.
+Given the model index `model_k`, and parameter vector `theta` (of dimension `mdim`), the function must return the log of the target function (up to an additive constant) evaluated at this point. If pi is a posterior distribution, the double `llh` should contain the likelihood evaluated at this point (although this is only necessary for returning the likelihood to output file, and can contain any other value if preferred).
 
 The examples provided, with comments, show typical examples of these user files for the problems under consideration. 
 

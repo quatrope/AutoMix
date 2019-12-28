@@ -18,25 +18,21 @@ double alpha1 = 2.0, alpha2 = 1.0, beta1 = 0.1, beta2 = 2.0;
 double boxm(void);
 
 /* Function to return number of models */
-void getkmax(int *kmax) {
-  *kmax = 10;
-  return;
-}
+int get_nmodels(void) { return 10; }
 
 /* Function to return the dimension of each model */
-void getnk(int kmax, int *nk) {
-  int k;
-  for (k = 0; k < 6; k++) {
-    nk[k] = 4;
+void load_model_dims(int nmodels, int *model_dims) {
+  for (int k = 0; k < 6; k++) {
+    model_dims[k] = 4;
   }
-  for (k = 6; k < kmax; k++) {
-    nk[k] = 5;
+  for (int k = 6; k < nmodels; k++) {
+    model_dims[k] = 5;
   }
   return;
 }
 
 /* Function to return initial conditions for RWM runs */
-void getic(int k, int nkk, double *rwm) {
+void get_rwm_init(int k, int mdim, double *rwm) {
   int j, ql, qk;
   int nlambda[10], nkappa[10];
   double u;
@@ -66,7 +62,7 @@ void getic(int k, int nkk, double *rwm) {
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 - prior settings as in Thesis chapter 3 */
 
-double lpost(int k, int nkk, double *theta, double *llh1) {
+double logpost(int k, int nkk, double *theta, double *llh1) {
 
   int i, j, ql, qk, cumnobs;
   int nobs[4], nlambda[10], nkappa[10], pindic[4];

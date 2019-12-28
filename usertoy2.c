@@ -11,32 +11,27 @@
 #define tpi 6.283185307179586477
 
 /* Function to return number of models */
-void getkmax(int *kmax) {
-  *kmax = 5;
-  return;
-}
+int get_nmodels(void) { return 5; }
 
 /* Function to return the dimension of each model */
-void getnk(int kmax, int *nk) {
-  int k;
-  for (k = 0; k < kmax; k++) {
-    nk[k] = k + 1;
+void load_model_dims(int nmodels, int *model_dims) {
+  for (int k = 0; k < nmodels; k++) {
+    model_dims[k] = k + 1;
   }
   return;
 }
 
 /* Function to return initial conditions for RWM runs */
-void getic(int k, int nkk, double *theta) {
-  int j;
-  for (j = 0; j < nkk; j++) {
-    theta[j] = 0;
+void get_rwm_init(int model_k, int mdim, double *rwm) {
+  for (int j = 0; j < mdim; j++) {
+    rwm[j] = 0;
   }
 }
 
 /* Function to return log target distribution up to additive const at (k,theta)
    value also returned in llh */
 
-double lpost(int k, int nkk, double *theta, double *llh) {
+double logpost(int k, int nkk, double *theta, double *llh) {
   int i;
   double work[nkk], mu1[nkk], mu2[nkk], sig1, sig2, w1, w2;
   double lp, lptemp;

@@ -6,14 +6,14 @@
 
 // Evaluates log posterior (up to an additive constant) at (k,theta).
 // The function can also return the likelihood at this point in llh.
-double lpost(int k, int nkk, double *theta, double *llh);
+double logpost(int model_k, int mdim, double *theta, double *llh);
 
 // Returns the number of models
-void getkmax(int *kmax);
+int get_nmodels(void);
 
-// Returns the dimensions nk for model k=1,...,kmax.
-void getnk(int kmax, int nk[kmax]);
+// Loads the dimensions of each model in model_dims.
+void load_model_dims(int nmodels, int *model_dims);
 
 // Returns the possibly random starting point for the rwm in stage 1 of the
 // AutoMix sampler
-void getic(int k, int nkk, double *rwm);
+void get_rwm_init(int model_k, int mdim, double *rwm);

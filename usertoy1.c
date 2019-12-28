@@ -11,32 +11,27 @@ extern double sdrand(void);
 double boxm(void);
 
 /* Function to return number of models */
-void getkmax(int *kmax) {
-  *kmax = 2;
-  return;
-}
+int get_nmodels(void) { return 2; }
 
 /* Function to return the dimension of each model */
-void getnk(int kmax, int *nk) {
-  int k;
-  for (k = 0; k < kmax; k++) {
-    nk[k] = k + 1;
+void load_model_dims(int nmodels, int *model_dims) {
+  for (int k = 0; k < nmodels; k++) {
+    model_dims[k] = k + 1;
   }
   return;
 }
 
 /* Function to return initial conditions for RWM runs */
-void getic(int k, int nkk, double *theta) {
-  int j;
-  for (j = 0; j < nkk; j++) {
-    theta[j] = boxm();
+void get_rwm_init(int k, int mdim, double *rwm) {
+  for (int j = 0; j < mdim; j++) {
+    rwm[j] = boxm();
   }
 }
 
 /* Function to return log target distribution up to additive const at (k,theta)
    value also returned in llh */
 
-double lpost(int k, int nkk, double *theta, double *llh) {
+double logpost(int k, int nkk, double *theta, double *llh) {
   int j1, j2, l1;
   double work[nkk], mu[nkk + 1][nkk];
   double sig[nkk + 1][nkk][nkk], detsig[nkk + 1], w[nkk + 1];
