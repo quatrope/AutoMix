@@ -78,10 +78,16 @@ double det(int k, int nkk, int l, double ****B);
 
 int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
                         double **lambda, double ***mu, double ****B);
-void usage(char *invocation);
 
 void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
                       FILE *fpad, double **sig, int dof, double **data);
+
+void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
+                              double ***mu, double ****BBT, double ****B,
+                              double **lambda, double ***mumin, double ****Bmin,
+                              double **lambdamin, FILE *fpcf, int *Lk);
+
+void usage(char *invocation);
 
 /* ---main program-------------------------- */
 
@@ -89,11 +95,8 @@ int main(int argc, char *argv[]) {
 
   /*---Section 1 Declare Variables -------------------------*/
 
-  /* ---indexing variables ------------------- */
-  int l1;
-
   /* ---counting variables ------------------- */
-  int count, nburn, nsokal, nkeep, keep;
+  int nburn, nsokal, nkeep, keep;
 
   /* ---random no. variables ----------------- */
   double u, constt;
@@ -103,14 +106,10 @@ int main(int argc, char *argv[]) {
   int kn = 0;
 
   /* ---Mixture parameters --------------------*/
-  int Lkk, Lkkn, ldel, Lkmax;
+  int Lkk, Lkkn, Lkmax;
   int l = 0;
   int ln = 0;
-  int Lkkmin = 0;
-  double **lpdatagivenl;
-  double tol = 0.00001, costfnnew, minlambda;
-  double costfn = 0.0;
-  double costfnmin = 0.0;
+  double tol = 0.00001;
 
   /* ---RWM parameters ------------------------*/
   double Z[1];
@@ -121,9 +120,7 @@ int main(int argc, char *argv[]) {
   double lpn = 0.0;
 
   /* ---working arrays and variables --------- */
-  int indic, stop, natann, forceann;
-  double sum, sigma, wnew, *sumw, sumwnew, sumlambda, thresh;
-  double wnewl1 = 0.0;
+  double sum, thresh;
 
   /* ---autocorrelation variables ------------ */
   double var, tau;
@@ -313,7 +310,6 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < lendata; i++) {
         data[i] = (double *)malloc(nkk * sizeof(double));
       }
-      int nparams = nkk + (nkk * (nkk + 1)) / 2;
       /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
       rwn_within_model(k1, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
 
@@ -323,339 +319,9 @@ int main(int argc, char *argv[]) {
          Figueiredo and Jain, 2002 (see thesis for full reference) */
 
       printf("\nMixture Fitting: Model %d", k1 + 1);
-      int *init;
       if (mode == 0) {
-        Lkk = Lkmaxmax;
-        init = (int *)malloc(Lkk * sizeof(int));
-        l1 = 0;
-        while (l1 < Lkk) {
-          indic = 0;
-          u = sdrand();
-          init[l1] = (int)floor(lendata * u);
-          if (l1 > 0) {
-            for (int l2 = 0; l2 < l1; l2++) {
-              if (init[l2] == init[l1]) {
-                indic = 1;
-                break;
-              }
-            }
-          }
-          if (indic == 0) {
-            l1++;
-          }
-        }
-
-        double *datamean = (double *)malloc(nkk * sizeof(double));
-        double **M1 = (double **)malloc(nkk * sizeof(double *));
-        for (int j1 = 0; j1 < nkk; j1++) {
-          M1[j1] = (double *)malloc(nkk * sizeof(double));
-        }
-        for (int j1 = 0; j1 < nkk; j1++) {
-          datamean[j1] = 0.0;
-          for (int i1 = 0; i1 < lendata; i1++) {
-            datamean[j1] += data[i1][j1];
-          }
-          datamean[j1] /= ((double)lendata);
-        }
-        for (int j1 = 0; j1 < nkk; j1++) {
-          for (int j2 = 0; j2 < nkk; j2++) {
-            M1[j1][j2] = 0;
-            for (int i1 = 0; i1 < lendata; i1++) {
-              M1[j1][j2] +=
-                  (data[i1][j1] - datamean[j1]) * (data[i1][j2] - datamean[j2]);
-            }
-            M1[j1][j2] /= ((double)lendata);
-          }
-        }
-        sigma = 0.0;
-        for (int j1 = 0; j1 < nkk; j1++) {
-          sigma += M1[j1][j1];
-        }
-        sigma /= (10.0 * nkk);
-
-        for (int l1 = 0; l1 < Lkk; l1++) {
-          for (int j1 = 0; j1 < nkk; j1++) {
-            mu[k1][l1][j1] = data[init[l1]][j1];
-            BBT[k1][l1][j1][j1] = sigma;
-            B[k1][l1][j1][j1] = BBT[k1][l1][j1][j1];
-            for (int j2 = 0; j2 < j1; j2++) {
-              BBT[k1][l1][j1][j2] = 0.0;
-              B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
-            }
-          }
-          chol(nkk, B[k1][l1]);
-          lambda[k1][l1] = 1.0 / Lkk;
-        }
-
-        double **w = (double **)malloc(lendata * sizeof(double *));
-        double *logw = (double *)malloc(Lkk * sizeof(double));
-        lpdatagivenl = (double **)malloc(lendata * sizeof(double *));
-        for (int i1 = 0; i1 < lendata; i1++) {
-          w[i1] = (double *)malloc(Lkk * sizeof(double));
-          lpdatagivenl[i1] = (double *)malloc(Lkk * sizeof(double));
-        }
-
-        for (int i1 = 0; i1 < lendata; i1++) {
-          sum = 0.0;
-          for (int l1 = 0; l1 < Lkk; l1++) {
-            lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
-            logw[l1] = log(lambda[k1][l1]) + lpdatagivenl[i1][l1];
-            w[i1][l1] = exp(logw[l1]);
-            sum += w[i1][l1];
-          }
-          for (int l1 = 0; l1 < Lkk; l1++) {
-            w[i1][l1] /= sum;
-          }
-        }
-
-        sumw = (double *)malloc(Lkk * sizeof(double));
-
-        stop = 0;
-        count = 0;
-
-        while (!stop) {
-          count++;
-          l1 = 0;
-          natann = 0;
-          forceann = 0;
-          while (l1 < Lkk) {
-            sumwnew = 0.0;
-            for (int l2 = 0; l2 < Lkk; l2++) {
-              sumw[l2] = 0.0;
-              for (int i1 = 0; i1 < lendata; i1++) {
-                sumw[l2] += w[i1][l2];
-              }
-              wnew = max(0.0, (sumw[l2] - nparams / 2.0));
-              if (l2 == l1) {
-                wnewl1 = wnew;
-              }
-              sumwnew += wnew;
-            }
-            lambda[k1][l1] = wnewl1 / sumwnew;
-            sumlambda = 0.0;
-            for (int l2 = 0; l2 < Lkk; l2++) {
-              sumlambda += lambda[k1][l2];
-            }
-            for (int l2 = 0; l2 < Lkk; l2++) {
-              lambda[k1][l2] /= sumlambda;
-            }
-
-            if (lambda[k1][l1] > 0.005) {
-              /*changed to 0.005 from 0.0 -renormalise else */
-              for (int j1 = 0; j1 < nkk; j1++) {
-                mu[k1][l1][j1] = 0.0;
-                for (int i1 = 0; i1 < lendata; i1++) {
-                  mu[k1][l1][j1] += data[i1][j1] * w[i1][l1];
-                }
-                mu[k1][l1][j1] /= sumw[l1];
-
-                for (int j2 = 0; j2 <= j1; j2++) {
-                  BBT[k1][l1][j1][j2] = 0.0;
-                  for (int i1 = 0; i1 < lendata; i1++) {
-                    BBT[k1][l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
-                                           (data[i1][j2] - mu[k1][l1][j2]) *
-                                           w[i1][l1];
-                  }
-                  BBT[k1][l1][j1][j2] /= sumw[l1];
-                  B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
-                }
-              }
-
-              chol(nkk, B[k1][l1]);
-
-              for (int i1 = 0; i1 < lendata; i1++) {
-                lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
-              }
-              l1++;
-
-            } else {
-              if (fmod(Lkk, 5) < 0.05) {
-                printf("\n");
-              }
-              printf("%d(%d-n) ", Lkk, count);
-              natann = 1;
-              if (l1 < (Lkk - 1)) {
-                for (int l2 = l1; l2 < (Lkk - 1); l2++) {
-                  lambda[k1][l2] = lambda[k1][l2 + 1];
-                  for (int j1 = 0; j1 < nkk; j1++) {
-                    mu[k1][l2][j1] = mu[k1][l2 + 1][j1];
-                    for (int j2 = 0; j2 <= j1; j2++) {
-                      BBT[k1][l2][j1][j2] = BBT[k1][l2 + 1][j1][j2];
-                      B[k1][l2][j1][j2] = B[k1][l2 + 1][j1][j2];
-                    }
-                  }
-                  for (int i1 = 0; i1 < lendata; i1++) {
-                    lpdatagivenl[i1][l2] = lpdatagivenl[i1][l2 + 1];
-                  }
-                }
-              }
-              Lkk--;
-              sumlambda = 0.0;
-              for (int l2 = 0; l2 < Lkk; l2++) {
-                sumlambda += lambda[k1][l2];
-              }
-              for (int l2 = 0; l2 < Lkk; l2++) {
-                lambda[k1][l2] /= sumlambda;
-              }
-            }
-
-            lpn = 0.0;
-            for (int i1 = 0; i1 < lendata; i1++) {
-              sum = 0.0;
-              for (int l2 = 0; l2 < Lkk; l2++) {
-                logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
-                w[i1][l2] = exp(logw[l2]);
-                sum += w[i1][l2];
-              }
-              if (sum > 0) {
-                for (int l2 = 0; l2 < Lkk; l2++) {
-                  w[i1][l2] /= sum;
-                }
-                lpn += log(sum);
-              } else {
-                /* if no component fits point well make equally likely */
-                for (int l2 = 0; l2 < Lkk; l2++) {
-                  w[i1][l2] = 1.0 / Lkk;
-                }
-                lpn += (-500.0);
-              }
-            }
-          }
-
-          sum = 0.0;
-          for (int l1 = 0; l1 < Lkk; l1++) {
-            sum += log(lendata * lambda[k1][l1] / 12.0);
-          }
-          costfnnew = (nparams / 2.0) * sum +
-                      (Lkk / 2.0) * log(lendata / 12.0) +
-                      Lkk * (nparams + 1) / 2.0 - lpn;
-
-          if (count == 1) {
-            costfn = costfnnew;
-          }
-          if (count == 1 || costfnnew < costfnmin) {
-            Lkkmin = Lkk;
-            costfnmin = costfnnew;
-            for (int l1 = 0; l1 < Lkk; l1++) {
-              lambdamin[k1][l1] = lambda[k1][l1];
-              for (int j1 = 0; j1 < nkk; j1++) {
-                mumin[k1][l1][j1] = mu[k1][l1][j1];
-                for (int j2 = 0; j2 <= j1; j2++) {
-                  Bmin[k1][l1][j1][j2] = B[k1][l1][j1][j2];
-                }
-              }
-            }
-          }
-          if ((fabs(costfn - costfnnew) < min(tol * fabs(costfn), 0.01)) &&
-              (count > 1)) {
-            if (Lkk == 1) {
-              stop = 1;
-            } else {
-              if (fmod(Lkk, 5) < 0.05) {
-                printf("\n");
-              }
-              printf("%d(%d-f) ", Lkk, count);
-              forceann = 2;
-              minlambda = lambda[k1][0];
-              ldel = 0;
-              for (int l1 = 1; l1 < Lkk; l1++) {
-                if (minlambda > lambda[k1][l1]) {
-                  minlambda = lambda[k1][l1];
-                  ldel = l1;
-                }
-              }
-              if (ldel < (Lkk - 1)) {
-                for (int l1 = ldel; l1 < (Lkk - 1); l1++) {
-                  lambda[k1][l1] = lambda[k1][l1 + 1];
-                  for (int j1 = 0; j1 < nkk; j1++) {
-                    mu[k1][l1][j1] = mu[k1][l1 + 1][j1];
-                    for (int j2 = 0; j2 <= j1; j2++) {
-                      BBT[k1][l1][j1][j2] = BBT[k1][l1 + 1][j1][j2];
-                      B[k1][l1][j1][j2] = B[k1][l1 + 1][j1][j2];
-                    }
-                  }
-                  for (int i1 = 0; i1 < lendata; i1++) {
-                    lpdatagivenl[i1][l1] = lpdatagivenl[i1][l1 + 1];
-                  }
-                }
-              }
-              Lkk--;
-              sumlambda = 0.0;
-              for (int l1 = 0; l1 < Lkk; l1++) {
-                sumlambda += lambda[k1][l1];
-              }
-              for (int l1 = 0; l1 < Lkk; l1++) {
-                lambda[k1][l1] /= sumlambda;
-              }
-
-              lpn = 0.0;
-              for (int i1 = 0; i1 < lendata; i1++) {
-                sum = 0.0;
-                for (int l2 = 0; l2 < Lkk; l2++) {
-                  logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
-                  w[i1][l2] = exp(logw[l2]);
-                  sum += w[i1][l2];
-                }
-                if (sum > 0) {
-                  for (int l2 = 0; l2 < Lkk; l2++) {
-                    w[i1][l2] /= sum;
-                  }
-                  lpn += log(sum);
-                } else {
-                  /* if no component fits point well make equally likely */
-                  for (int l2 = 0; l2 < Lkk; l2++) {
-                    w[i1][l2] = 1.0 / Lkk;
-                  }
-                  lpn += (-500.0);
-                }
-              }
-
-              sum = 0.0;
-              for (int l1 = 0; l1 < Lkk; l1++) {
-                sum += log(lendata * lambda[k1][l1] / 12.0);
-              }
-              costfnnew = (nparams / 2.0) * sum +
-                          (Lkk / 2.0) * log(lendata / 12.0) +
-                          Lkk * (nparams + 1) / 2.0 - lpn;
-            }
-          }
-          if (count > 5000) {
-            stop = 1;
-          }
-          costfn = costfnnew;
-          fprintf(fpcf, "%d %lf %lf %d\n", Lkk, lpn, costfnnew,
-                  (natann + forceann));
-          fflush(NULL);
-        }
-
-        for (int j1 = 0; j1 < nkk; j1++) {
-          free(M1[j1]);
-        }
-        free(M1);
-        free(datamean);
-        for (int i1 = 0; i1 < lendata; i1++) {
-          free(data[i1]);
-          free(w[i1]);
-          free(lpdatagivenl[i1]);
-        }
-        free(w);
-        free(lpdatagivenl);
-        free(data);
-        free(logw);
-        free(sumw);
-        free(init);
-        Lk[k1] = Lkkmin;
-        for (int l1 = 0; l1 < Lkkmin; l1++) {
-          lambda[k1][l1] = lambdamin[k1][l1];
-          for (int j1 = 0; j1 < nkk; j1++) {
-            mu[k1][l1][j1] = mumin[k1][l1][j1];
-          }
-          for (int j1 = 0; j1 < nkk; j1++) {
-            for (int j2 = 0; j2 <= j1; j2++) {
-              B[k1][l1][j1][j2] = Bmin[k1][l1][j1][j2];
-            }
-          }
-        }
+        fit_mixture_from_samples(k1, nk, data, sig, mu, BBT, B, lambda, mumin,
+                                 Bmin, lambdamin, fpcf, Lk);
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
@@ -1433,6 +1099,350 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
   free(nacc);
   free(ntry);
   free(Znkk);
+}
+
+void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
+                              double ***mu, double ****BBT, double ****B,
+                              double **lambda, double ***mumin, double ****Bmin,
+                              double **lambdamin, FILE *fpcf, int *Lk) {
+  int Lkk = Lkmaxmax;
+  int *init = (int *)malloc(Lkk * sizeof(int));
+  int nkk = nk[k1];
+  int lendata = 1000 * nkk;
+  int l1 = 0;
+  double lpn = 0.0;
+  double costfn = 0.0;
+  double costfnmin = 0.0;
+  double tol = 1E-5;
+  while (l1 < Lkk) {
+    int indic = 0;
+    double u = sdrand();
+    init[l1] = (int)floor(lendata * u);
+    if (l1 > 0) {
+      for (int l2 = 0; l2 < l1; l2++) {
+        if (init[l2] == init[l1]) {
+          indic = 1;
+          break;
+        }
+      }
+    }
+    if (indic == 0) {
+      l1++;
+    }
+  }
+
+  double *datamean = (double *)malloc(nkk * sizeof(double));
+  double **M1 = (double **)malloc(nkk * sizeof(double *));
+  for (int j1 = 0; j1 < nkk; j1++) {
+    M1[j1] = (double *)malloc(nkk * sizeof(double));
+  }
+  for (int j1 = 0; j1 < nkk; j1++) {
+    datamean[j1] = 0.0;
+    for (int i1 = 0; i1 < lendata; i1++) {
+      datamean[j1] += data[i1][j1];
+    }
+    datamean[j1] /= ((double)lendata);
+  }
+  for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j2 = 0; j2 < nkk; j2++) {
+      M1[j1][j2] = 0;
+      for (int i1 = 0; i1 < lendata; i1++) {
+        M1[j1][j2] +=
+            (data[i1][j1] - datamean[j1]) * (data[i1][j2] - datamean[j2]);
+      }
+      M1[j1][j2] /= ((double)lendata);
+    }
+  }
+  double sigma = 0.0;
+  for (int j1 = 0; j1 < nkk; j1++) {
+    sigma += M1[j1][j1];
+  }
+  sigma /= (10.0 * nkk);
+
+  for (int l1 = 0; l1 < Lkk; l1++) {
+    for (int j1 = 0; j1 < nkk; j1++) {
+      mu[k1][l1][j1] = data[init[l1]][j1];
+      BBT[k1][l1][j1][j1] = sigma;
+      B[k1][l1][j1][j1] = BBT[k1][l1][j1][j1];
+      for (int j2 = 0; j2 < j1; j2++) {
+        BBT[k1][l1][j1][j2] = 0.0;
+        B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
+      }
+    }
+    chol(nkk, B[k1][l1]);
+    lambda[k1][l1] = 1.0 / Lkk;
+  }
+
+  double **w = (double **)malloc(lendata * sizeof(double *));
+  double *logw = (double *)malloc(Lkk * sizeof(double));
+  double **lpdatagivenl = (double **)malloc(lendata * sizeof(double *));
+  for (int i1 = 0; i1 < lendata; i1++) {
+    w[i1] = (double *)malloc(Lkk * sizeof(double));
+    lpdatagivenl[i1] = (double *)malloc(Lkk * sizeof(double));
+  }
+
+  for (int i1 = 0; i1 < lendata; i1++) {
+    double sum = 0.0;
+    for (int l1 = 0; l1 < Lkk; l1++) {
+      lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
+      logw[l1] = log(lambda[k1][l1]) + lpdatagivenl[i1][l1];
+      w[i1][l1] = exp(logw[l1]);
+      sum += w[i1][l1];
+    }
+    for (int l1 = 0; l1 < Lkk; l1++) {
+      w[i1][l1] /= sum;
+    }
+  }
+
+  double *sumw = (double *)malloc(Lkk * sizeof(double));
+
+  int stop = 0;
+  int count = 0;
+  double wnewl1 = 0.0;
+  int nparams = nkk + (nkk * (nkk + 1)) / 2;
+  int Lkkmin = 0;
+
+  while (!stop) {
+    count++;
+    l1 = 0;
+    int natann = 0;
+    int forceann = 0;
+    while (l1 < Lkk) {
+      double sumwnew = 0.0;
+      for (int l2 = 0; l2 < Lkk; l2++) {
+        sumw[l2] = 0.0;
+        for (int i1 = 0; i1 < lendata; i1++) {
+          sumw[l2] += w[i1][l2];
+        }
+        double wnew = max(0.0, (sumw[l2] - nparams / 2.0));
+        if (l2 == l1) {
+          wnewl1 = wnew;
+        }
+        sumwnew += wnew;
+      }
+      lambda[k1][l1] = wnewl1 / sumwnew;
+      double sumlambda = 0.0;
+      for (int l2 = 0; l2 < Lkk; l2++) {
+        sumlambda += lambda[k1][l2];
+      }
+      for (int l2 = 0; l2 < Lkk; l2++) {
+        lambda[k1][l2] /= sumlambda;
+      }
+
+      if (lambda[k1][l1] > 0.005) {
+        /*changed to 0.005 from 0.0 -renormalise else */
+        for (int j1 = 0; j1 < nkk; j1++) {
+          mu[k1][l1][j1] = 0.0;
+          for (int i1 = 0; i1 < lendata; i1++) {
+            mu[k1][l1][j1] += data[i1][j1] * w[i1][l1];
+          }
+          mu[k1][l1][j1] /= sumw[l1];
+
+          for (int j2 = 0; j2 <= j1; j2++) {
+            BBT[k1][l1][j1][j2] = 0.0;
+            for (int i1 = 0; i1 < lendata; i1++) {
+              BBT[k1][l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
+                                     (data[i1][j2] - mu[k1][l1][j2]) *
+                                     w[i1][l1];
+            }
+            BBT[k1][l1][j1][j2] /= sumw[l1];
+            B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
+          }
+        }
+
+        chol(nkk, B[k1][l1]);
+
+        for (int i1 = 0; i1 < lendata; i1++) {
+          lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
+        }
+        l1++;
+
+      } else {
+        if (fmod(Lkk, 5) < 0.05) {
+          printf("\n");
+        }
+        printf("%d(%d-n) ", Lkk, count);
+        natann = 1;
+        if (l1 < (Lkk - 1)) {
+          for (int l2 = l1; l2 < (Lkk - 1); l2++) {
+            lambda[k1][l2] = lambda[k1][l2 + 1];
+            for (int j1 = 0; j1 < nkk; j1++) {
+              mu[k1][l2][j1] = mu[k1][l2 + 1][j1];
+              for (int j2 = 0; j2 <= j1; j2++) {
+                BBT[k1][l2][j1][j2] = BBT[k1][l2 + 1][j1][j2];
+                B[k1][l2][j1][j2] = B[k1][l2 + 1][j1][j2];
+              }
+            }
+            for (int i1 = 0; i1 < lendata; i1++) {
+              lpdatagivenl[i1][l2] = lpdatagivenl[i1][l2 + 1];
+            }
+          }
+        }
+        Lkk--;
+        sumlambda = 0.0;
+        for (int l2 = 0; l2 < Lkk; l2++) {
+          sumlambda += lambda[k1][l2];
+        }
+        for (int l2 = 0; l2 < Lkk; l2++) {
+          lambda[k1][l2] /= sumlambda;
+        }
+      }
+
+      lpn = 0.0;
+      for (int i1 = 0; i1 < lendata; i1++) {
+        double sum = 0.0;
+        for (int l2 = 0; l2 < Lkk; l2++) {
+          logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
+          w[i1][l2] = exp(logw[l2]);
+          sum += w[i1][l2];
+        }
+        if (sum > 0) {
+          for (int l2 = 0; l2 < Lkk; l2++) {
+            w[i1][l2] /= sum;
+          }
+          lpn += log(sum);
+        } else {
+          /* if no component fits point well make equally likely */
+          for (int l2 = 0; l2 < Lkk; l2++) {
+            w[i1][l2] = 1.0 / Lkk;
+          }
+          lpn += (-500.0);
+        }
+      }
+    }
+
+    double sum = 0.0;
+    for (int l1 = 0; l1 < Lkk; l1++) {
+      sum += log(lendata * lambda[k1][l1] / 12.0);
+    }
+    double costfnnew = (nparams / 2.0) * sum +
+                       (Lkk / 2.0) * log(lendata / 12.0) +
+                       Lkk * (nparams + 1) / 2.0 - lpn;
+
+    if (count == 1) {
+      costfn = costfnnew;
+    }
+    if (count == 1 || costfnnew < costfnmin) {
+      Lkkmin = Lkk;
+      costfnmin = costfnnew;
+      for (int l1 = 0; l1 < Lkk; l1++) {
+        lambdamin[k1][l1] = lambda[k1][l1];
+        for (int j1 = 0; j1 < nkk; j1++) {
+          mumin[k1][l1][j1] = mu[k1][l1][j1];
+          for (int j2 = 0; j2 <= j1; j2++) {
+            Bmin[k1][l1][j1][j2] = B[k1][l1][j1][j2];
+          }
+        }
+      }
+    }
+    if ((fabs(costfn - costfnnew) < min(tol * fabs(costfn), 0.01)) &&
+        (count > 1)) {
+      if (Lkk == 1) {
+        stop = 1;
+      } else {
+        if (fmod(Lkk, 5) < 0.05) {
+          printf("\n");
+        }
+        printf("%d(%d-f) ", Lkk, count);
+        forceann = 2;
+        double minlambda = lambda[k1][0];
+        int ldel = 0;
+        for (int l1 = 1; l1 < Lkk; l1++) {
+          if (minlambda > lambda[k1][l1]) {
+            minlambda = lambda[k1][l1];
+            ldel = l1;
+          }
+        }
+        if (ldel < (Lkk - 1)) {
+          for (int l1 = ldel; l1 < (Lkk - 1); l1++) {
+            lambda[k1][l1] = lambda[k1][l1 + 1];
+            for (int j1 = 0; j1 < nkk; j1++) {
+              mu[k1][l1][j1] = mu[k1][l1 + 1][j1];
+              for (int j2 = 0; j2 <= j1; j2++) {
+                BBT[k1][l1][j1][j2] = BBT[k1][l1 + 1][j1][j2];
+                B[k1][l1][j1][j2] = B[k1][l1 + 1][j1][j2];
+              }
+            }
+            for (int i1 = 0; i1 < lendata; i1++) {
+              lpdatagivenl[i1][l1] = lpdatagivenl[i1][l1 + 1];
+            }
+          }
+        }
+        Lkk--;
+        double sumlambda = 0.0;
+        for (int l1 = 0; l1 < Lkk; l1++) {
+          sumlambda += lambda[k1][l1];
+        }
+        for (int l1 = 0; l1 < Lkk; l1++) {
+          lambda[k1][l1] /= sumlambda;
+        }
+
+        lpn = 0.0;
+        for (int i1 = 0; i1 < lendata; i1++) {
+          sum = 0.0;
+          for (int l2 = 0; l2 < Lkk; l2++) {
+            logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
+            w[i1][l2] = exp(logw[l2]);
+            sum += w[i1][l2];
+          }
+          if (sum > 0) {
+            for (int l2 = 0; l2 < Lkk; l2++) {
+              w[i1][l2] /= sum;
+            }
+            lpn += log(sum);
+          } else {
+            /* if no component fits point well make equally likely */
+            for (int l2 = 0; l2 < Lkk; l2++) {
+              w[i1][l2] = 1.0 / Lkk;
+            }
+            lpn += (-500.0);
+          }
+        }
+
+        sum = 0.0;
+        for (int l1 = 0; l1 < Lkk; l1++) {
+          sum += log(lendata * lambda[k1][l1] / 12.0);
+        }
+        costfnnew = (nparams / 2.0) * sum + (Lkk / 2.0) * log(lendata / 12.0) +
+                    Lkk * (nparams + 1) / 2.0 - lpn;
+      }
+    }
+    if (count > 5000) {
+      stop = 1;
+    }
+    costfn = costfnnew;
+    fprintf(fpcf, "%d %lf %lf %d\n", Lkk, lpn, costfnnew, (natann + forceann));
+    fflush(NULL);
+  }
+
+  for (int j1 = 0; j1 < nkk; j1++) {
+    free(M1[j1]);
+  }
+  free(M1);
+  free(datamean);
+  for (int i1 = 0; i1 < lendata; i1++) {
+    free(data[i1]);
+    free(w[i1]);
+    free(lpdatagivenl[i1]);
+  }
+  free(w);
+  free(lpdatagivenl);
+  free(data);
+  free(logw);
+  free(sumw);
+  free(init);
+  Lk[k1] = Lkkmin;
+  for (int l1 = 0; l1 < Lkkmin; l1++) {
+    lambda[k1][l1] = lambdamin[k1][l1];
+    for (int j1 = 0; j1 < nkk; j1++) {
+      mu[k1][l1][j1] = mumin[k1][l1][j1];
+    }
+    for (int j1 = 0; j1 < nkk; j1++) {
+      for (int j2 = 0; j2 <= j1; j2++) {
+        B[k1][l1][j1][j2] = Bmin[k1][l1][j1][j2];
+      }
+    }
+  }
 }
 
 void usage(char *invocation) {
