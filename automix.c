@@ -291,9 +291,10 @@ int main(int argc, char *argv[]) {
     for (int k1 = 0; k1 < kmax; k1++) {
       int nkk = nk[k1];
       int lendata = 1000 * nkk;
-      double **data = (double **)malloc(lendata * sizeof(double *));
-      for (int i = 0; i < lendata; i++) {
-        data[i] = (double *)malloc(nkk * sizeof(double));
+      double **data = (double **)malloc(lendata * sizeof(*data));
+      data[0] = (double *)malloc(lendata * nkk * sizeof(**data));
+      for (int i = 1; i < lendata; i++) {
+        data[i] = data[i - 1] + nkk;
       }
       /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
       rwn_within_model(k1, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
@@ -311,9 +312,7 @@ int main(int argc, char *argv[]) {
         /* Note only done if mode 2 (m=2).*/
         fit_autorj(k1, lambda, Lk, nk, mu, B, data);
       }
-      for (int i1 = 0; i1 < lendata; i1++) {
-        free(data[i1]);
-      }
+      free(data[0]);
       free(data);
     }
   }
