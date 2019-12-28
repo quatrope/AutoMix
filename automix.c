@@ -82,12 +82,12 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
 void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
                       FILE *fpad, double **sig, int dof, double **data);
 
-void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
+void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
                               double ***mu, double ****B, double **lambda,
                               FILE *fpcf, int *Lk);
 
 void fit_autorj(int k1, double **lambda, int *Lk, int *nk, double ***mu,
-                double ****B, double **data);
+                double ****B, double **data, int lendata);
 
 void usage(char *invocation);
 
@@ -278,7 +278,8 @@ int main(int argc, char *argv[]) {
   /* These parameters are used if mode 1 (m=1) of the AutoMix sampler is
      used. Note that if the parameters are unavailable or inconsistent with
      the user supplied functions or unavailable go straight to section 5.2
-     where initial within-model RWM are performed */
+     where initial within-model Normal Random Walk Metropolis (RWM) are
+     performed */
 
   if (mode == 1) {
     int ok = read_mixture_params(fname, kmax, nk, sig, Lk, lambda, mu, B);
@@ -288,8 +289,8 @@ int main(int argc, char *argv[]) {
   } else if (mode == 0 || mode == 2) {
 
     /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
-    for (int k1 = 0; k1 < kmax; k1++) {
-      int nkk = nk[k1];
+    for (int model_k = 0; model_k < kmax; model_k++) {
+      int nkk = nk[model_k];
       int lendata = 1000 * nkk;
       double **data = (double **)malloc(lendata * sizeof(*data));
       data[0] = (double *)malloc(lendata * nkk * sizeof(**data));
@@ -297,20 +298,21 @@ int main(int argc, char *argv[]) {
         data[i] = data[i - 1] + nkk;
       }
       /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
-      rwn_within_model(k1, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
+      rwn_within_model(model_k, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
 
       /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
       /* Note only done if mode 0 (m=0) if mode m=2, go to section 5.2.3*/
       /* Mixture fitting done component wise EM algorithm described in
          Figueiredo and Jain, 2002 (see thesis for full reference) */
 
-      printf("\nMixture Fitting: Model %d", k1 + 1);
+      printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
-        fit_mixture_from_samples(k1, nk, data, sig, mu, B, lambda, fpcf, Lk);
+        fit_mixture_from_samples(model_k, nk, data, lendata, mu, B, lambda, fpcf,
+                                 Lk);
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
-        fit_autorj(k1, lambda, Lk, nk, mu, B, data);
+        fit_autorj(model_k, lambda, Lk, nk, mu, B, data, lendata);
       }
       free(data[0]);
       free(data);
@@ -1064,13 +1066,12 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
   free(Znkk);
 }
 
-void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
+void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
                               double ***mu, double ****B, double **lambda,
                               FILE *fpcf, int *Lk) {
   int Lkk = Lkmaxmax;
   int *init = (int *)malloc(Lkk * sizeof(int));
-  int nkk = nk[k1];
-  int lendata = 1000 * nkk;
+  int nkk = nk[model_k];
   int l1 = 0;
   double lpn = 0.0;
   double costfn = 0.0;
@@ -1096,6 +1097,9 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   for (int l1 = 0; l1 < Lkmaxmax; l1++) {
     mumin[l1] = (double *)malloc(nkk * sizeof(double));
   }
+  double ***B_k = B[model_k];
+  double **mu_k = mu[model_k];
+  double *lambda_k = lambda[model_k];
 
   while (l1 < Lkk) {
     int indic = 0;
@@ -1144,16 +1148,16 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
 
   for (int l1 = 0; l1 < Lkk; l1++) {
     for (int j1 = 0; j1 < nkk; j1++) {
-      mu[k1][l1][j1] = data[init[l1]][j1];
+      mu_k[l1][j1] = data[init[l1]][j1];
       BBT[l1][j1][j1] = sigma;
-      B[k1][l1][j1][j1] = sigma;
+      B_k[l1][j1][j1] = sigma;
       for (int j2 = 0; j2 < j1; j2++) {
         BBT[l1][j1][j2] = 0.0;
-        B[k1][l1][j1][j2] = 0.0;
+        B_k[l1][j1][j2] = 0.0;
       }
     }
-    chol(nkk, B[k1][l1]);
-    lambda[k1][l1] = 1.0 / Lkk;
+    chol(nkk, B_k[l1]);
+    lambda_k[l1] = 1.0 / Lkk;
   }
 
   double **w = (double **)malloc(lendata * sizeof(double *));
@@ -1167,8 +1171,8 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   for (int i1 = 0; i1 < lendata; i1++) {
     double sum = 0.0;
     for (int l1 = 0; l1 < Lkk; l1++) {
-      lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
-      logw[l1] = log(lambda[k1][l1]) + lpdatagivenl[i1][l1];
+      lpdatagivenl[i1][l1] = lnormprob(model_k, nkk, l1, mu, B, data[i1]);
+      logw[l1] = log(lambda_k[l1]) + lpdatagivenl[i1][l1];
       w[i1][l1] = exp(logw[l1]);
       sum += w[i1][l1];
     }
@@ -1203,39 +1207,39 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
         }
         sumwnew += wnew;
       }
-      lambda[k1][l1] = wnewl1 / sumwnew;
+      lambda_k[l1] = wnewl1 / sumwnew;
       double sumlambda = 0.0;
       for (int l2 = 0; l2 < Lkk; l2++) {
-        sumlambda += lambda[k1][l2];
+        sumlambda += lambda_k[l2];
       }
       for (int l2 = 0; l2 < Lkk; l2++) {
-        lambda[k1][l2] /= sumlambda;
+        lambda_k[l2] /= sumlambda;
       }
 
-      if (lambda[k1][l1] > 0.005) {
+      if (lambda_k[l1] > 0.005) {
         /*changed to 0.005 from 0.0 -renormalise else */
         for (int j1 = 0; j1 < nkk; j1++) {
-          mu[k1][l1][j1] = 0.0;
+          mu_k[l1][j1] = 0.0;
           for (int i1 = 0; i1 < lendata; i1++) {
-            mu[k1][l1][j1] += data[i1][j1] * w[i1][l1];
+            mu_k[l1][j1] += data[i1][j1] * w[i1][l1];
           }
-          mu[k1][l1][j1] /= sumw[l1];
+          mu_k[l1][j1] /= sumw[l1];
 
           for (int j2 = 0; j2 <= j1; j2++) {
             BBT[l1][j1][j2] = 0.0;
             for (int i1 = 0; i1 < lendata; i1++) {
-              BBT[l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
-                                 (data[i1][j2] - mu[k1][l1][j2]) * w[i1][l1];
+              BBT[l1][j1][j2] += (data[i1][j1] - mu_k[l1][j1]) *
+                                 (data[i1][j2] - mu_k[l1][j2]) * w[i1][l1];
             }
             BBT[l1][j1][j2] /= sumw[l1];
-            B[k1][l1][j1][j2] = BBT[l1][j1][j2];
+            B_k[l1][j1][j2] = BBT[l1][j1][j2];
           }
         }
 
-        chol(nkk, B[k1][l1]);
+        chol(nkk, B_k[l1]);
 
         for (int i1 = 0; i1 < lendata; i1++) {
-          lpdatagivenl[i1][l1] = lnormprob(k1, nkk, l1, mu, B, data[i1]);
+          lpdatagivenl[i1][l1] = lnormprob(model_k, nkk, l1, mu, B, data[i1]);
         }
         l1++;
 
@@ -1247,12 +1251,12 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
         natann = 1;
         if (l1 < (Lkk - 1)) {
           for (int l2 = l1; l2 < (Lkk - 1); l2++) {
-            lambda[k1][l2] = lambda[k1][l2 + 1];
+            lambda_k[l2] = lambda_k[l2 + 1];
             for (int j1 = 0; j1 < nkk; j1++) {
-              mu[k1][l2][j1] = mu[k1][l2 + 1][j1];
+              mu_k[l2][j1] = mu_k[l2 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
                 BBT[l2][j1][j2] = BBT[l2 + 1][j1][j2];
-                B[k1][l2][j1][j2] = B[k1][l2 + 1][j1][j2];
+                B_k[l2][j1][j2] = B_k[l2 + 1][j1][j2];
               }
             }
             for (int i1 = 0; i1 < lendata; i1++) {
@@ -1263,10 +1267,10 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
         Lkk--;
         sumlambda = 0.0;
         for (int l2 = 0; l2 < Lkk; l2++) {
-          sumlambda += lambda[k1][l2];
+          sumlambda += lambda_k[l2];
         }
         for (int l2 = 0; l2 < Lkk; l2++) {
-          lambda[k1][l2] /= sumlambda;
+          lambda_k[l2] /= sumlambda;
         }
       }
 
@@ -1274,7 +1278,7 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
       for (int i1 = 0; i1 < lendata; i1++) {
         double sum = 0.0;
         for (int l2 = 0; l2 < Lkk; l2++) {
-          logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
+          logw[l2] = log(lambda_k[l2]) + lpdatagivenl[i1][l2];
           w[i1][l2] = exp(logw[l2]);
           sum += w[i1][l2];
         }
@@ -1295,7 +1299,7 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
 
     double sum = 0.0;
     for (int l1 = 0; l1 < Lkk; l1++) {
-      sum += log(lendata * lambda[k1][l1] / 12.0);
+      sum += log(lendata * lambda_k[l1] / 12.0);
     }
     double costfnnew = (nparams / 2.0) * sum +
                        (Lkk / 2.0) * log(lendata / 12.0) +
@@ -1308,11 +1312,11 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
       Lkkmin = Lkk;
       costfnmin = costfnnew;
       for (int l1 = 0; l1 < Lkk; l1++) {
-        lambdamin[l1] = lambda[k1][l1];
+        lambdamin[l1] = lambda_k[l1];
         for (int j1 = 0; j1 < nkk; j1++) {
-          mumin[l1][j1] = mu[k1][l1][j1];
+          mumin[l1][j1] = mu_k[l1][j1];
           for (int j2 = 0; j2 <= j1; j2++) {
-            Bmin[l1][j1][j2] = B[k1][l1][j1][j2];
+            Bmin[l1][j1][j2] = B_k[l1][j1][j2];
           }
         }
       }
@@ -1327,22 +1331,22 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
         }
         printf("%d(%d-f) ", Lkk, count);
         forceann = 2;
-        double minlambda = lambda[k1][0];
+        double minlambda = lambda_k[0];
         int ldel = 0;
         for (int l1 = 1; l1 < Lkk; l1++) {
-          if (minlambda > lambda[k1][l1]) {
-            minlambda = lambda[k1][l1];
+          if (minlambda > lambda_k[l1]) {
+            minlambda = lambda_k[l1];
             ldel = l1;
           }
         }
         if (ldel < (Lkk - 1)) {
           for (int l1 = ldel; l1 < (Lkk - 1); l1++) {
-            lambda[k1][l1] = lambda[k1][l1 + 1];
+            lambda_k[l1] = lambda_k[l1 + 1];
             for (int j1 = 0; j1 < nkk; j1++) {
-              mu[k1][l1][j1] = mu[k1][l1 + 1][j1];
+              mu_k[l1][j1] = mu_k[l1 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
                 BBT[l1][j1][j2] = BBT[l1 + 1][j1][j2];
-                B[k1][l1][j1][j2] = B[k1][l1 + 1][j1][j2];
+                B_k[l1][j1][j2] = B_k[l1 + 1][j1][j2];
               }
             }
             for (int i1 = 0; i1 < lendata; i1++) {
@@ -1353,17 +1357,17 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
         Lkk--;
         double sumlambda = 0.0;
         for (int l1 = 0; l1 < Lkk; l1++) {
-          sumlambda += lambda[k1][l1];
+          sumlambda += lambda_k[l1];
         }
         for (int l1 = 0; l1 < Lkk; l1++) {
-          lambda[k1][l1] /= sumlambda;
+          lambda_k[l1] /= sumlambda;
         }
 
         lpn = 0.0;
         for (int i1 = 0; i1 < lendata; i1++) {
           sum = 0.0;
           for (int l2 = 0; l2 < Lkk; l2++) {
-            logw[l2] = log(lambda[k1][l2]) + lpdatagivenl[i1][l2];
+            logw[l2] = log(lambda_k[l2]) + lpdatagivenl[i1][l2];
             w[i1][l2] = exp(logw[l2]);
             sum += w[i1][l2];
           }
@@ -1383,7 +1387,7 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
 
         sum = 0.0;
         for (int l1 = 0; l1 < Lkk; l1++) {
-          sum += log(lendata * lambda[k1][l1] / 12.0);
+          sum += log(lendata * lambda_k[l1] / 12.0);
         }
         costfnnew = (nparams / 2.0) * sum + (Lkk / 2.0) * log(lendata / 12.0) +
                     Lkk * (nparams + 1) / 2.0 - lpn;
@@ -1411,44 +1415,45 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   free(logw);
   free(sumw);
   free(init);
-  Lk[k1] = Lkkmin;
+  Lk[model_k] = Lkkmin;
   for (int l1 = 0; l1 < Lkkmin; l1++) {
-    lambda[k1][l1] = lambdamin[l1];
+    lambda_k[l1] = lambdamin[l1];
     for (int j1 = 0; j1 < nkk; j1++) {
-      mu[k1][l1][j1] = mumin[l1][j1];
+      mu_k[l1][j1] = mumin[l1][j1];
     }
     for (int j1 = 0; j1 < nkk; j1++) {
       for (int j2 = 0; j2 <= j1; j2++) {
-        B[k1][l1][j1][j2] = Bmin[l1][j1][j2];
+        B_k[l1][j1][j2] = Bmin[l1][j1][j2];
       }
     }
   }
 }
 
-void fit_autorj(int k1, double **lambda, int *Lk, int *nk, double ***mu,
-                double ****B, double **data) {
-  int nkk = nk[k1];
-  int lendata = 1000 * nkk;
-  Lk[k1] = 1;
-  lambda[k1][0] = 1.0;
-  for (int j1 = 0; j1 < nkk; j1++) {
-    mu[k1][0][j1] = 0.0;
-    for (int i1 = 0; i1 < lendata; i1++) {
-      mu[k1][0][j1] += data[i1][j1];
+void fit_autorj(int model_k, double **lambda, int *Lk, int *nk, double ***mu,
+                double ****B, double **data, int lendata) {
+  int nkk = nk[model_k];
+  Lk[model_k] = 1;
+  double ***B_k = B[model_k];
+  double **mu_k = mu[model_k];
+  double *lambda_k = lambda[model_k];
+  lambda_k[0] = 1.0;
+  for (int j = 0; j < nkk; j++) {
+    mu_k[0][j] = 0.0;
+    for (int i = 0; i < lendata; i++) {
+      mu_k[0][j] += data[i][j];
     }
-    mu[k1][0][j1] /= ((double)lendata);
+    mu_k[0][j] /= ((double)lendata);
   }
-  for (int j1 = 0; j1 < nkk; j1++) {
-    for (int j2 = 0; j2 <= j1; j2++) {
-      B[k1][0][j1][j2] = 0.0;
-      for (int i1 = 0; i1 < lendata; i1++) {
-        B[k1][0][j1][j2] +=
-            (data[i1][j1] - mu[k1][0][j1]) * (data[i1][j2] - mu[k1][0][j2]);
+  for (int l = 0; l < nkk; l++) {
+    for (int j = 0; j <= l; j++) {
+      B_k[0][l][j] = 0.0;
+      for (int i = 0; i < lendata; i++) {
+        B_k[0][l][j] += (data[i][l] - mu_k[0][l]) * (data[i][j] - mu_k[0][j]);
       }
-      B[k1][0][j1][j2] /= ((double)(lendata - 1));
+      B_k[0][l][j] /= ((double)(lendata - 1));
     }
   }
-  chol(nkk, B[k1][0]);
+  chol(nkk, B_k[0]);
 }
 
 void usage(char *invocation) {
