@@ -47,12 +47,10 @@
 
 /* Global constants (please feel free to change as required)
 
-   nkmaxmax = maximum dimension of any one model under consideration
    NMODELS_MAX = maximum number of models
    Lkmaxmax = initial number of mixture components fitted in stage 2 of
               AutoMix algorithm */
 
-#define nkmaxmax 20
 #define NMODELS_MAX 15
 #define Lkmaxmax 30
 #define tpi 6.283185307179586477
@@ -61,31 +59,32 @@
 
 /* --- Internal functions (described below) ----------------- */
 
-void gauss(double *z, int nkk);
+void gauss(double *z, int n);
 
-void rt(double *z, int nkk, int dof);
+void rt(double *z, int n, int dof);
 
-void chol(int nkk, double **B);
+void chol(int n, double **B);
 
-void perm(double *work, int nkk);
+void perm(double *work, int n);
 
 double ltprob(int dof, double z);
 
-double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai);
+double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai);
 
-double det(int nkk, int l, double ***B_k);
+double det(int n, int l, double ***B_k);
 
-int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
-                        double **lambda, double ***mu, double ****B);
+int read_mixture_params(char *fname, int kmax, int *model_dims, double **sig,
+                        int *Lk, double **lambda, double ***mu, double ****B);
 
-void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
-                      FILE *fpad, double **sig, int dof, double **data);
+void rwn_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
+                      FILE *fpcf, FILE *fpad, double **sig, int dof,
+                      double **data);
 
-void fit_mixture_from_samples(int nk, double **data, int lendata, double **mu_k,
-                              double ***B_k, double *lambda_k, FILE *fpcf,
-                              int *Lk_k);
+void fit_mixture_from_samples(int mdim, double **data, int lendata,
+                              double **mu_k, double ***B_k, double *lambda_k,
+                              FILE *fpcf, int *Lk_k);
 
-void fit_autorj(double *lambda_k, int *Lk_k, int nkk, double **mu_k,
+void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata);
 
 void usage(char *invocation);
@@ -103,13 +102,12 @@ int main(int argc, char *argv[]) {
      mode ~ m ~ 0 if mixture fitting, 1 if user supplied mixture params,
                 2 if AutoRJ
      nsweep ~ N ~ no. of reversible jump sweeps in stage 3
-     nsweep2 ~ n ~ max(n,10000*nk,100000) sweeps in within-model RWM in stage 1
-     adapt ~ a ~ 1 if RJ adaptation done in stage 3, 0 otherwise
-     doperm ~ p ~ 1 if random permutation done in stage 3 RJ move, 0 otherwise
-     seed ~ s ~ random no. seed, 0 uses clock seed
-     dof ~ t ~ 0 if Normal random variables used in RWM and RJ moves, otherwise
-               specify integer degrees of freedom of student t variables
-     fname ~ f ~ filename base */
+     nsweep2 ~ n ~ max(n,10000*mdim,100000) sweeps in within-model RWM in stage
+     1 adapt ~ a ~ 1 if RJ adaptation done in stage 3, 0 otherwise doperm ~ p ~
+     1 if random permutation done in stage 3 RJ move, 0 otherwise seed ~ s ~
+     random no. seed, 0 uses clock seed dof ~ t ~ 0 if Normal random variables
+     used in RWM and RJ moves, otherwise specify integer degrees of freedom of
+     student t variables fname ~ f ~ filename base */
 
   // Default values
   int nsweep = 1E5;
@@ -201,29 +199,29 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  int *nk = (int *)malloc(nmodels * sizeof(int));
+  int *model_dims = (int *)malloc(nmodels * sizeof(int));
   int *Lk = (int *)malloc(nmodels * sizeof(int));
   int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
-  getnk(nmodels, nk);
+  getnk(nmodels, model_dims);
 
   double **lambda = (double **)malloc(nmodels * sizeof(double *));
   double ***mu = (double ***)malloc(nmodels * sizeof(double **));
   double ****B = (double ****)malloc(nmodels * sizeof(double ***));
   double **detB = (double **)malloc(nmodels * sizeof(double *));
   double **sig = (double **)malloc(nmodels * sizeof(double *));
-  for (int k1 = 0; k1 < nmodels; k1++) {
-    int nkk = nk[k1];
-    lambda[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
-    mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
-    B[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
-    detB[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
-    sig[k1] = (double *)malloc(nkk * sizeof(double));
-    for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-      mu[k1][l1] = (double *)malloc(nkk * sizeof(double));
-      B[k1][l1] = (double **)malloc(nkk * sizeof(double *));
-      for (int j1 = 0; j1 < nkk; j1++) {
-        B[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
+  for (int k = 0; k < nmodels; k++) {
+    int mdim = model_dims[k];
+    lambda[k] = (double *)malloc(Lkmaxmax * sizeof(double));
+    mu[k] = (double **)malloc(Lkmaxmax * sizeof(double *));
+    B[k] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    detB[k] = (double *)malloc(Lkmaxmax * sizeof(double));
+    sig[k] = (double *)malloc(mdim * sizeof(double));
+    for (int i = 0; i < Lkmaxmax; i++) {
+      mu[k][i] = (double *)malloc(mdim * sizeof(double));
+      B[k][i] = (double **)malloc(mdim * sizeof(double *));
+      for (int j = 0; j < mdim; j++) {
+        B[k][i][j] = (double *)malloc(mdim * sizeof(double));
       }
     }
   }
@@ -237,36 +235,38 @@ int main(int argc, char *argv[]) {
      performed */
 
   if (mode == 1) {
-    int ok = read_mixture_params(fname, nmodels, nk, sig, Lk, lambda, mu, B);
+    int ok =
+        read_mixture_params(fname, nmodels, model_dims, sig, Lk, lambda, mu, B);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
   }
   /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
   for (int model_k = 0; model_k < nmodels; model_k++) {
-    int nkk = nk[model_k];
-    int lendata = 1000 * nkk;
+    int mdim = model_dims[model_k];
+    int lendata = 1000 * mdim;
     double **data = (double **)malloc(lendata * sizeof(*data));
-    data[0] = (double *)malloc(lendata * nkk * sizeof(**data));
+    data[0] = (double *)malloc(lendata * mdim * sizeof(**data));
     for (int i = 1; i < lendata; i++) {
-      data[i] = data[i - 1] + nkk;
+      data[i] = data[i - 1] + mdim;
     }
     /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
-    rwn_within_model(model_k, nk, nsweep2, fpl, fpcf, fpad, sig, dof, data);
+    rwn_within_model(model_k, model_dims, nsweep2, fpl, fpcf, fpad, sig, dof,
+                     data);
 
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (mode == 0) {
       /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
       /* Mixture fitting done component wise EM algorithm described in
          Figueiredo and Jain, 2002 (see thesis for full reference) */
-      fit_mixture_from_samples(nk[model_k], data, lendata, mu[model_k],
+      fit_mixture_from_samples(model_dims[model_k], data, lendata, mu[model_k],
                                B[model_k], lambda[model_k], fpcf, Lk + model_k);
     }
     if (mode == 2) {
       /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
       /* Note only done if mode 2 (m=2).*/
-      fit_autorj(lambda[model_k], Lk + model_k, nk[model_k], mu[model_k],
-                 B[model_k], data, lendata);
+      fit_autorj(lambda[model_k], Lk + model_k, model_dims[model_k],
+                 mu[model_k], B[model_k], data, lendata);
     }
     free(data[0]);
     free(data);
@@ -279,20 +279,20 @@ int main(int argc, char *argv[]) {
   FILE *fpmix = fopen(datafname, "w");
   fprintf(fpmix, "%d\n", nmodels);
   for (int k1 = 0; k1 < nmodels; k1++) {
-    fprintf(fpmix, "%d\n", nk[k1]);
+    fprintf(fpmix, "%d\n", model_dims[k1]);
   }
 
   for (int k1 = 0; k1 < nmodels; k1++) {
     fprintf(fpl, "\nModel:%d\n", k1 + 1);
     int Lkk = Lk[k1];
-    int nkk = nk[k1];
+    int mdim = model_dims[k1];
     fprintf(fpl, "\nARW params:\n");
-    for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < mdim; j1++) {
       fprintf(fpl, "%lf ", sig[k1][j1]);
     }
     fprintf(fpl, "\n");
     fprintf(fpl, "\nLkk:%d\n", Lkk);
-    for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < mdim; j1++) {
       fprintf(fpmix, "%lf\n", sig[k1][j1]);
     }
     fprintf(fpmix, "%d\n", Lkk);
@@ -301,19 +301,19 @@ int main(int argc, char *argv[]) {
       fprintf(fpl, "lambda:%lf\n", lambda[k1][l1]);
       fprintf(fpmix, "%lf\n", lambda[k1][l1]);
       fprintf(fpl, "mu:\n");
-      for (int j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < mdim; j1++) {
         fprintf(fpl, "%lf ", mu[k1][l1][j1]);
         fprintf(fpmix, "%lf\n", mu[k1][l1][j1]);
       }
       fprintf(fpl, "\nB:\n");
-      for (int j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < mdim; j1++) {
         for (int j2 = 0; j2 <= j1; j2++) {
           fprintf(fpl, "%lf ", B[k1][l1][j1][j2]);
           fprintf(fpmix, "%lf\n", B[k1][l1][j1][j2]);
         }
         fprintf(fpl, "\n");
       }
-      detB[k1][l1] = det(nkk, l1, B[k1]);
+      detB[k1][l1] = det(mdim, l1, B[k1]);
     }
   }
   fflush(NULL);
@@ -346,26 +346,26 @@ int main(int argc, char *argv[]) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
   int k = (int)floor(nmodels * sdrand());
-  int nkk = nk[k];
+  int mdim = model_dims[k];
   int Lkk = Lk[k];
 
-  int nkmax = nk[0];
+  int mdim_max = model_dims[0];
   for (int k1 = 1; k1 < nmodels; k1++) {
-    nkmax = max(nk[k1], nkmax);
+    mdim_max = max(model_dims[k1], mdim_max);
   }
-  double *theta = (double *)malloc(nkmax * sizeof(double));
-  double *thetan = (double *)malloc(nkmax * sizeof(double));
-  double *work = (double *)malloc(nkmax * sizeof(double));
+  double *theta = (double *)malloc(mdim_max * sizeof(double));
+  double *thetan = (double *)malloc(mdim_max * sizeof(double));
+  double *work = (double *)malloc(mdim_max * sizeof(double));
   double *palloc = (double *)malloc(Lkmax * sizeof(double));
   double *pallocn = (double *)malloc(Lkmax * sizeof(double));
-  double *Znkk = (double *)malloc(nkmax * sizeof(double));
+  double *Znkk = (double *)malloc(mdim_max * sizeof(double));
   double *propk = (double *)malloc(nmodels * sizeof(double));
   double *pk = (double *)malloc(nmodels * sizeof(double));
 
-  getic(k, nkk, theta);
+  getic(k, mdim, theta);
 
   double llh;
-  double lp = lpost(k, nkk, theta, &llh);
+  double lp = lpost(k, mdim, theta, &llh);
 
   for (int k1 = 0; k1 < nmodels; k1++) {
     pk[k1] = 1.0 / nmodels;
@@ -396,28 +396,28 @@ int main(int argc, char *argv[]) {
     /* Every 10 sweeps to block RWM */
     if (sweep % 10 == 0) {
       ntryrwmb++;
-      rt(Znkk, nkk, dof);
-      for (int j1 = 0; j1 < nkk; j1++) {
+      rt(Znkk, mdim, dof);
+      for (int j1 = 0; j1 < mdim; j1++) {
         thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
       }
       double llhn;
-      double lpn = lpost(k, nkk, thetan, &llhn);
+      double lpn = lpost(k, mdim, thetan, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         naccrwmb++;
-        memcpy(theta, thetan, nkk * sizeof(*thetan));
+        memcpy(theta, thetan, mdim * sizeof(*thetan));
         lp = lpn;
         llh = llhn;
       }
     } else {
       /* else do component-wise RWM */
-      memcpy(thetan, theta, nkk * sizeof(*thetan));
-      for (int j1 = 0; j1 < nkk; j1++) {
+      memcpy(thetan, theta, mdim * sizeof(*thetan));
+      for (int j1 = 0; j1 < mdim; j1++) {
         double Z;
         ntryrwms++;
         rt(&Z, 1, dof);
         thetan[j1] = theta[j1] + sig[k][j1] * Z;
         double llhn;
-        double lpn = lpost(k, nkk, thetan, &llhn);
+        double lpn = lpost(k, mdim, thetan, &llhn);
         if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
           naccrwms++;
           theta[j1] = thetan[j1];
@@ -438,7 +438,7 @@ int main(int argc, char *argv[]) {
     if (Lkk > 1) {
       double sum = 0.0;
       for (int i = 0; i < Lkk; i++) {
-        palloc[i] = log(lambda[k][i]) + lnormprob(nkk, i, mu[k], B[k], theta);
+        palloc[i] = log(lambda[k][i]) + lnormprob(mdim, i, mu[k], B[k], theta);
         palloc[i] = exp(palloc[i]);
         sum += palloc[i];
       }
@@ -467,10 +467,10 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.2 - Standardise state variable --------------- */
 
-    for (int i = 0; i < nkk; i++) {
+    for (int i = 0; i < mdim; i++) {
       work[i] = theta[i] - mu[k][l][i];
     }
-    for (int i = 0; i < nkk; i++) {
+    for (int i = 0; i < mdim; i++) {
       for (int j = 0; j < i; j++) {
         work[i] = work[i] - B[k][l][i][j] * work[j];
       }
@@ -498,7 +498,7 @@ int main(int argc, char *argv[]) {
       logratio = log(pk[k]) - log(pk[kn]);
     }
 
-    int nkkn = nk[kn];
+    int mdim_kn = model_dims[kn];
     int Lkkn = Lk[kn];
 
     double u = sdrand();
@@ -513,40 +513,40 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.4 Propose new state ----------------*/
 
-    if (nkk < nkkn) {
-      rt(&(work[nkk]), nkkn - nkk, dof);
+    if (mdim < mdim_kn) {
+      rt(&(work[mdim]), mdim_kn - mdim, dof);
       if (dof > 0) {
-        for (int i = nkk; i < nkkn; i++) {
+        for (int i = mdim; i < mdim_kn; i++) {
           logratio -= ltprob(dof, work[i]);
         }
       } else {
-        for (int j1 = nkk; j1 < nkkn; j1++) {
+        for (int j1 = mdim; j1 < mdim_kn; j1++) {
           logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
         }
       }
       if (doperm) {
-        perm(work, nkkn);
+        perm(work, mdim_kn);
       }
-    } else if (nkk == nkkn) {
+    } else if (mdim == mdim_kn) {
       if (doperm) {
-        perm(work, nkk);
+        perm(work, mdim);
       }
     } else {
       if (doperm) {
-        perm(work, nkk);
+        perm(work, mdim);
       }
       if (dof > 0) {
-        for (int j1 = nkkn; j1 < nkk; j1++) {
+        for (int j1 = mdim_kn; j1 < mdim; j1++) {
           logratio += ltprob(dof, work[j1]);
         }
       } else {
-        for (int j1 = nkkn; j1 < nkk; j1++) {
+        for (int j1 = mdim_kn; j1 < mdim; j1++) {
           logratio -= (0.5 * pow(work[j1], 2.0) + logrtpi);
         }
       }
     }
 
-    for (int j1 = 0; j1 < nkkn; j1++) {
+    for (int j1 = 0; j1 < mdim_kn; j1++) {
       thetan[j1] = mu[kn][ln][j1];
       for (int j2 = 0; j2 <= j1; j2++) {
         thetan[j1] += B[kn][ln][j1][j2] * work[j2];
@@ -560,7 +560,7 @@ int main(int argc, char *argv[]) {
       double sum = 0.0;
       for (int l1 = 0; l1 < Lkkn; l1++) {
         pallocn[l1] =
-            log(lambda[kn][l1]) + lnormprob(nkkn, l1, mu[kn], B[kn], thetan);
+            log(lambda[kn][l1]) + lnormprob(mdim_kn, l1, mu[kn], B[kn], thetan);
         pallocn[l1] = exp(pallocn[l1]);
         sum += pallocn[l1];
       }
@@ -579,7 +579,7 @@ int main(int argc, char *argv[]) {
 
     /* --Section 9.6 - Work out acceptance probability  and new state --*/
     double llhn;
-    double lpn = lpost(kn, nkkn, thetan, &llhn);
+    double lpn = lpost(kn, mdim_kn, thetan, &llhn);
 
     logratio += (lpn - lp);
     logratio += (log(pallocn[ln]) - log(palloc[l]));
@@ -587,13 +587,13 @@ int main(int argc, char *argv[]) {
     logratio += (log(detB[kn][ln]) - log(detB[k][l]));
 
     if (sdrand() < exp(max(-30.0, min(0.0, logratio)))) {
-      for (int j1 = 0; j1 < nkkn; j1++) {
+      for (int j1 = 0; j1 < mdim_kn; j1++) {
         theta[j1] = thetan[j1];
       }
       lp = lpn;
       llh = llhn;
       k = kn;
-      nkk = nkkn;
+      mdim = mdim_kn;
       Lkk = Lkkn;
       nacctd++;
     }
@@ -637,7 +637,7 @@ int main(int argc, char *argv[]) {
         fprintf(fpp, "%lf ", pk[k1]);
       }
       fprintf(fpp, "\n");
-      for (int j1 = 0; j1 < nkk; j1++) {
+      for (int j1 = 0; j1 < mdim; j1++) {
         fprintf(fpt[k], "%lf ", theta[j1]);
       }
       fprintf(fpt[k], "\n");
@@ -740,18 +740,18 @@ void rt(double *z, int n, int dof) {
   return;
 }
 
-void chol(int nkk, double **A) {
+void chol(int n, double **A) {
   /* Performs cholesky decompositon of A and returns result in the
      same matrix - adapted from PJG Fortran function*/
 
-  for (int j1 = 0; j1 < nkk; j1++) {
+  for (int j1 = 0; j1 < n; j1++) {
     double sum = A[j1][j1];
     for (int j2 = 0; j2 < j1; j2++) {
       sum -= pow(A[j1][j2], 2);
     }
     A[j1][j1] = sqrt(sum);
 
-    for (int j2 = j1 + 1; j2 < nkk; j2++) {
+    for (int j2 = j1 + 1; j2 < n; j2++) {
       sum = A[j2][j1];
       for (int j3 = 0; j3 < j1; j3++) {
         sum -= A[j2][j3] * A[j1][j3];
@@ -761,15 +761,15 @@ void chol(int nkk, double **A) {
   }
 }
 
-void perm(double *work, int nkk) {
-  /* Randomly permutes the nkk-vector work */
+void perm(double *work, int n) {
+  /* Randomly permutes the n-dim work vector */
 
-  for (int j1 = 0; j1 < (nkk - 1); j1++) {
-    int j2 = j1 + (int)((nkk - j1) * sdrand());
-    if (j2 != j1) {
-      double temp = work[j2];
-      work[j2] = work[j1];
-      work[j1] = temp;
+  for (int i = 0; i < (n - 1); i++) {
+    int j = i + (int)((n - i) * sdrand());
+    if (j != i) {
+      double temp = work[j];
+      work[j] = work[i];
+      work[i] = temp;
     }
   }
   return;
@@ -785,44 +785,43 @@ double ltprob(int dof, double z) {
   return out;
 }
 
-double lnormprob(int nkk, int l, double **mu_k, double ***B_k, double *datai) {
+double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai) {
   /* Evaluates log of p.d.f. for a multivariate normal for model
-     k, of dimension nkk, component l. The summary of means and
+     k, of dimension n, component l. The summary of means and
      sqrt of cov matrices (for all models and all component)
      are supplied in mu and B */
 
-  double work[nkk];
-  double out;
+  double work[n];
 
-  for (int j1 = 0; j1 < nkk; j1++) {
-    work[j1] = datai[j1] - mu_k[l][j1];
+  for (int i = 0; i < n; i++) {
+    work[i] = datai[i] - mu_k[l][i];
   }
-  for (int j1 = 0; j1 < nkk; j1++) {
-    for (int j2 = 0; j2 < j1; j2++) {
-      (work[j1]) -= B_k[l][j1][j2] * work[j2];
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
+      (work[i]) -= B_k[l][i][j] * work[j];
     }
-    (work[j1]) /= B_k[l][j1][j1];
+    (work[i]) /= B_k[l][i][i];
   }
-  out = 0.0;
-  for (int j1 = 0; j1 < nkk; j1++) {
-    out += (work[j1] * work[j1]);
+  double out = 0.0;
+  for (int i = 0; i < n; i++) {
+    out += (work[i] * work[i]);
   }
-  out = -0.5 * out - (nkk / 2.0) * log(tpi) - log(det(nkk, l, B_k));
+  out = -0.5 * out - (n / 2.0) * log(tpi) - log(det(n, l, B_k));
   return out;
 }
 
-double det(int nkk, int l, double ***B_k) {
+double det(int n, int l, double ***B_k) {
 
   /* Evaluates the determinant of a matrix in B corresponding to model k,
      component l. */
   double out = 1.0;
-  for (int j1 = 0; j1 < nkk; j1++) {
-    out *= B_k[l][j1][j1];
+  for (int i = 0; i < n; i++) {
+    out *= B_k[l][i][i];
   }
   return out;
 }
 
-int read_mixture_params(char *fname, int nmodels, int *nk, double **sig,
+int read_mixture_params(char *fname, int nmodels, int *model_dims, double **sig,
                         int *Lk, double **lambda, double ***mu, double ****B) {
   /* Check user has supplied mixture parameters if trying to use mode 1.
      If not default back to mode 0 */
@@ -832,66 +831,56 @@ int read_mixture_params(char *fname, int nmodels, int *nk, double **sig,
   free(datafname);
   if (fpmix == NULL) {
     printf("\nProblem opening mixture file:");
-    printf("\nContinuing using RWM to estimate parameters");
     return EXIT_FAILURE;
   }
   int k1;
   if (fscanf(fpmix, "%d", &k1) == EOF) {
     printf("\nEnd of file encountered before parameters read:");
-    printf("\nContinuing using RWM to estimate parameters");
     return EXIT_FAILURE;
   }
   if (k1 != nmodels) {
     printf("\nFile nmodels contradicts getkmax function:");
-    printf("\nContinuing using RWM to estimate parameters");
     return EXIT_FAILURE;
   }
   for (int k = 0; k < nmodels; k++) {
-    int nkk;
-    if (fscanf(fpmix, "%d", &nkk) == EOF) {
+    int mdim;
+    if (fscanf(fpmix, "%d", &mdim) == EOF) {
       printf("\nEnd of file encountered before parameters read:");
-      printf("\nContinuing using RWM to estimate parameters");
       return EXIT_FAILURE;
     }
-    if (nkk != nk[k]) {
+    if (mdim != model_dims[k]) {
       printf("\nFile kmax contradicts getnk function:");
-      printf("\nContinuing using RWM to estimate parameters");
       return EXIT_FAILURE;
     }
   }
   for (int k = 0; k < nmodels; k++) {
-    int nkk = nk[k];
-    for (int l = 0; l < nkk; l++) {
+    int mdim = model_dims[k];
+    for (int l = 0; l < mdim; l++) {
       if (fscanf(fpmix, "%lf", &(sig[k][l])) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
-        printf("\nContinuing using RWM to estimate parameters");
         return EXIT_FAILURE;
       }
     }
     if (fscanf(fpmix, "%d", &(Lk[k])) == EOF) {
       printf("\nEnd of file encountered before parameters read:");
-      printf("\nContinuing using RWM to estimate parameters");
       return EXIT_FAILURE;
     }
     int Lkk = Lk[k];
     for (int l = 0; l < Lkk; l++) {
       if (fscanf(fpmix, "%lf", &(lambda[k][l])) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
-        printf("\nContinuing using RWM to estimate parameters");
         return EXIT_FAILURE;
       }
-      for (int i = 0; i < nkk; i++) {
+      for (int i = 0; i < mdim; i++) {
         if (fscanf(fpmix, "%lf", &(mu[k][l][i])) == EOF) {
           printf("\nEnd of file encountered before parameters read:");
-          printf("\nContinuing using RWM to estimate parameters");
           return EXIT_FAILURE;
         }
       }
-      for (int i = 0; i < nkk; i++) {
+      for (int i = 0; i < mdim; i++) {
         for (int j = 0; j <= i; j++) {
           if (fscanf(fpmix, "%lf", &(B[k][l][i][j])) == EOF) {
             printf("\nEnd of file encountered before parameters read:");
-            printf("\nContinuing using RWM to estimate parameters");
             return EXIT_FAILURE;
           }
         }
@@ -904,7 +893,6 @@ int read_mixture_params(char *fname, int nmodels, int *nk, double **sig,
     double sumlambda_tol = 1E-5;
     if (fabs(sumlambda - 1.0) > sumlambda_tol) {
       printf("\nComponents weights read do not sum to one for k=%d:", k);
-      printf("\nContinuing using RWM to estimate parameters");
       return EXIT_FAILURE;
     }
     if (sumlambda != 1.0) {
@@ -917,33 +905,34 @@ int read_mixture_params(char *fname, int nmodels, int *nk, double **sig,
   return EXIT_SUCCESS;
 }
 
-void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
-                      FILE *fpad, double **sig, int dof, double **data) {
-  int nkk = nk[k1];
-  int nsweepr = max(nsweep2, 10000 * nkk);
+void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
+                      FILE *fpcf, FILE *fpad, double **sig, int dof,
+                      double **data) {
+  int mdim = model_dims[model_k];
+  int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
   double alphastar = 0.25;
   nsweepr += nburn;
-  double *rwm = (double *)malloc(nkk * sizeof(double));
-  double *rwmn = (double *)malloc(nkk * sizeof(double));
-  int *nacc = (int *)malloc(nkk * sizeof(int));
-  int *ntry = (int *)malloc(nkk * sizeof(int));
-  double *Znkk = (double *)malloc(nkk * sizeof(double));
+  double *rwm = (double *)malloc(mdim * sizeof(double));
+  double *rwmn = (double *)malloc(mdim * sizeof(double));
+  int *nacc = (int *)malloc(mdim * sizeof(int));
+  int *ntry = (int *)malloc(mdim * sizeof(int));
+  double *Znkk = (double *)malloc(mdim * sizeof(double));
 
-  printf("\nRWM for Model %d", k1 + 1);
-  fprintf(fpl, "\nRWM for Model %d", k1 + 1);
-  fprintf(fpcf, "RWM for Model %d\n", k1 + 1);
-  fprintf(fpad, "RWM for Model %d\n", k1 + 1);
+  printf("\nRWM for Model %d", model_k + 1);
+  fprintf(fpl, "\nRWM for Model %d", model_k + 1);
+  fprintf(fpcf, "RWM for Model %d\n", model_k + 1);
+  fprintf(fpad, "RWM for Model %d\n", model_k + 1);
   fflush(NULL);
-  getic(k1, nkk, rwm);
-  for (int j1 = 0; j1 < nkk; j1++) {
+  getic(model_k, mdim, rwm);
+  for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
-    sig[k1][j1] = 10.0;
+    sig[model_k][j1] = 10.0;
     nacc[j1] = 0;
     ntry[j1] = 0;
   }
   double llh, llhn, lpn;
-  double lp = lpost(k1, nkk, rwm, &llh);
+  double lp = lpost(model_k, mdim, rwm, &llh);
 
   int i2 = 0;
   int remain = nsweepr;
@@ -957,13 +946,13 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
     }
     double u = sdrand();
     if (sweep > nburn && u < 0.1) {
-      rt(Znkk, nkk, dof);
-      for (int i = 0; i < nkk; i++) {
-        rwmn[i] = rwm[i] + sig[k1][i] * Znkk[i];
+      rt(Znkk, mdim, dof);
+      for (int i = 0; i < mdim; i++) {
+        rwmn[i] = rwm[i] + sig[model_k][i] * Znkk[i];
       }
-      lpn = lpost(k1, nkk, rwmn, &llhn);
+      lpn = lpost(model_k, mdim, rwmn, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
-        for (int i = 0; i < nkk; i++) {
+        for (int i = 0; i < mdim; i++) {
           rwm[i] = rwmn[i];
         }
         lp = lpn;
@@ -971,14 +960,14 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
       }
     } else {
       double gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
-      for (int i = 0; i < nkk; i++) {
+      for (int i = 0; i < mdim; i++) {
         rwmn[i] = rwm[i];
       }
-      for (int i = 0; i < nkk; i++) {
+      for (int i = 0; i < mdim; i++) {
         double Z;
         rt(&Z, 1, dof);
-        rwmn[i] = rwm[i] + sig[k1][i] * Z;
-        lpn = lpost(k1, nkk, rwmn, &llhn);
+        rwmn[i] = rwm[i] + sig[model_k][i] * Z;
+        lpn = lpost(model_k, mdim, rwmn, &llhn);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
         if (sdrand() < accept) {
           (nacc[i])++;
@@ -986,23 +975,23 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
           rwm[i] = rwmn[i];
           lp = lpn;
           llh = llhn;
-          sig[k1][i] = max(0, sig[k1][i] - gamma * (alphastar - 1));
+          sig[model_k][i] = max(0, sig[model_k][i] - gamma * (alphastar - 1));
         } else {
           (ntry[i])++;
           rwmn[i] = rwm[i];
-          sig[k1][i] = max(0, sig[k1][i] - gamma * (alphastar));
+          sig[model_k][i] = max(0, sig[model_k][i] - gamma * (alphastar));
         }
       }
     }
-    if (remain < (10000 * nkk) && fmod(remain, 10.0) < 0.05) {
-      for (int i = 0; i < nkk; i++) {
+    if (remain < (10000 * mdim) && fmod(remain, 10.0) < 0.05) {
+      for (int i = 0; i < mdim; i++) {
         data[i2][i] = rwm[i];
       }
       i2++;
     }
     if (fmod(sweep, 100.0) < 0.05) {
-      for (int i = 0; i < nkk; i++) {
-        fprintf(fpad, "%lf %lf ", sig[k1][i],
+      for (int i = 0; i < mdim; i++) {
+        fprintf(fpad, "%lf %lf ", sig[model_k][i],
                 (double)nacc[i] / (double)ntry[i]);
       }
       fprintf(fpad, "\n");
@@ -1015,7 +1004,7 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
   free(Znkk);
 }
 
-void fit_mixture_from_samples(int nkk, double **data, int lendata,
+void fit_mixture_from_samples(int mdim, double **data, int lendata,
                               double **mu_k, double ***B_k, double *lambda_k,
                               FILE *fpcf, int *Lk_k) {
   int Lkk = Lkmaxmax;
@@ -1028,22 +1017,22 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
 
   double ***BBT = (double ***)malloc(Lkmaxmax * sizeof(double **));
   for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    BBT[l1] = (double **)malloc(nkk * sizeof(double *));
-    for (int j1 = 0; j1 < nkk; j1++) {
-      BBT[l1][j1] = (double *)malloc(nkk * sizeof(double));
+    BBT[l1] = (double **)malloc(mdim * sizeof(double *));
+    for (int j1 = 0; j1 < mdim; j1++) {
+      BBT[l1][j1] = (double *)malloc(mdim * sizeof(double));
     }
   }
   double ***Bmin = (double ***)malloc(Lkmaxmax * sizeof(double **));
   for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    Bmin[l1] = (double **)malloc(nkk * sizeof(double *));
-    for (int j1 = 0; j1 < nkk; j1++) {
-      Bmin[l1][j1] = (double *)malloc(nkk * sizeof(double));
+    Bmin[l1] = (double **)malloc(mdim * sizeof(double *));
+    for (int j1 = 0; j1 < mdim; j1++) {
+      Bmin[l1][j1] = (double *)malloc(mdim * sizeof(double));
     }
   }
   double *lambdamin = (double *)malloc(Lkmaxmax * sizeof(double));
   double **mumin = (double **)malloc(Lkmaxmax * sizeof(double *));
   for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    mumin[l1] = (double *)malloc(nkk * sizeof(double));
+    mumin[l1] = (double *)malloc(mdim * sizeof(double));
   }
 
   while (l1 < Lkk) {
@@ -1063,20 +1052,20 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
     }
   }
 
-  double *datamean = (double *)malloc(nkk * sizeof(double));
-  double **M1 = (double **)malloc(nkk * sizeof(double *));
-  for (int j1 = 0; j1 < nkk; j1++) {
-    M1[j1] = (double *)malloc(nkk * sizeof(double));
+  double *datamean = (double *)malloc(mdim * sizeof(double));
+  double **M1 = (double **)malloc(mdim * sizeof(double *));
+  for (int j1 = 0; j1 < mdim; j1++) {
+    M1[j1] = (double *)malloc(mdim * sizeof(double));
   }
-  for (int j1 = 0; j1 < nkk; j1++) {
+  for (int j1 = 0; j1 < mdim; j1++) {
     datamean[j1] = 0.0;
     for (int i1 = 0; i1 < lendata; i1++) {
       datamean[j1] += data[i1][j1];
     }
     datamean[j1] /= ((double)lendata);
   }
-  for (int j1 = 0; j1 < nkk; j1++) {
-    for (int j2 = 0; j2 < nkk; j2++) {
+  for (int j1 = 0; j1 < mdim; j1++) {
+    for (int j2 = 0; j2 < mdim; j2++) {
       M1[j1][j2] = 0;
       for (int i1 = 0; i1 < lendata; i1++) {
         M1[j1][j2] +=
@@ -1086,13 +1075,13 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
     }
   }
   double sigma = 0.0;
-  for (int j1 = 0; j1 < nkk; j1++) {
+  for (int j1 = 0; j1 < mdim; j1++) {
     sigma += M1[j1][j1];
   }
-  sigma /= (10.0 * nkk);
+  sigma /= (10.0 * mdim);
 
   for (int l1 = 0; l1 < Lkk; l1++) {
-    for (int j1 = 0; j1 < nkk; j1++) {
+    for (int j1 = 0; j1 < mdim; j1++) {
       mu_k[l1][j1] = data[init[l1]][j1];
       BBT[l1][j1][j1] = sigma;
       B_k[l1][j1][j1] = sigma;
@@ -1101,7 +1090,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
         B_k[l1][j1][j2] = 0.0;
       }
     }
-    chol(nkk, B_k[l1]);
+    chol(mdim, B_k[l1]);
     lambda_k[l1] = 1.0 / Lkk;
   }
 
@@ -1116,7 +1105,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
   for (int i1 = 0; i1 < lendata; i1++) {
     double sum = 0.0;
     for (int l1 = 0; l1 < Lkk; l1++) {
-      lpdatagivenl[i1][l1] = lnormprob(nkk, l1, mu_k, B_k, data[i1]);
+      lpdatagivenl[i1][l1] = lnormprob(mdim, l1, mu_k, B_k, data[i1]);
       logw[l1] = log(lambda_k[l1]) + lpdatagivenl[i1][l1];
       w[i1][l1] = exp(logw[l1]);
       sum += w[i1][l1];
@@ -1131,7 +1120,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
   int stop = 0;
   int count = 0;
   double wnewl1 = 0.0;
-  int nparams = nkk + (nkk * (nkk + 1)) / 2;
+  int nparams = mdim + (mdim * (mdim + 1)) / 2;
   int Lkkmin = 0;
 
   while (!stop) {
@@ -1163,7 +1152,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
 
       if (lambda_k[l1] > 0.005) {
         /*changed to 0.005 from 0.0 -renormalise else */
-        for (int j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < mdim; j1++) {
           mu_k[l1][j1] = 0.0;
           for (int i1 = 0; i1 < lendata; i1++) {
             mu_k[l1][j1] += data[i1][j1] * w[i1][l1];
@@ -1181,10 +1170,10 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
           }
         }
 
-        chol(nkk, B_k[l1]);
+        chol(mdim, B_k[l1]);
 
         for (int i1 = 0; i1 < lendata; i1++) {
-          lpdatagivenl[i1][l1] = lnormprob(nkk, l1, mu_k, B_k, data[i1]);
+          lpdatagivenl[i1][l1] = lnormprob(mdim, l1, mu_k, B_k, data[i1]);
         }
         l1++;
 
@@ -1197,7 +1186,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
         if (l1 < (Lkk - 1)) {
           for (int l2 = l1; l2 < (Lkk - 1); l2++) {
             lambda_k[l2] = lambda_k[l2 + 1];
-            for (int j1 = 0; j1 < nkk; j1++) {
+            for (int j1 = 0; j1 < mdim; j1++) {
               mu_k[l2][j1] = mu_k[l2 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
                 BBT[l2][j1][j2] = BBT[l2 + 1][j1][j2];
@@ -1258,7 +1247,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
       costfnmin = costfnnew;
       for (int l1 = 0; l1 < Lkk; l1++) {
         lambdamin[l1] = lambda_k[l1];
-        for (int j1 = 0; j1 < nkk; j1++) {
+        for (int j1 = 0; j1 < mdim; j1++) {
           mumin[l1][j1] = mu_k[l1][j1];
           for (int j2 = 0; j2 <= j1; j2++) {
             Bmin[l1][j1][j2] = B_k[l1][j1][j2];
@@ -1287,7 +1276,7 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
         if (ldel < (Lkk - 1)) {
           for (int l1 = ldel; l1 < (Lkk - 1); l1++) {
             lambda_k[l1] = lambda_k[l1 + 1];
-            for (int j1 = 0; j1 < nkk; j1++) {
+            for (int j1 = 0; j1 < mdim; j1++) {
               mu_k[l1][j1] = mu_k[l1 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
                 BBT[l1][j1][j2] = BBT[l1 + 1][j1][j2];
@@ -1347,13 +1336,13 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
   }
 
   for (int i = 0; i < Lkmaxmax; i++) {
-    for (int j = 0; j < nkk; j++) {
+    for (int j = 0; j < mdim; j++) {
       free(BBT[i][j]);
     }
     free(BBT[i]);
   }
   free(BBT);
-  for (int i = 0; i < nkk; i++) {
+  for (int i = 0; i < mdim; i++) {
     free(M1[i]);
   }
   free(M1);
@@ -1370,17 +1359,17 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
   *Lk_k = Lkkmin;
   for (int i = 0; i < Lkkmin; i++) {
     lambda_k[i] = lambdamin[i];
-    for (int j = 0; j < nkk; j++) {
+    for (int j = 0; j < mdim; j++) {
       mu_k[i][j] = mumin[i][j];
     }
-    for (int j = 0; j < nkk; j++) {
+    for (int j = 0; j < mdim; j++) {
       for (int l = 0; l <= j; l++) {
         B_k[i][j][l] = Bmin[i][j][l];
       }
     }
   }
   for (int i = 0; i < Lkmaxmax; i++) {
-    for (int j = 0; j < nkk; j++) {
+    for (int j = 0; j < mdim; j++) {
       free(Bmin[i][j]);
     }
     free(Bmin[i]);
@@ -1393,18 +1382,18 @@ void fit_mixture_from_samples(int nkk, double **data, int lendata,
   free(lambdamin);
 }
 
-void fit_autorj(double *lambda_k, int *Lk_k, int nkk, double **mu_k,
+void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata) {
   *Lk_k = 1;
   lambda_k[0] = 1.0;
-  for (int j = 0; j < nkk; j++) {
+  for (int j = 0; j < mdim; j++) {
     mu_k[0][j] = 0.0;
     for (int i = 0; i < lendata; i++) {
       mu_k[0][j] += data[i][j];
     }
     mu_k[0][j] /= ((double)lendata);
   }
-  for (int l = 0; l < nkk; l++) {
+  for (int l = 0; l < mdim; l++) {
     for (int j = 0; j <= l; j++) {
       B_k[0][l][j] = 0.0;
       for (int i = 0; i < lendata; i++) {
@@ -1413,7 +1402,7 @@ void fit_autorj(double *lambda_k, int *Lk_k, int nkk, double **mu_k,
       B_k[0][l][j] /= ((double)(lendata - 1));
     }
   }
-  chol(nkk, B_k[0]);
+  chol(mdim, B_k[0]);
 }
 
 void usage(char *invocation) {
@@ -1430,7 +1419,7 @@ void usage(char *invocation) {
       "-m int: Specify mode. 0 if mixture fitting, 1 if user supplied mixture params, \
            2 if AutoRJ.\n");
   printf("-N int: Number of reversible jump sweeps in stage 3.\n");
-  printf("-n int: max(n, 10000 * nk, 100000) sweeps in within-model RWM in "
+  printf("-n int: max(n, 10000 * mdim, 100000) sweeps in within-model RWM in "
          "stage 1.\n");
   printf("-a bool: 1 if RJ adaptation done in stage 3, 0 otherwise.\n");
   printf("-p bool: 1 if random permutation done in stage 3 RJ move, 0 "
