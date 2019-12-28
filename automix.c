@@ -81,11 +81,11 @@ int read_mixture_params(char *fname, int kmax, int *nk, double **sig, int *Lk,
 void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
                       FILE *fpad, double **sig, int dof, double **data);
 
-void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
-                              double **mu_k, double ***B_k, double *lambda_k,
-                              FILE *fpcf, int *Lk);
+void fit_mixture_from_samples(int nk, double **data, int lendata, double **mu_k,
+                              double ***B_k, double *lambda_k, FILE *fpcf,
+                              int *Lk_k);
 
-void fit_autorj(int k1, double *lambda_k, int *Lk, int *nk, double **mu_k,
+void fit_autorj(double *lambda_k, int *Lk_k, int nkk, double **mu_k,
                 double ***B_k, double **data, int lendata);
 
 void usage(char *invocation);
@@ -261,13 +261,14 @@ int main(int argc, char *argv[]) {
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
-        fit_mixture_from_samples(model_k, nk, data, lendata, mu[model_k],
-                                 B[model_k], lambda[model_k], fpcf, Lk);
+        fit_mixture_from_samples(nk[model_k], data, lendata, mu[model_k],
+                                 B[model_k], lambda[model_k], fpcf,
+                                 Lk + model_k);
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
-        fit_autorj(model_k, lambda[model_k], Lk, nk, mu[model_k], B[model_k],
-                   data, lendata);
+        fit_autorj(lambda[model_k], Lk + model_k, nk[model_k], mu[model_k],
+                   B[model_k], data, lendata);
       }
       free(data[0]);
       free(data);
@@ -1017,12 +1018,11 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
   free(Znkk);
 }
 
-void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
+void fit_mixture_from_samples(int nkk, double **data, int lendata,
                               double **mu_k, double ***B_k, double *lambda_k,
-                              FILE *fpcf, int *Lk) {
+                              FILE *fpcf, int *Lk_k) {
   int Lkk = Lkmaxmax;
   int *init = (int *)malloc(Lkk * sizeof(int));
-  int nkk = nk[model_k];
   int l1 = 0;
   double lpn = 0.0;
   double costfn = 0.0;
@@ -1370,7 +1370,7 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   free(logw);
   free(sumw);
   free(init);
-  Lk[model_k] = Lkkmin;
+  *Lk_k = Lkkmin;
   for (int i = 0; i < Lkkmin; i++) {
     lambda_k[i] = lambdamin[i];
     for (int j = 0; j < nkk; j++) {
@@ -1396,10 +1396,9 @@ void fit_mixture_from_samples(int model_k, int *nk, double **data, int lendata,
   free(lambdamin);
 }
 
-void fit_autorj(int model_k, double *lambda_k, int *Lk, int *nk, double **mu_k,
+void fit_autorj(double *lambda_k, int *Lk_k, int nkk, double **mu_k,
                 double ***B_k, double **data, int lendata) {
-  int nkk = nk[model_k];
-  Lk[model_k] = 1;
+  *Lk_k = 1;
   lambda_k[0] = 1.0;
   for (int j = 0; j < nkk; j++) {
     mu_k[0][j] = 0.0;
