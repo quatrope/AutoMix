@@ -83,8 +83,8 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
                       FILE *fpad, double **sig, int dof, double **data);
 
 void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
-                              double ***mu, double ****BBT, double ****B,
-                              double **lambda, double ***mumin, double ****Bmin,
+                              double ***mu, double ****B, double **lambda,
+                              double ***mumin, double ****Bmin,
                               double **lambdamin, FILE *fpcf, int *Lk);
 
 void usage(char *invocation);
@@ -254,7 +254,6 @@ int main(int argc, char *argv[]) {
   double **lambdamin = (double **)malloc(kmax * sizeof(double *));
   double ***mu = (double ***)malloc(kmax * sizeof(double **));
   double ***mumin = (double ***)malloc(kmax * sizeof(double **));
-  double ****BBT = (double ****)malloc(kmax * sizeof(double ***));
   double ****BBTmin = (double ****)malloc(kmax * sizeof(double ***));
   double ****B = (double ****)malloc(kmax * sizeof(double ***));
   double ****Bmin = (double ****)malloc(kmax * sizeof(double ***));
@@ -266,7 +265,6 @@ int main(int argc, char *argv[]) {
     lambdamin[k1] = (double *)malloc(Lkmaxmax * sizeof(double));
     mu[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
     mumin[k1] = (double **)malloc(Lkmaxmax * sizeof(double *));
-    BBT[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
     BBTmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
     B[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
     Bmin[k1] = (double ***)malloc(Lkmaxmax * sizeof(double **));
@@ -275,12 +273,10 @@ int main(int argc, char *argv[]) {
     for (int l1 = 0; l1 < Lkmaxmax; l1++) {
       mu[k1][l1] = (double *)malloc(nkk * sizeof(double));
       mumin[k1][l1] = (double *)malloc(nkk * sizeof(double));
-      BBT[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       BBTmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       B[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       Bmin[k1][l1] = (double **)malloc(nkk * sizeof(double *));
       for (int j1 = 0; j1 < nkk; j1++) {
-        BBT[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         BBTmin[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         B[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
         Bmin[k1][l1][j1] = (double *)malloc(nkk * sizeof(double));
@@ -320,8 +316,8 @@ int main(int argc, char *argv[]) {
 
       printf("\nMixture Fitting: Model %d", k1 + 1);
       if (mode == 0) {
-        fit_mixture_from_samples(k1, nk, data, sig, mu, BBT, B, lambda, mumin,
-                                 Bmin, lambdamin, fpcf, Lk);
+        fit_mixture_from_samples(k1, nk, data, sig, mu, B, lambda, mumin, Bmin,
+                                 lambdamin, fpcf, Lk);
       } else if (mode == 2) {
         /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
         /* Note only done if mode 2 (m=2).*/
@@ -1102,8 +1098,8 @@ void rwn_within_model(int k1, int *nk, int nsweep2, FILE *fpl, FILE *fpcf,
 }
 
 void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
-                              double ***mu, double ****BBT, double ****B,
-                              double **lambda, double ***mumin, double ****Bmin,
+                              double ***mu, double ****B, double **lambda,
+                              double ***mumin, double ****Bmin,
                               double **lambdamin, FILE *fpcf, int *Lk) {
   int Lkk = Lkmaxmax;
   int *init = (int *)malloc(Lkk * sizeof(int));
@@ -1114,6 +1110,15 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   double costfn = 0.0;
   double costfnmin = 0.0;
   double tol = 1E-5;
+
+  double ***BBT = (double ***)malloc(Lkmaxmax * sizeof(double **));
+  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
+    BBT[l1] = (double **)malloc(nkk * sizeof(double *));
+    for (int j1 = 0; j1 < nkk; j1++) {
+      BBT[l1][j1] = (double *)malloc(nkk * sizeof(double));
+    }
+  }
+
   while (l1 < Lkk) {
     int indic = 0;
     double u = sdrand();
@@ -1162,11 +1167,11 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
   for (int l1 = 0; l1 < Lkk; l1++) {
     for (int j1 = 0; j1 < nkk; j1++) {
       mu[k1][l1][j1] = data[init[l1]][j1];
-      BBT[k1][l1][j1][j1] = sigma;
-      B[k1][l1][j1][j1] = BBT[k1][l1][j1][j1];
+      BBT[l1][j1][j1] = sigma;
+      B[k1][l1][j1][j1] = BBT[l1][j1][j1];
       for (int j2 = 0; j2 < j1; j2++) {
-        BBT[k1][l1][j1][j2] = 0.0;
-        B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
+        BBT[l1][j1][j2] = 0.0;
+        B[k1][l1][j1][j2] = BBT[l1][j1][j2];
       }
     }
     chol(nkk, B[k1][l1]);
@@ -1239,14 +1244,13 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
           mu[k1][l1][j1] /= sumw[l1];
 
           for (int j2 = 0; j2 <= j1; j2++) {
-            BBT[k1][l1][j1][j2] = 0.0;
+            BBT[l1][j1][j2] = 0.0;
             for (int i1 = 0; i1 < lendata; i1++) {
-              BBT[k1][l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
-                                     (data[i1][j2] - mu[k1][l1][j2]) *
-                                     w[i1][l1];
+              BBT[l1][j1][j2] += (data[i1][j1] - mu[k1][l1][j1]) *
+                                 (data[i1][j2] - mu[k1][l1][j2]) * w[i1][l1];
             }
-            BBT[k1][l1][j1][j2] /= sumw[l1];
-            B[k1][l1][j1][j2] = BBT[k1][l1][j1][j2];
+            BBT[l1][j1][j2] /= sumw[l1];
+            B[k1][l1][j1][j2] = BBT[l1][j1][j2];
           }
         }
 
@@ -1269,7 +1273,7 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
             for (int j1 = 0; j1 < nkk; j1++) {
               mu[k1][l2][j1] = mu[k1][l2 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
-                BBT[k1][l2][j1][j2] = BBT[k1][l2 + 1][j1][j2];
+                BBT[l2][j1][j2] = BBT[l2 + 1][j1][j2];
                 B[k1][l2][j1][j2] = B[k1][l2 + 1][j1][j2];
               }
             }
@@ -1359,7 +1363,7 @@ void fit_mixture_from_samples(int k1, int *nk, double **data, double **sig,
             for (int j1 = 0; j1 < nkk; j1++) {
               mu[k1][l1][j1] = mu[k1][l1 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
-                BBT[k1][l1][j1][j2] = BBT[k1][l1 + 1][j1][j2];
+                BBT[l1][j1][j2] = BBT[l1 + 1][j1][j2];
                 B[k1][l1][j1][j2] = B[k1][l1 + 1][j1][j2];
               }
             }
