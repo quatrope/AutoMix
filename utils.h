@@ -1,3 +1,10 @@
+void gauss(double *z, int n);
+void rt(double *z, int n, int dof);
+void chol(int n, double **B);
+void perm(double *work, int n);
+double ltprob(int dof, double z);
+double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai);
+double det(int n, int l, double ***B_k);
 /* Combined congruential and Tauseworthe generators from SuperDuper
  * package. Should work on machines with unsigned long of at least 32
  * bits. JC and JT must be initialized to values with 0 < JC < 2^32 and

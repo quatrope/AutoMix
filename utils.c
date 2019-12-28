@@ -1,3 +1,6 @@
+#include "utils.h"
+#include <math.h>
+#define DOUB
 /* Combined congruential and Tauseworthe generators from SuperDuper
  * package. Should work on machines with unsigned long of at least 32
  * bits. JC and JT must be initialized to values with 0 < JC < 2^32 and
@@ -801,5 +804,129 @@ double rgamma(double s) {
     out = c1 * w;
   }
 
+  return out;
+}
+
+void gauss(double *z, int n) {
+  /* Uses Box mueller method to simulate n N(0,1) variables and stores them
+     in z */
+
+  int n1;
+  double u, v;
+
+  n1 = n - 1;
+  for (int i = 0; i < n1; i += 2) {
+    u = sqrt(-2.0 * log(sdrand()));
+    v = 2.0 * M_PI * sdrand();
+    z[i] = u * sin(v);
+    z[i + 1] = u * cos(v);
+  }
+  if (fmod(n, 2) < 0.5) {
+    return;
+  } else {
+    u = sqrt(-2.0 * log(sdrand()));
+    v = 2.0 * M_PI * sdrand();
+    z[n - 1] = u * sin(v);
+  }
+  return;
+}
+
+void rt(double *z, int n, int dof) {
+  /* Simulates n random t variable with dof degrees of freedom
+     by simulating standard normals and chi-squared random variables.
+     Chi-squared rvs simulated by rgamma function that simulates random gamma
+     variables (see gammafns file for details).
+     If dof is 0 return n gaussian random variables instead.
+   */
+
+  gauss(z, n);
+  if (dof > 0) {
+    double s = 0.5 * dof;
+    double denom = sqrt(rgamma(s) / s);
+    for (int j1 = 0; j1 < n; j1++) {
+      z[j1] /= denom;
+    }
+  }
+  return;
+}
+
+void chol(int n, double **A) {
+  /* Performs cholesky decompositon of A and returns result in the
+     same matrix - adapted from PJG Fortran function*/
+
+  for (int j1 = 0; j1 < n; j1++) {
+    double sum = A[j1][j1];
+    for (int j2 = 0; j2 < j1; j2++) {
+      sum -= pow(A[j1][j2], 2);
+    }
+    A[j1][j1] = sqrt(sum);
+
+    for (int j2 = j1 + 1; j2 < n; j2++) {
+      sum = A[j2][j1];
+      for (int j3 = 0; j3 < j1; j3++) {
+        sum -= A[j2][j3] * A[j1][j3];
+      }
+      A[j2][j1] = sum / A[j1][j1];
+    }
+  }
+}
+
+void perm(double *work, int n) {
+  /* Randomly permutes the n-dim work vector */
+
+  for (int i = 0; i < (n - 1); i++) {
+    int j = i + (int)((n - i) * sdrand());
+    if (j != i) {
+      double temp = work[j];
+      work[j] = work[i];
+      work[i] = temp;
+    }
+  }
+  return;
+}
+
+double ltprob(int dof, double z) {
+  /* Evaluates the log of p.d.f. of a t variable with dof degrees of freedom
+     at point z */
+
+  double constt =
+      loggamma(0.5 * (dof + 1)) - loggamma(0.5 * dof) - 0.5 * log(dof * M_PI);
+  double out = constt - 0.5 * (dof + 1) * log(1.0 + pow(z, 2.0) / dof);
+  return out;
+}
+
+double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai) {
+  /* Evaluates log of p.d.f. for a multivariate normal for model
+     k, of dimension n, component l. The summary of means and
+     sqrt of cov matrices (for all models and all component)
+     are supplied in mu and B */
+
+  double work[n];
+
+  for (int i = 0; i < n; i++) {
+    work[i] = datai[i] - mu_k[l][i];
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
+      (work[i]) -= B_k[l][i][j] * work[j];
+    }
+    (work[i]) /= B_k[l][i][i];
+  }
+  double out = 0.0;
+  for (int i = 0; i < n; i++) {
+    out += (work[i] * work[i]);
+  }
+  out = -0.5 * out - (n / 2.0) * log(2.0 * M_PI) - log(det(n, l, B_k));
+  return out;
+}
+
+double det(int n, int l, double ***B_k) {
+
+  /* Evaluates the determinant of a matrix in B corresponding to model k,
+     component l. */
+  double out = 1.0;
+  for (int i = 0; i < n; i++) {
+    out *= B_k[l][i][i];
+  }
   return out;
 }
