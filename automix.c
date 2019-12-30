@@ -73,6 +73,18 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
 void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata);
 
+void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
+                          int *current_Lkk, int *current_model_k, double **detB,
+                          int do_block_RWM, int dof, int doperm,
+                          double **lambda, double *llh, double *lp, int *mdim,
+                          int *model_dims, double ***mu, int *naccrwmb,
+                          int *naccrwms, int *nacctd, int nburn, int nmodels,
+                          int *nreinit, int *ntryrwmb, int *ntryrwms,
+                          int *ntrytd, double *palloc, double *pallocn,
+                          double *pk, int *pkllim, double *propk, int *reinit,
+                          double **sig, int sweep, double *theta,
+                          double *thetan, double *work);
+
 void usage(char *invocation);
 
 /* ---main program-------------------------- */
@@ -189,7 +201,6 @@ int main(int argc, char *argv[]) {
 
   int *model_dims = (int *)malloc(nmodels * sizeof(int));
   int *Lk = (int *)malloc(nmodels * sizeof(int));
-  int *ksummary = (int *)calloc(nmodels, sizeof(int));
   load_model_dims(nmodels, model_dims);
 
   double **lambda = (double **)malloc(nmodels * sizeof(double *));
@@ -331,9 +342,9 @@ int main(int argc, char *argv[]) {
   for (int k1 = 1; k1 < nmodels; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
   }
-  int k = (int)floor(nmodels * sdrand());
-  int mdim = model_dims[k];
-  int Lkk = Lk[k];
+  int current_model_k = (int)floor(nmodels * sdrand());
+  int mdim = model_dims[current_model_k];
+  int current_Lkk = Lk[current_model_k];
 
   int mdim_max = model_dims[0];
   for (int k1 = 1; k1 < nmodels; k1++) {
@@ -359,14 +370,14 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  get_rwm_init(k, mdim, theta);
+  get_rwm_init(current_model_k, mdim, theta);
 
   double llh;
-  double lp = logpost(k, mdim, theta, &llh);
+  double lp = logpost(current_model_k, mdim, theta, &llh);
 
   for (int k1 = 0; k1 < nmodels; k1++) {
     pk[k1] = 1.0 / nmodels;
-    if (k1 == k) {
+    if (k1 == current_model_k) {
       propk[k1] = 1.0;
     } else {
       propk[k1] = 0.0;
@@ -384,270 +395,50 @@ int main(int argc, char *argv[]) {
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
   int keep = nburn + (nsweep - nkeep * nsokal);
   double *xr = (double *)malloc(nkeep * sizeof(double));
+  int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
   /* -----Start of main loop ----------------*/
   for (int sweep = 1; sweep <= (nburn + nsweep); sweep++) {
+    int do_block_RWM = (sweep % 10 == 0);
+    int is_burning = (sweep <= nburn);
 
     /* --Section 8 - RWM within-model moves ---*/
 
     /* Every 10 sweeps to block RWM */
-    if (sweep % 10 == 0) {
-      ntryrwmb++;
-      rt(Znkk, mdim, dof);
-      for (int j1 = 0; j1 < mdim; j1++) {
-        thetan[j1] = theta[j1] + sig[k][j1] * Znkk[j1];
-      }
-      double llhn;
-      double lpn = logpost(k, mdim, thetan, &llhn);
-      if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
-        naccrwmb++;
-        memcpy(theta, thetan, mdim * sizeof(*thetan));
-        lp = lpn;
-        llh = llhn;
-      }
-    } else {
-      /* else do component-wise RWM */
-      memcpy(thetan, theta, mdim * sizeof(*thetan));
-      for (int j1 = 0; j1 < mdim; j1++) {
-        double Z;
-        ntryrwms++;
-        rt(&Z, 1, dof);
-        thetan[j1] = theta[j1] + sig[k][j1] * Z;
-        double llhn;
-        double lpn = logpost(k, mdim, thetan, &llhn);
-        if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
-          naccrwms++;
-          theta[j1] = thetan[j1];
-          lp = lpn;
-          llh = llhn;
-        } else {
-          thetan[j1] = theta[j1];
-        }
-      }
-    }
-
-    /* --- Section 9 Reversible Jump Moves -------------------*/
-
-    /* --Section 9.1 - Allocate current position to a component --*/
-    int l = 0;
-    ntrytd++;
-    int ln = 0;
-    if (Lkk > 1) {
-      double sum = 0.0;
-      for (int i = 0; i < Lkk; i++) {
-        palloc[i] = log(lambda[k][i]) + lnormprob(mdim, i, mu[k], B[k], theta);
-        palloc[i] = exp(palloc[i]);
-        sum += palloc[i];
-      }
-      if (sum > 0) {
-        for (int i = 0; i < Lkk; i++) {
-          palloc[i] /= sum;
-        }
-      } else {
-        for (int i = 0; i < Lkk; i++) {
-          palloc[i] = 1.0 / Lkk;
-        }
-      }
-      double u = sdrand();
-      double thresh = 0.0;
-      for (int i = 0; i < Lkk; i++) {
-        thresh += palloc[i];
-        if (u < thresh) {
-          l = i;
-          break;
-        }
-      }
-    } else {
-      l = 0;
-      palloc[l] = 1.0;
-    }
-
-    /* --Section 9.2 - Standardise state variable --------------- */
-
-    for (int i = 0; i < mdim; i++) {
-      work[i] = theta[i] - mu[k][l][i];
-    }
-    for (int i = 0; i < mdim; i++) {
-      for (int j = 0; j < i; j++) {
-        work[i] = work[i] - B[k][l][i][j] * work[j];
-      }
-      work[i] = work[i] / B[k][l][i][i];
-    }
-
-    /* --Section 9.3 - Choose proposed new model and component ----*/
-    int kn = 0;
-    double gamma = 0.0;
-    double logratio;
-    if (nmodels == 1) {
-      kn = k;
-      logratio = 0.0;
-    } else {
-      gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
-      double u = sdrand();
-      double thresh = 0.0;
-      for (int k1 = 0; k1 < nmodels; k1++) {
-        thresh += pk[k1];
-        if (u < thresh) {
-          kn = k1;
-          break;
-        }
-      }
-      logratio = log(pk[k]) - log(pk[kn]);
-    }
-
-    int mdim_kn = model_dims[kn];
-    int Lkkn = Lk[kn];
-
-    double u = sdrand();
-    double thresh = 0.0;
-    for (int l1 = 0; l1 < Lkkn; l1++) {
-      thresh += lambda[kn][l1];
-      if (u < thresh) {
-        ln = l1;
-        break;
-      }
-    }
-
-    /* --Section 9.4 Propose new state ----------------*/
-
-    if (mdim < mdim_kn) {
-      rt(&(work[mdim]), mdim_kn - mdim, dof);
-      if (dof > 0) {
-        for (int i = mdim; i < mdim_kn; i++) {
-          logratio -= ltprob(dof, work[i]);
-        }
-      } else {
-        for (int j1 = mdim; j1 < mdim_kn; j1++) {
-          logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
-        }
-      }
-      if (doperm) {
-        perm(work, mdim_kn);
-      }
-    } else if (mdim == mdim_kn) {
-      if (doperm) {
-        perm(work, mdim);
-      }
-    } else {
-      if (doperm) {
-        perm(work, mdim);
-      }
-      if (dof > 0) {
-        for (int j1 = mdim_kn; j1 < mdim; j1++) {
-          logratio += ltprob(dof, work[j1]);
-        }
-      } else {
-        for (int j1 = mdim_kn; j1 < mdim; j1++) {
-          logratio -= (0.5 * pow(work[j1], 2.0) + logrtpi);
-        }
-      }
-    }
-
-    for (int j1 = 0; j1 < mdim_kn; j1++) {
-      thetan[j1] = mu[kn][ln][j1];
-      for (int j2 = 0; j2 <= j1; j2++) {
-        thetan[j1] += B[kn][ln][j1][j2] * work[j2];
-      }
-    }
-
-    /* --Section 9.5 - Work out probability of allocating to component
-       for acceptance ratio (reverse move) ---------*/
-
-    if (Lkkn > 1) {
-      double sum = 0.0;
-      for (int l1 = 0; l1 < Lkkn; l1++) {
-        pallocn[l1] =
-            log(lambda[kn][l1]) + lnormprob(mdim_kn, l1, mu[kn], B[kn], thetan);
-        pallocn[l1] = exp(pallocn[l1]);
-        sum += pallocn[l1];
-      }
-      if (sum > 0) {
-        for (int l1 = 0; l1 < Lkkn; l1++) {
-          pallocn[l1] /= sum;
-        }
-      } else {
-        for (int l1 = 0; l1 < Lkkn; l1++) {
-          pallocn[l1] = 1.0 / Lkkn;
-        }
-      }
-    } else {
-      pallocn[ln] = 1.0;
-    }
-
-    /* --Section 9.6 - Work out acceptance probability  and new state --*/
-    double llhn;
-    double lpn = logpost(kn, mdim_kn, thetan, &llhn);
-
-    logratio += (lpn - lp);
-    logratio += (log(pallocn[ln]) - log(palloc[l]));
-    logratio += (log(lambda[k][l]) - log(lambda[kn][ln]));
-    logratio += (log(detB[kn][ln]) - log(detB[k][l]));
-
-    if (sdrand() < exp(max(-30.0, min(0.0, logratio)))) {
-      for (int j1 = 0; j1 < mdim_kn; j1++) {
-        theta[j1] = thetan[j1];
-      }
-      lp = lpn;
-      llh = llhn;
-      k = kn;
-      mdim = mdim_kn;
-      Lkk = Lkkn;
-      nacctd++;
-    }
-
-    if (adapt == 1) {
-      if (sweep > nburn) {
-        for (int k1 = 0; k1 < nmodels; k1++) {
-          if (k1 == k) {
-            propk[k1] = 1.0;
-          } else {
-            propk[k1] = 0.0;
-          }
-          pk[k1] += (gamma * (propk[k1] - pk[k1]));
-        }
-        for (int k1 = 0; k1 < nmodels; k1++) {
-          if (pk[k1] < pkllim) {
-            reinit = 1;
-          }
-        }
-        if (reinit == 1) {
-          reinit = 0;
-          nreinit++;
-          pkllim = 1.0 / (10.0 * nreinit);
-          for (int k1 = 0; k1 < nmodels; k1++) {
-            pk[k1] = 1.0 / nmodels;
-          }
-        }
-      }
-    }
+    reversible_jump_move(B, Lk, Znkk, adapt, &current_Lkk, &current_model_k,
+                         detB, do_block_RWM, dof, doperm, lambda, &llh, &lp,
+                         &mdim, model_dims, mu, &naccrwmb, &naccrwms, &nacctd,
+                         nburn, nmodels, &nreinit, &ntryrwmb, &ntryrwms,
+                         &ntrytd, palloc, pallocn, pk, &pkllim, propk, &reinit,
+                         sig, sweep, theta, thetan, work);
 
     if (sweep > nburn) {
-      (ksummary[k])++;
+      (ksummary[current_model_k])++;
     }
     /* --- Section 10 - Write variables to files --------- */
 
     if (sweep > nburn) {
 
-      fprintf(fpk, "%d\n", k + 1);
+      fprintf(fpk, "%d\n", current_model_k + 1);
       fprintf(fplp, "%lf %lf\n", lp, llh);
       for (int k1 = 0; k1 < nmodels; k1++) {
         fprintf(fpp, "%lf ", pk[k1]);
       }
       fprintf(fpp, "\n");
       for (int j1 = 0; j1 < mdim; j1++) {
-        fprintf(fpt[k], "%lf ", theta[j1]);
+        fprintf(fpt[current_model_k], "%lf ", theta[j1]);
       }
-      fprintf(fpt[k], "\n");
+      fprintf(fpt[current_model_k], "\n");
     }
 
     if (sweep > keep && fmod(sweep - keep, nsokal) < 0.005) {
-      xr[((sweep - keep) / nsokal) - 1] = k;
+      xr[((sweep - keep) / nsokal) - 1] = current_model_k;
     }
 
     if (sweep == 1) {
       printf("\nBurning in");
     }
-    if ((sweep <= nburn) && (fmod(sweep, (nburn / 10)) < tol)) {
+    if ((is_burning) && (fmod(sweep, (nburn / 10)) < tol)) {
       printf(" .");
       fflush(NULL);
     }
@@ -656,7 +447,7 @@ int main(int argc, char *argv[]) {
       printf("\nStart of main sample:");
     }
 
-    if ((sweep > nburn) && (fmod(sweep - nburn, (nsweep / 10)) < tol)) {
+    if ((!is_burning) && (fmod(sweep - nburn, (nsweep / 10)) < tol)) {
       printf("\nNo. of iterations remaining: %d", nsweep + nburn - sweep);
     }
     fflush(NULL);
@@ -1275,6 +1066,250 @@ void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
     }
   }
   chol(mdim, B_k[0]);
+}
+
+void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
+                          int *current_Lkk, int *current_model_k, double **detB,
+                          int do_block_RWM, int dof, int doperm,
+                          double **lambda, double *llh, double *lp, int *mdim,
+                          int *model_dims, double ***mu, int *naccrwmb,
+                          int *naccrwms, int *nacctd, int nburn, int nmodels,
+                          int *nreinit, int *ntryrwmb, int *ntryrwms,
+                          int *ntrytd, double *palloc, double *pallocn,
+                          double *pk, int *pkllim, double *propk, int *reinit,
+                          double **sig, int sweep, double *theta,
+                          double *thetan, double *work) {
+  if (do_block_RWM) {
+    (*ntryrwmb)++;
+    rt(Znkk, *mdim, dof);
+    for (int j1 = 0; j1 < *mdim; j1++) {
+      thetan[j1] = theta[j1] + sig[*current_model_k][j1] * Znkk[j1];
+    }
+    double llhn;
+    double lpn = logpost(*current_model_k, *mdim, thetan, &llhn);
+    if (sdrand() < exp(max(-30.0, min(0.0, lpn - *lp)))) {
+      (*naccrwmb)++;
+      memcpy(theta, thetan, *mdim * sizeof(*thetan));
+      *lp = lpn;
+      *llh = llhn;
+    }
+  } else {
+    /* else do component-wise RWM */
+    memcpy(thetan, theta, (*mdim) * sizeof(*thetan));
+    for (int j1 = 0; j1 < *mdim; j1++) {
+      double Z;
+      (*ntryrwms)++;
+      rt(&Z, 1, dof);
+      thetan[j1] = theta[j1] + sig[*current_model_k][j1] * Z;
+      double llhn;
+      double lpn = logpost(*current_model_k, *mdim, thetan, &llhn);
+      if (sdrand() < exp(max(-30.0, min(0.0, lpn - *lp)))) {
+        (*naccrwms)++;
+        theta[j1] = thetan[j1];
+        *lp = lpn;
+        *llh = llhn;
+      } else {
+        thetan[j1] = theta[j1];
+      }
+    }
+  }
+
+  /* --- Section 9 Reversible Jump Moves -------------------*/
+
+  /* --Section 9.1 - Allocate current position to a component --*/
+  int l = 0;
+  (*ntrytd)++;
+  int ln = 0;
+  if (*current_Lkk > 1) {
+    double sum = 0.0;
+    for (int i = 0; i < *current_Lkk; i++) {
+      palloc[i] =
+          log(lambda[*current_model_k][i]) +
+          lnormprob(*mdim, i, mu[*current_model_k], B[*current_model_k], theta);
+      palloc[i] = exp(palloc[i]);
+      sum += palloc[i];
+    }
+    if (sum > 0) {
+      for (int i = 0; i < *current_Lkk; i++) {
+        palloc[i] /= sum;
+      }
+    } else {
+      for (int i = 0; i < *current_Lkk; i++) {
+        palloc[i] = 1.0 / *current_Lkk;
+      }
+    }
+    double u = sdrand();
+    double thresh = 0.0;
+    for (int i = 0; i < *current_Lkk; i++) {
+      thresh += palloc[i];
+      if (u < thresh) {
+        l = i;
+        break;
+      }
+    }
+  } else {
+    l = 0;
+    palloc[l] = 1.0;
+  }
+
+  /* --Section 9.2 - Standardise state variable --------------- */
+
+  for (int i = 0; i < *mdim; i++) {
+    work[i] = theta[i] - mu[*current_model_k][l][i];
+  }
+  for (int i = 0; i < *mdim; i++) {
+    for (int j = 0; j < i; j++) {
+      work[i] = work[i] - B[*current_model_k][l][i][j] * work[j];
+    }
+    work[i] = work[i] / B[*current_model_k][l][i][i];
+  }
+
+  /* --Section 9.3 - Choose proposed new model and component ----*/
+  int kn = 0;
+  double gamma = 0.0;
+  double logratio;
+  if (nmodels == 1) {
+    kn = *current_model_k;
+    logratio = 0.0;
+  } else {
+    gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+    double u = sdrand();
+    double thresh = 0.0;
+    for (int k1 = 0; k1 < nmodels; k1++) {
+      thresh += pk[k1];
+      if (u < thresh) {
+        kn = k1;
+        break;
+      }
+    }
+    logratio = log(pk[*current_model_k]) - log(pk[kn]);
+  }
+
+  int mdim_kn = model_dims[kn];
+  int Lkkn = Lk[kn];
+
+  double u = sdrand();
+  double thresh = 0.0;
+  for (int l1 = 0; l1 < Lkkn; l1++) {
+    thresh += lambda[kn][l1];
+    if (u < thresh) {
+      ln = l1;
+      break;
+    }
+  }
+
+  /* --Section 9.4 Propose new state ----------------*/
+
+  if (*mdim < mdim_kn) {
+    rt(&(work[*mdim]), mdim_kn - *mdim, dof);
+    if (dof > 0) {
+      for (int i = *mdim; i < mdim_kn; i++) {
+        logratio -= ltprob(dof, work[i]);
+      }
+    } else {
+      for (int j1 = *mdim; j1 < mdim_kn; j1++) {
+        logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
+      }
+    }
+    if (doperm) {
+      perm(work, mdim_kn);
+    }
+  } else if (*mdim == mdim_kn) {
+    if (doperm) {
+      perm(work, *mdim);
+    }
+  } else {
+    if (doperm) {
+      perm(work, *mdim);
+    }
+    if (dof > 0) {
+      for (int j1 = mdim_kn; j1 < *mdim; j1++) {
+        logratio += ltprob(dof, work[j1]);
+      }
+    } else {
+      for (int j1 = mdim_kn; j1 < *mdim; j1++) {
+        logratio -= (0.5 * pow(work[j1], 2.0) + logrtpi);
+      }
+    }
+  }
+
+  for (int j1 = 0; j1 < mdim_kn; j1++) {
+    thetan[j1] = mu[kn][ln][j1];
+    for (int j2 = 0; j2 <= j1; j2++) {
+      thetan[j1] += B[kn][ln][j1][j2] * work[j2];
+    }
+  }
+
+  /* --Section 9.5 - Work out probability of allocating to component
+   for acceptance ratio (reverse move) ---------*/
+
+  if (Lkkn > 1) {
+    double sum = 0.0;
+    for (int l1 = 0; l1 < Lkkn; l1++) {
+      pallocn[l1] =
+          log(lambda[kn][l1]) + lnormprob(mdim_kn, l1, mu[kn], B[kn], thetan);
+      pallocn[l1] = exp(pallocn[l1]);
+      sum += pallocn[l1];
+    }
+    if (sum > 0) {
+      for (int l1 = 0; l1 < Lkkn; l1++) {
+        pallocn[l1] /= sum;
+      }
+    } else {
+      for (int l1 = 0; l1 < Lkkn; l1++) {
+        pallocn[l1] = 1.0 / Lkkn;
+      }
+    }
+  } else {
+    pallocn[ln] = 1.0;
+  }
+
+  /* --Section 9.6 - Work out acceptance probability  and new state --*/
+  double llhn;
+  double lpn = logpost(kn, mdim_kn, thetan, &llhn);
+
+  logratio += (lpn - *lp);
+  logratio += (log(pallocn[ln]) - log(palloc[l]));
+  logratio += (log(lambda[*current_model_k][l]) - log(lambda[kn][ln]));
+  logratio += (log(detB[kn][ln]) - log(detB[*current_model_k][l]));
+
+  if (sdrand() < exp(max(-30.0, min(0.0, logratio)))) {
+    for (int j1 = 0; j1 < mdim_kn; j1++) {
+      theta[j1] = thetan[j1];
+    }
+    *lp = lpn;
+    *llh = llhn;
+    *current_model_k = kn;
+    *mdim = mdim_kn;
+    *current_Lkk = Lkkn;
+    (*nacctd)++;
+  }
+
+  if (adapt == 1) {
+    if (sweep > nburn) {
+      for (int k1 = 0; k1 < nmodels; k1++) {
+        if (k1 == *current_model_k) {
+          propk[k1] = 1.0;
+        } else {
+          propk[k1] = 0.0;
+        }
+        pk[k1] += (gamma * (propk[k1] - pk[k1]));
+      }
+      for (int k1 = 0; k1 < nmodels; k1++) {
+        if (pk[k1] < *pkllim) {
+          *reinit = 1;
+        }
+      }
+      if (*reinit == 1) {
+        *reinit = 0;
+        (*nreinit)++;
+        *pkllim = 1.0 / (10.0 * *nreinit);
+        for (int k1 = 0; k1 < nmodels; k1++) {
+          pk[k1] = 1.0 / nmodels;
+        }
+      }
+    }
+  }
 }
 
 void usage(char *invocation) {
