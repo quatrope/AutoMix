@@ -225,36 +225,38 @@ int main(int argc, char *argv[]) {
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
-  }
-  /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
-  for (int model_k = 0; model_k < nmodels; model_k++) {
-    int mdim = model_dims[model_k];
-    int lendata = 1000 * mdim;
-    double **data = (double **)malloc(lendata * sizeof(*data));
-    data[0] = (double *)malloc(lendata * mdim * sizeof(**data));
-    for (int i = 1; i < lendata; i++) {
-      data[i] = data[i - 1] + mdim;
-    }
-    /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
-    rwn_within_model(model_k, model_dims, nsweep2, fpl, fpcf, fpad, sig, dof,
-                     data);
+  } else {
+    /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
+    for (int model_k = 0; model_k < nmodels; model_k++) {
+      int mdim = model_dims[model_k];
+      int lendata = 1000 * mdim;
+      double **data = (double **)malloc(lendata * sizeof(*data));
+      data[0] = (double *)malloc(lendata * mdim * sizeof(**data));
+      for (int i = 1; i < lendata; i++) {
+        data[i] = data[i - 1] + mdim;
+      }
+      /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
+      rwn_within_model(model_k, model_dims, nsweep2, fpl, fpcf, fpad, sig, dof,
+                       data);
 
-    printf("\nMixture Fitting: Model %d", model_k + 1);
-    if (mode == 0) {
-      /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
-      /* Mixture fitting done component wise EM algorithm described in
-         Figueiredo and Jain, 2002 (see thesis for full reference) */
-      fit_mixture_from_samples(model_dims[model_k], data, lendata, mu[model_k],
-                               B[model_k], lambda[model_k], fpcf, Lk + model_k);
+      printf("\nMixture Fitting: Model %d", model_k + 1);
+      if (mode == 0) {
+        /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
+        /* Mixture fitting done component wise EM algorithm described in
+           Figueiredo and Jain, 2002 (see thesis for full reference) */
+        fit_mixture_from_samples(model_dims[model_k], data, lendata,
+                                 mu[model_k], B[model_k], lambda[model_k], fpcf,
+                                 Lk + model_k);
+      }
+      if (mode == 2) {
+        /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
+        /* Note only done if mode 2 (m=2).*/
+        fit_autorj(lambda[model_k], Lk + model_k, model_dims[model_k],
+                   mu[model_k], B[model_k], data, lendata);
+      }
+      free(data[0]);
+      free(data);
     }
-    if (mode == 2) {
-      /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
-      /* Note only done if mode 2 (m=2).*/
-      fit_autorj(lambda[model_k], Lk + model_k, model_dims[model_k],
-                 mu[model_k], B[model_k], data, lendata);
-    }
-    free(data[0]);
-    free(data);
   }
 
   /* Print mixture parameters to file (log and mix files) for reference
@@ -925,44 +927,48 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
 
   double *datamean = (double *)malloc(mdim * sizeof(double));
   double **M1 = (double **)malloc(mdim * sizeof(double *));
-  for (int j1 = 0; j1 < mdim; j1++) {
-    M1[j1] = (double *)malloc(mdim * sizeof(double));
+  for (int i = 0; i < mdim; i++) {
+    M1[i] = (double *)malloc(mdim * sizeof(double));
   }
-  for (int j1 = 0; j1 < mdim; j1++) {
-    datamean[j1] = 0.0;
-    for (int i1 = 0; i1 < lendata; i1++) {
-      datamean[j1] += data[i1][j1];
+  for (int j = 0; j < mdim; j++) {
+    datamean[j] = 0.0;
+    for (int i = 0; i < lendata; i++) {
+      datamean[j] += data[i][j];
     }
-    datamean[j1] /= ((double)lendata);
+    datamean[j] /= ((double)lendata);
   }
-  for (int j1 = 0; j1 < mdim; j1++) {
-    for (int j2 = 0; j2 < mdim; j2++) {
-      M1[j1][j2] = 0;
-      for (int i1 = 0; i1 < lendata; i1++) {
-        M1[j1][j2] +=
-            (data[i1][j1] - datamean[j1]) * (data[i1][j2] - datamean[j2]);
+  for (int i = 0; i < mdim; i++) {
+    for (int j = 0; j < mdim; j++) {
+      M1[i][j] = 0;
+      for (int k = 0; k < lendata; k++) {
+        M1[i][j] += (data[k][i] - datamean[i]) * (data[k][j] - datamean[j]);
       }
-      M1[j1][j2] /= ((double)lendata);
+      M1[i][j] /= ((double)lendata);
     }
   }
+  free(datamean);
   double sigma = 0.0;
   for (int j1 = 0; j1 < mdim; j1++) {
     sigma += M1[j1][j1];
   }
   sigma /= (10.0 * mdim);
+  for (int i = 0; i < mdim; i++) {
+    free(M1[i]);
+  }
+  free(M1);
 
-  for (int l1 = 0; l1 < Lkk; l1++) {
-    for (int j1 = 0; j1 < mdim; j1++) {
-      mu_k[l1][j1] = data[init[l1]][j1];
-      BBT[l1][j1][j1] = sigma;
-      B_k[l1][j1][j1] = sigma;
-      for (int j2 = 0; j2 < j1; j2++) {
-        BBT[l1][j1][j2] = 0.0;
-        B_k[l1][j1][j2] = 0.0;
+  for (int i = 0; i < Lkk; i++) {
+    for (int j = 0; j < mdim; j++) {
+      mu_k[i][j] = data[init[i]][j];
+      BBT[i][j][j] = sigma;
+      B_k[i][j][j] = sigma;
+      for (int k = 0; k < j; k++) {
+        BBT[i][j][k] = 0.0;
+        B_k[i][j][k] = 0.0;
       }
     }
-    chol(mdim, B_k[l1]);
-    lambda_k[l1] = 1.0 / Lkk;
+    chol(mdim, B_k[i]);
+    lambda_k[i] = 1.0 / Lkk;
   }
 
   double **w = (double **)malloc(lendata * sizeof(double *));
@@ -973,16 +979,16 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
     lpdatagivenl[i1] = (double *)malloc(Lkk * sizeof(double));
   }
 
-  for (int i1 = 0; i1 < lendata; i1++) {
+  for (int i = 0; i < lendata; i++) {
     double sum = 0.0;
-    for (int l1 = 0; l1 < Lkk; l1++) {
-      lpdatagivenl[i1][l1] = lnormprob(mdim, l1, mu_k, B_k, data[i1]);
-      logw[l1] = log(lambda_k[l1]) + lpdatagivenl[i1][l1];
-      w[i1][l1] = exp(logw[l1]);
-      sum += w[i1][l1];
+    for (int j = 0; j < Lkk; j++) {
+      lpdatagivenl[i][j] = lnormprob(mdim, j, mu_k, B_k, data[i]);
+      logw[j] = log(lambda_k[j]) + lpdatagivenl[i][j];
+      w[i][j] = exp(logw[j]);
+      sum += w[i][j];
     }
-    for (int l1 = 0; l1 < Lkk; l1++) {
-      w[i1][l1] /= sum;
+    for (int j = 0; j < Lkk; j++) {
+      w[i][j] /= sum;
     }
   }
 
@@ -1213,11 +1219,6 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
     free(BBT[i]);
   }
   free(BBT);
-  for (int i = 0; i < mdim; i++) {
-    free(M1[i]);
-  }
-  free(M1);
-  free(datamean);
   for (int i = 0; i < lendata; i++) {
     free(w[i]);
     free(lpdatagivenl[i]);
