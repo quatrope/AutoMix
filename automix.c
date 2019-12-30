@@ -381,7 +381,6 @@ int main(int argc, char *argv[]) {
   int reinit = 0;
   int pkllim = 1.0 / 10.0;
 
-  double tol = 0.5 / nsweep;
   int nburn = max(10000, (int)(nsweep / 10));
 
   int nsokal = 1;
@@ -392,15 +391,35 @@ int main(int argc, char *argv[]) {
   int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
   /* -----Start of main loop ----------------*/
+  // Burn some samples first
   printf("\nBurning in");
-  for (int sweep = 1; sweep <= (nburn + nsweep); sweep++) {
+  for (int sweep = 1; sweep <= nburn; sweep++) {
+    /* Every 10 sweeps to block RWM */
     int do_block_RWM = (sweep % 10 == 0);
-    int is_burning = (sweep <= nburn);
+    int is_burning = 1;
     double gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    /* --Section 8 - RWM within-model moves ---*/
+    reversible_jump_move(is_burning, B, Lk, adapt, &current_Lkk,
+                         &current_model_k, detB, do_block_RWM, dof, doperm,
+                         lambda, &llh, &lp, &mdim, model_dims, mu, &naccrwmb,
+                         &naccrwms, &nacctd, nmodels, &nreinit, &ntryrwmb,
+                         &ntryrwms, &ntrytd, pk, &pkllim, propk, &reinit, sig,
+                         gamma_sweep, theta, mdim_max, Lkmax);
+    if ((10 * sweep) % nburn == 0) {
+      printf(" .");
+      fflush(NULL);
+    }
+  }
+  printf("\n");
 
+  // Start here main sample
+  printf("Start of main sample:");
+  for (int sweep = nburn + 1; sweep <= (nburn + nsweep); sweep++) {
     /* Every 10 sweeps to block RWM */
+    int do_block_RWM = (sweep % 10 == 0);
+    int is_burning = 0;
+    double gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+
     reversible_jump_move(is_burning, B, Lk, adapt, &current_Lkk,
                          &current_model_k, detB, do_block_RWM, dof, doperm,
                          lambda, &llh, &lp, &mdim, model_dims, mu, &naccrwmb,
@@ -408,39 +427,23 @@ int main(int argc, char *argv[]) {
                          &ntryrwms, &ntrytd, pk, &pkllim, propk, &reinit, sig,
                          gamma_sweep, theta, mdim_max, Lkmax);
 
-    if (!is_burning) {
-      (ksummary[current_model_k])++;
-    }
+    (ksummary[current_model_k])++;
     /* --- Section 10 - Write variables to files --------- */
 
-    if (!is_burning) {
-
-      fprintf(fpk, "%d\n", current_model_k + 1);
-      fprintf(fplp, "%lf %lf\n", lp, llh);
-      for (int k1 = 0; k1 < nmodels; k1++) {
-        fprintf(fpp, "%lf ", pk[k1]);
-      }
-      fprintf(fpp, "\n");
-      for (int j1 = 0; j1 < mdim; j1++) {
-        fprintf(fpt[current_model_k], "%lf ", theta[j1]);
-      }
-      fprintf(fpt[current_model_k], "\n");
+    fprintf(fpk, "%d\n", current_model_k + 1);
+    fprintf(fplp, "%lf %lf\n", lp, llh);
+    for (int k1 = 0; k1 < nmodels; k1++) {
+      fprintf(fpp, "%lf ", pk[k1]);
     }
-
-    if (sweep > keep && fmod(sweep - keep, nsokal) < 0.005) {
+    fprintf(fpp, "\n");
+    for (int j1 = 0; j1 < mdim; j1++) {
+      fprintf(fpt[current_model_k], "%lf ", theta[j1]);
+    }
+    fprintf(fpt[current_model_k], "\n");
+    if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
       xr[((sweep - keep) / nsokal) - 1] = current_model_k;
     }
-
-    if ((is_burning) && (fmod(sweep, (nburn / 10)) < tol)) {
-      printf(" .");
-      fflush(NULL);
-    }
-
-    if (sweep == (nburn + 1)) {
-      printf("\nStart of main sample:");
-    }
-
-    if ((!is_burning) && (fmod(sweep - nburn, (nsweep / 10)) < tol)) {
+    if ((10 * (sweep - nburn)) % nsweep == 0) {
       printf("\nNo. of iterations remaining: %d", nsweep + nburn - sweep);
     }
     fflush(NULL);
@@ -1077,6 +1080,8 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
   double *pallocn = (double *)malloc(Lkmax * sizeof(double));
   double *Znkk = (double *)malloc(mdim_max * sizeof(double));
 
+  /* --Section 8 - RWM within-model moves ---*/
+  /* Every 10 sweeps to block RWM */
   if (do_block_RWM) {
     (*ntryrwmb)++;
     rt(Znkk, *mdim, dof);
@@ -1283,28 +1288,26 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     (*nacctd)++;
   }
 
-  if (adapt == 1) {
-    if (!is_burning) {
-      for (int k1 = 0; k1 < nmodels; k1++) {
-        if (k1 == *current_model_k) {
-          propk[k1] = 1.0;
-        } else {
-          propk[k1] = 0.0;
-        }
-        pk[k1] += (gamma * (propk[k1] - pk[k1]));
+  if (adapt && !is_burning) {
+    for (int k1 = 0; k1 < nmodels; k1++) {
+      if (k1 == *current_model_k) {
+        propk[k1] = 1.0;
+      } else {
+        propk[k1] = 0.0;
       }
-      for (int k1 = 0; k1 < nmodels; k1++) {
-        if (pk[k1] < *pkllim) {
-          *reinit = 1;
-        }
+      pk[k1] += (gamma * (propk[k1] - pk[k1]));
+    }
+    for (int k1 = 0; k1 < nmodels; k1++) {
+      if (pk[k1] < *pkllim) {
+        *reinit = 1;
       }
-      if (*reinit == 1) {
-        *reinit = 0;
-        (*nreinit)++;
-        *pkllim = 1.0 / (10.0 * *nreinit);
-        for (int k1 = 0; k1 < nmodels; k1++) {
-          pk[k1] = 1.0 / nmodels;
-        }
+    }
+    if (*reinit == 1) {
+      *reinit = 0;
+      (*nreinit)++;
+      *pkllim = 1.0 / (10.0 * *nreinit);
+      for (int k1 = 0; k1 < nmodels; k1++) {
+        pk[k1] = 1.0 / nmodels;
       }
     }
   }
