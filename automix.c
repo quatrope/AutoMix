@@ -73,17 +73,16 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
 void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata);
 
-void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
+void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
                           int *current_Lkk, int *current_model_k, double **detB,
                           int do_block_RWM, int dof, int doperm,
                           double **lambda, double *llh, double *lp, int *mdim,
                           int *model_dims, double ***mu, int *naccrwmb,
-                          int *naccrwms, int *nacctd, int nburn, int nmodels,
-                          int *nreinit, int *ntryrwmb, int *ntryrwms,
-                          int *ntrytd, double *palloc, double *pallocn,
-                          double *pk, int *pkllim, double *propk, int *reinit,
-                          double **sig, int sweep, double *theta,
-                          double *thetan, double *work);
+                          int *naccrwms, int *nacctd, int nmodels, int *nreinit,
+                          int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
+                          int *pkllim, double *propk, int *reinit, double **sig,
+                          double gamma_sweep, double *theta, int mdim_max,
+                          int Lkmax);
 
 void usage(char *invocation);
 
@@ -351,11 +350,6 @@ int main(int argc, char *argv[]) {
     mdim_max = max(model_dims[k1], mdim_max);
   }
   double *theta = (double *)malloc(mdim_max * sizeof(double));
-  double *thetan = (double *)malloc(mdim_max * sizeof(double));
-  double *work = (double *)malloc(mdim_max * sizeof(double));
-  double *palloc = (double *)malloc(Lkmax * sizeof(double));
-  double *pallocn = (double *)malloc(Lkmax * sizeof(double));
-  double *Znkk = (double *)malloc(mdim_max * sizeof(double));
   double *propk = (double *)malloc(nmodels * sizeof(double));
   double *pk = (double *)malloc(nmodels * sizeof(double));
   double **detB = (double **)malloc(nmodels * sizeof(double *));
@@ -398,26 +392,28 @@ int main(int argc, char *argv[]) {
   int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
   /* -----Start of main loop ----------------*/
+  printf("\nBurning in");
   for (int sweep = 1; sweep <= (nburn + nsweep); sweep++) {
     int do_block_RWM = (sweep % 10 == 0);
     int is_burning = (sweep <= nburn);
+    double gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
     /* --Section 8 - RWM within-model moves ---*/
 
     /* Every 10 sweeps to block RWM */
-    reversible_jump_move(B, Lk, Znkk, adapt, &current_Lkk, &current_model_k,
-                         detB, do_block_RWM, dof, doperm, lambda, &llh, &lp,
-                         &mdim, model_dims, mu, &naccrwmb, &naccrwms, &nacctd,
-                         nburn, nmodels, &nreinit, &ntryrwmb, &ntryrwms,
-                         &ntrytd, palloc, pallocn, pk, &pkllim, propk, &reinit,
-                         sig, sweep, theta, thetan, work);
+    reversible_jump_move(is_burning, B, Lk, adapt, &current_Lkk,
+                         &current_model_k, detB, do_block_RWM, dof, doperm,
+                         lambda, &llh, &lp, &mdim, model_dims, mu, &naccrwmb,
+                         &naccrwms, &nacctd, nmodels, &nreinit, &ntryrwmb,
+                         &ntryrwms, &ntrytd, pk, &pkllim, propk, &reinit, sig,
+                         gamma_sweep, theta, mdim_max, Lkmax);
 
-    if (sweep > nburn) {
+    if (!is_burning) {
       (ksummary[current_model_k])++;
     }
     /* --- Section 10 - Write variables to files --------- */
 
-    if (sweep > nburn) {
+    if (!is_burning) {
 
       fprintf(fpk, "%d\n", current_model_k + 1);
       fprintf(fplp, "%lf %lf\n", lp, llh);
@@ -435,9 +431,6 @@ int main(int argc, char *argv[]) {
       xr[((sweep - keep) / nsokal) - 1] = current_model_k;
     }
 
-    if (sweep == 1) {
-      printf("\nBurning in");
-    }
     if ((is_burning) && (fmod(sweep, (nburn / 10)) < tol)) {
       printf(" .");
       fflush(NULL);
@@ -1068,17 +1061,22 @@ void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
   chol(mdim, B_k[0]);
 }
 
-void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
+void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
                           int *current_Lkk, int *current_model_k, double **detB,
                           int do_block_RWM, int dof, int doperm,
                           double **lambda, double *llh, double *lp, int *mdim,
                           int *model_dims, double ***mu, int *naccrwmb,
-                          int *naccrwms, int *nacctd, int nburn, int nmodels,
-                          int *nreinit, int *ntryrwmb, int *ntryrwms,
-                          int *ntrytd, double *palloc, double *pallocn,
-                          double *pk, int *pkllim, double *propk, int *reinit,
-                          double **sig, int sweep, double *theta,
-                          double *thetan, double *work) {
+                          int *naccrwms, int *nacctd, int nmodels, int *nreinit,
+                          int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
+                          int *pkllim, double *propk, int *reinit, double **sig,
+                          double gamma_sweep, double *theta, int mdim_max,
+                          int Lkmax) {
+  double *thetan = (double *)malloc(mdim_max * sizeof(double));
+  double *work = (double *)malloc(mdim_max * sizeof(double));
+  double *palloc = (double *)malloc(Lkmax * sizeof(double));
+  double *pallocn = (double *)malloc(Lkmax * sizeof(double));
+  double *Znkk = (double *)malloc(mdim_max * sizeof(double));
+
   if (do_block_RWM) {
     (*ntryrwmb)++;
     rt(Znkk, *mdim, dof);
@@ -1172,7 +1170,7 @@ void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
     kn = *current_model_k;
     logratio = 0.0;
   } else {
-    gamma = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+    gamma = gamma_sweep;
     double u = sdrand();
     double thresh = 0.0;
     for (int k1 = 0; k1 < nmodels; k1++) {
@@ -1286,7 +1284,7 @@ void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
   }
 
   if (adapt == 1) {
-    if (sweep > nburn) {
+    if (!is_burning) {
       for (int k1 = 0; k1 < nmodels; k1++) {
         if (k1 == *current_model_k) {
           propk[k1] = 1.0;
@@ -1310,6 +1308,11 @@ void reversible_jump_move(double ****B, int *Lk, double *Znkk, int adapt,
       }
     }
   }
+  free(thetan);
+  free(work);
+  free(palloc);
+  free(pallocn);
+  free(Znkk);
 }
 
 void usage(char *invocation) {
