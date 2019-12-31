@@ -1,43 +1,9 @@
-/* The AutoMix program.
-
-   Last edited 25/11/04.
-   Developed by David Hastie, Department of Mathematics,
-   University of Bristol, UK as a part of a submission for the
-   degree of Ph.D. This Ph.D. was supervised by Prof. Peter Green (PJG),
-   University of Bristol. Special thanks also to Dr. Christophe Andrieu CA),
-   University of Bristol, for advice on adaptive schemes and mixture fitting.
-
-   The AutoMix sampler is free for personal and academic use, but must
-   reference the sampler as instructed below.  For commercial
-   use please permission must be sought from the author. To seek permission
-   for such use please send an e-mail to d_hastie@hotmail.com
-   outlining the desired usage.
-
-   Use of the AutoMix sampler is entirely at the user's own risk. It is the
-   responsibility of the user to ensure that any conclusions made through the
-   use of the AutoMix sampler are valid. The author accepts no responsibility
-   whatsoever for any loss, financial or otherwise, that may arise in
-   connection with the use of the sampler.
-
-   The AutoMix sampler is available from http://www.davidhastie.me.uk/AutoMix
-   Although the sampler may be modified and redistributed, the author
-   encourages users to register at the above site so that updates of the
-   software can be received.
-
-   Before use, please read the README file bundled with this software.
-
-   Users should reference the sampler as instructed on the AutoMix website
-   (see above). Initially this is likely to be the Ph.D. thesis that
-   introduces the AutoMix sampler. However, this will hopefully change to
-   be a published paper in the not too distant future.  */
-
-/* Standard library files */
+// AutoMix - By David Hastie.
+// See automix.h for full license and credits.
 
 #define VERSION "1.1"
 
-#include "user.h"
-#include "utils.h"
-#include <fcntl.h>
+#include "automix.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,75 +13,33 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
-/* Global constants (please feel free to change as required)
-
-   NMODELS_MAX = maximum number of models
-   Lkmaxmax = initial number of mixture components fitted in stage 2 of
-              AutoMix algorithm */
-
-#define NMODELS_MAX 15
-#define Lkmaxmax 30
-#define logrtpi 0.9189385332046727 // 0.5 * log(2.0 * pi)
-
-/* --- Internal functions (described below) ----------------- */
-
-int read_mixture_params(char *fname, int kmax, int *model_dims, double **sig,
-                        int *Lk, double **lambda, double ***mu, double ****B);
-
-void rwn_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
-                      FILE *fpcf, FILE *fpad, double **sig, int dof,
-                      double **data);
-
-void fit_mixture_from_samples(int mdim, double **data, int lendata,
-                              double **mu_k, double ***B_k, double *lambda_k,
-                              FILE *fpcf, int *Lk_k);
-
-void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
-                double ***B_k, double **data, int lendata);
-
-void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
-                          int *current_Lkk, int *current_model_k, double **detB,
-                          int do_block_RWM, int dof, int doperm,
-                          double **lambda, double *llh, double *lp, int *mdim,
-                          int *model_dims, double ***mu, int *naccrwmb,
-                          int *naccrwms, int *nacctd, int nmodels, int *nreinit,
-                          int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
-                          int *pkllim, double *propk, int *reinit, double **sig,
-                          double gamma_sweep, double *theta, int mdim_max,
-                          int Lkmax);
-
 void usage(char *invocation);
-
-/* ---main program-------------------------- */
 
 int main(int argc, char *argv[]) {
 
   clock_t starttime = clock();
 
-  /* Definition of command line variables and explanation
-
-     Prog variable ~ Command line variable ~ Explanation
-
-     mode ~ m ~ 0 if mixture fitting, 1 if user supplied mixture params,
-                2 if AutoRJ
-     nsweep ~ N ~ no. of reversible jump sweeps in stage 3
-     nsweep2 ~ n ~ max(n,10000*mdim,100000) sweeps in within-model RWM in stage
-     1 adapt ~ a ~ 1 if RJ adaptation done in stage 3, 0 otherwise doperm ~ p ~
-     1 if random permutation done in stage 3 RJ move, 0 otherwise seed ~ s ~
-     random no. seed, 0 uses clock seed dof ~ t ~ 0 if Normal random variables
-     used in RWM and RJ moves, otherwise specify integer degrees of freedom of
-     student t variables fname ~ f ~ filename base */
-
-  // Default values
+  // Default values for command line arguments
+  // mode ~ m ~ 0 if mixture fitting, 1 if user supplied mixture params, 2 if
+  // AutoRJ
+  int mode = 0;
+  // nsweep ~ N ~ no. of reversible jump sweeps in stage 3
   int nsweep = 1E5;
+  // nsweep2 ~ n ~ max(n,10000*mdim,100000) sweeps in within-model RWM in stage
+  // 1
   int nsweep2 = 1E5;
+  // adapt ~ a ~ 1 if RJ adaptation done in stage 3, 0 otherwise
+  int adapt = 1;
+  // doperm ~ p ~ 1 if random permutation done in stage 3 RJ move, 0 otherwise
+  int doperm = 1;
+  // seed ~ s ~ random no. seed, 0 uses clock seed
+  unsigned long seed = 0;
+  // dof ~ t ~ 0 if Normal random variables used in RWM and RJ moves,
+  // otherwise specify integer degrees of freedom of student t variables
+  int dof = 0;
+  // fname ~ f ~ filename base (default = "output")
   char *const fname_default = "output";
   char *fname = fname_default;
-  int doperm = 1;
-  unsigned long seed = 0;
-  int mode = 0;
-  int adapt = 1;
-  int dof = 0;
 
   // Override defaults if user supplies command line options
   for (int i = 1; i < argc; i++) {
@@ -163,7 +87,7 @@ int main(int argc, char *argv[]) {
   }
   sdrni(&seed);
 
-  /* --- Section 3 - Initial File handling ---------------------  */
+  // --- Section 3 - Initial File handling ---------------------
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_log.data", fname);
@@ -177,7 +101,7 @@ int main(int argc, char *argv[]) {
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fpcf = fopen(datafname, "w");
 
-  /* Print user options to log file */
+  // Print user options to log file
 
   fprintf(fpl, "seed: %ld\n", seed);
   fprintf(fpl, "m: %d\n", mode);
@@ -186,7 +110,7 @@ int main(int argc, char *argv[]) {
   fprintf(fpl, "n: %d\n", nsweep2);
   fprintf(fpl, "N: %d\n", nsweep);
 
-  /* --- Section 4.0 - Read in key variables from user functions -*/
+  // --- Section 4.0 - Read in key variables from user functions -
 
   // nmodels is the number of models
   int nmodels = get_nmodels();
@@ -221,22 +145,17 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /* --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) --- */
-
-  /* These parameters are used if mode 1 (m=1) of the AutoMix sampler is
-     used. Note that if the parameters are unavailable or inconsistent with
-     the user supplied functions or unavailable go straight to section 5.2
-     where initial within-model Normal Random Walk Metropolis (RWM) are
-     performed */
+  // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
 
   if (mode == 1) {
+    // Read AutoMix parameters from file if mode = 1
     int ok =
         read_mixture_params(fname, nmodels, model_dims, sig, Lk, lambda, mu, B);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
   } else {
-    /* --- Section 5.2 - Within-model runs if mixture parameters unavailable -*/
+    // --- Section 5.2 - Within-model runs if mixture parameters unavailable -
     for (int model_k = 0; model_k < nmodels; model_k++) {
       int mdim = model_dims[model_k];
       int lendata = 1000 * mdim;
@@ -245,22 +164,21 @@ int main(int argc, char *argv[]) {
       for (int i = 1; i < lendata; i++) {
         data[i] = data[i - 1] + mdim;
       }
-      /* --- Section 5.2.1 - RWM Within Model (Stage 1) -------*/
+      // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
       rwn_within_model(model_k, model_dims, nsweep2, fpl, fpcf, fpad, sig, dof,
                        data);
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
-        /* --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)- */
-        /* Mixture fitting done component wise EM algorithm described in
-           Figueiredo and Jain, 2002 (see thesis for full reference) */
+        // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
+        // Mixture fitting done component wise EM algorithm described in
+        // Figueiredo and Jain, 2002 (see thesis for full reference)
         fit_mixture_from_samples(model_dims[model_k], data, lendata,
                                  mu[model_k], B[model_k], lambda[model_k], fpcf,
                                  Lk + model_k);
       }
       if (mode == 2) {
-        /* --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --*/
-        /* Note only done if mode 2 (m=2).*/
+        //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
         fit_autorj(lambda[model_k], Lk + model_k, model_dims[model_k],
                    mu[model_k], B[model_k], data, lendata);
       }
@@ -269,9 +187,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /* Print mixture parameters to file (log and mix files) for reference
-     and use in future runs. */
-
+  // Print mixture parameters to file (log and mix files)
   sprintf(datafname, "%s_mix.data", fname);
   FILE *fpmix = fopen(datafname, "w");
   fprintf(fpmix, "%d\n", nmodels);
@@ -314,7 +230,7 @@ int main(int argc, char *argv[]) {
   }
   fflush(NULL);
 
-  /* --Section 6 - Secondary file handling -------------*/
+  // --Section 6 - Secondary file handling -------------
 
   sprintf(datafname, "%s_k.data", fname);
   FILE *fpk = fopen(datafname, "w");
@@ -328,7 +244,7 @@ int main(int argc, char *argv[]) {
   }
   free(datafname);
 
-  /* --Section 7 - Final initialisation of variables ----*/
+  // --Section 7 - Final initialisation of variables ----
 
   int naccrwmb = 0;
   int ntryrwmb = 0;
@@ -390,11 +306,11 @@ int main(int argc, char *argv[]) {
   double *xr = (double *)malloc(nkeep * sizeof(double));
   int *ksummary = (int *)calloc(nmodels, sizeof(int));
 
-  /* -----Start of main loop ----------------*/
+  // -----Start of main loop ----------------
   // Burn some samples first
   printf("\nBurning in");
   for (int sweep = 1; sweep <= nburn; sweep++) {
-    /* Every 10 sweeps to block RWM */
+    // Every 10 sweeps to block RWM
     int do_block_RWM = (sweep % 10 == 0);
     int is_burning = 1;
     double gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
@@ -415,7 +331,7 @@ int main(int argc, char *argv[]) {
   // Start here main sample
   printf("Start of main sample:");
   for (int sweep = nburn + 1; sweep <= (nburn + nsweep); sweep++) {
-    /* Every 10 sweeps to block RWM */
+    // Every 10 sweeps to block RWM
     int do_block_RWM = (sweep % 10 == 0);
     int is_burning = 0;
     double gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
@@ -428,7 +344,7 @@ int main(int argc, char *argv[]) {
                          gamma_sweep, theta, mdim_max, Lkmax);
 
     (ksummary[current_model_k])++;
-    /* --- Section 10 - Write variables to files --------- */
+    // --- Section 10 - Write variables to files ---------
 
     fprintf(fpk, "%d\n", current_model_k + 1);
     fprintf(fplp, "%lf %lf\n", lp, llh);
@@ -450,7 +366,7 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
 
-  /* --- Section 11 - Write log file ----------------------*/
+  // --- Section 11 - Write log file ----------------------
 
   double var, tau;
   int m;
@@ -483,8 +399,8 @@ int main(int argc, char *argv[]) {
 
 int read_mixture_params(char *fname, int nmodels, int *model_dims, double **sig,
                         int *Lk, double **lambda, double ***mu, double ****B) {
-  /* Check user has supplied mixture parameters if trying to use mode 1.
-     If not default back to mode 0 */
+  // Check user has supplied mixture parameters if trying to use mode 1.
+  // If not, abort and exit.
   char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
   sprintf(datafname, "%s_mix.data", fname);
   FILE *fpmix = fopen(datafname, "r");
@@ -568,6 +484,8 @@ int read_mixture_params(char *fname, int nmodels, int *model_dims, double **sig,
 void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
                       FILE *fpcf, FILE *fpad, double **sig, int dof,
                       double **data) {
+  // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
+
   int mdim = model_dims[model_k];
   int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
@@ -665,6 +583,9 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
 void fit_mixture_from_samples(int mdim, double **data, int lendata,
                               double **mu_k, double ***B_k, double *lambda_k,
                               FILE *fpcf, int *Lk_k) {
+  // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
+  // Mixture fitting done component wise EM algorithm described in
+  // Figueiredo and Jain, 2002 (see thesis for full reference)
   int Lkk = Lkmaxmax;
   int *init = (int *)malloc(Lkk * sizeof(int));
   int l1 = 0;
@@ -785,7 +706,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
       }
 
       if (lambda_k[l1] > 0.005) {
-        /*changed to 0.005 from 0.0 -renormalise else */
+        // changed to 0.005 from 0.0 -renormalise else
         for (int j1 = 0; j1 < mdim; j1++) {
           mu_k[l1][j1] = 0.0;
           for (int i1 = 0; i1 < lendata; i1++) {
@@ -854,7 +775,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
           }
           lpn += log(sum);
         } else {
-          /* if no component fits point well make equally likely */
+          // if no component fits point well make equally likely
           for (int l2 = 0; l2 < Lkk; l2++) {
             w[i1][l2] = 1.0 / Lkk;
           }
@@ -942,7 +863,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
             }
             lpn += log(sum);
           } else {
-            /* if no component fits point well make equally likely */
+            // if no component fits point well make equally likely
             for (int l2 = 0; l2 < Lkk; l2++) {
               w[i1][l2] = 1.0 / Lkk;
             }
@@ -1003,6 +924,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
 
 void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata) {
+  // --- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
   *Lk_k = 1;
   lambda_k[0] = 1.0;
   for (int j = 0; j < mdim; j++) {
@@ -1039,9 +961,10 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
   double *palloc = (double *)malloc(Lkmax * sizeof(double));
   double *pallocn = (double *)malloc(Lkmax * sizeof(double));
   double *Znkk = (double *)malloc(mdim_max * sizeof(double));
+  const double logrtpi = 0.9189385332046727; // 0.5 * log(2.0 * pi)
 
-  /* --Section 8 - RWM within-model moves ---*/
-  /* Every 10 sweeps to block RWM */
+  // --Section 8 - RWM within-model moves ---
+  // Every 10 sweeps to block RWM */
   if (do_block_RWM) {
     (*ntryrwmb)++;
     rt(Znkk, *mdim, dof);
@@ -1057,7 +980,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
       *llh = llhn;
     }
   } else {
-    /* else do component-wise RWM */
+    // else do component-wise RWM
     memcpy(thetan, theta, (*mdim) * sizeof(*thetan));
     for (int j1 = 0; j1 < *mdim; j1++) {
       (*ntryrwms)++;
@@ -1077,9 +1000,9 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     }
   }
 
-  /* --- Section 9 Reversible Jump Moves -------------------*/
+  // --- Section 9 Reversible Jump Moves -------------------
 
-  /* --Section 9.1 - Allocate current position to a component --*/
+  // --Section 9.1 - Allocate current position to a component --
   int l = 0;
   (*ntrytd)++;
   int ln = 0;
@@ -1115,7 +1038,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     palloc[l] = 1.0;
   }
 
-  /* --Section 9.2 - Standardise state variable --------------- */
+  // --Section 9.2 - Standardise state variable ---------------
 
   for (int i = 0; i < *mdim; i++) {
     work[i] = theta[i] - mu[*current_model_k][l][i];
@@ -1127,7 +1050,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     work[i] = work[i] / B[*current_model_k][l][i][i];
   }
 
-  /* --Section 9.3 - Choose proposed new model and component ----*/
+  // --Section 9.3 - Choose proposed new model and component ----
   int kn = 0;
   double gamma = 0.0;
   double logratio;
@@ -1161,7 +1084,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     }
   }
 
-  /* --Section 9.4 Propose new state ----------------*/
+  // --Section 9.4 Propose new state ----------------
 
   if (*mdim < mdim_kn) {
     rt(&(work[*mdim]), mdim_kn - *mdim, dof);
@@ -1203,8 +1126,8 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     }
   }
 
-  /* --Section 9.5 - Work out probability of allocating to component
-   for acceptance ratio (reverse move) ---------*/
+  // --Section 9.5 - Work out probability of allocating to component
+  // for acceptance ratio (reverse move) ---------
 
   if (Lkkn > 1) {
     double sum = 0.0;
@@ -1227,7 +1150,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     pallocn[ln] = 1.0;
   }
 
-  /* --Section 9.6 - Work out acceptance probability  and new state --*/
+  // --Section 9.6 - Work out acceptance probability  and new state --
   double llhn;
   double lpn = logpost(kn, mdim_kn, thetan, &llhn);
 
