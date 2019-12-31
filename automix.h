@@ -31,11 +31,11 @@ Users should reference the sampler as instructed on the AutoMix website
 introduces the AutoMix sampler. However, this will hopefully change to
 be a published paper in the not too distant future.  */
 
-#include <stdio.h>
 #include "user.h"
 #include "utils.h"
-// Global constants (please feel free to change as required)
+#include <stdio.h>
 
+// Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
 #define NMODELS_MAX 15
 // Lkmaxmax = initial number of mixture components fitted in stage 2 of
@@ -64,5 +64,4 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
                           int *naccrwms, int *nacctd, int nmodels, int *nreinit,
                           int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
                           int *pkllim, double *propk, int *reinit, double **sig,
-                          double gamma_sweep, double *theta, int mdim_max,
-                          int Lkmax);
+                          double gamma_sweep, double *theta, int mdim_max);

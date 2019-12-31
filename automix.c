@@ -253,21 +253,28 @@ int main(int argc, char *argv[]) {
   int nacctd = 0;
   int ntrytd = 0;
 
-  int Lkmax = Lk[0];
-  for (int k1 = 1; k1 < nmodels; k1++) {
-    Lkmax = max(Lkmax, Lk[k1]);
-  }
+  // Initialization of the MC Markov Chain parameters
   int current_model_k = (int)floor(nmodels * sdrand());
   int mdim = model_dims[current_model_k];
-  int current_Lkk = Lk[current_model_k];
-
   int mdim_max = model_dims[0];
   for (int k1 = 1; k1 < nmodels; k1++) {
     mdim_max = max(model_dims[k1], mdim_max);
   }
   double *theta = (double *)malloc(mdim_max * sizeof(double));
-  double *propk = (double *)malloc(nmodels * sizeof(double));
   double *pk = (double *)malloc(nmodels * sizeof(double));
+  get_rwm_init(current_model_k, mdim, theta);
+  int current_Lkk = Lk[current_model_k];
+  double llh;
+  double lp = logpost(current_model_k, mdim, theta, &llh);
+  for (int k1 = 0; k1 < nmodels; k1++) {
+    pk[k1] = 1.0 / nmodels;
+  }
+  int nreinit = 1;
+  int reinit = 0;
+  int pkllim = 1.0 / 10.0;
+
+  // propk and detB are auxiliary arrays
+  double *propk = (double *)malloc(nmodels * sizeof(double));
   double **detB = (double **)malloc(nmodels * sizeof(double *));
   for (int k = 0; k < nmodels; k++) {
     detB[k] = (double *)malloc(Lkmaxmax * sizeof(double));
@@ -279,23 +286,13 @@ int main(int argc, char *argv[]) {
       detB[k1][l1] = det(mdim, l1, B[k1]);
     }
   }
-
-  get_rwm_init(current_model_k, mdim, theta);
-
-  double llh;
-  double lp = logpost(current_model_k, mdim, theta, &llh);
-
   for (int k1 = 0; k1 < nmodels; k1++) {
-    pk[k1] = 1.0 / nmodels;
     if (k1 == current_model_k) {
       propk[k1] = 1.0;
     } else {
       propk[k1] = 0.0;
     }
   }
-  int nreinit = 1;
-  int reinit = 0;
-  int pkllim = 1.0 / 10.0;
 
   int nburn = max(10000, (int)(nsweep / 10));
 
@@ -320,7 +317,7 @@ int main(int argc, char *argv[]) {
                          lambda, &llh, &lp, &mdim, model_dims, mu, &naccrwmb,
                          &naccrwms, &nacctd, nmodels, &nreinit, &ntryrwmb,
                          &ntryrwms, &ntrytd, pk, &pkllim, propk, &reinit, sig,
-                         gamma_sweep, theta, mdim_max, Lkmax);
+                         gamma_sweep, theta, mdim_max);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -341,7 +338,7 @@ int main(int argc, char *argv[]) {
                          lambda, &llh, &lp, &mdim, model_dims, mu, &naccrwmb,
                          &naccrwms, &nacctd, nmodels, &nreinit, &ntryrwmb,
                          &ntryrwms, &ntrytd, pk, &pkllim, propk, &reinit, sig,
-                         gamma_sweep, theta, mdim_max, Lkmax);
+                         gamma_sweep, theta, mdim_max);
 
     (ksummary[current_model_k])++;
     // --- Section 10 - Write variables to files ---------
@@ -954,8 +951,11 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
                           int *naccrwms, int *nacctd, int nmodels, int *nreinit,
                           int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
                           int *pkllim, double *propk, int *reinit, double **sig,
-                          double gamma_sweep, double *theta, int mdim_max,
-                          int Lkmax) {
+                          double gamma_sweep, double *theta, int mdim_max) {
+  int Lkmax = Lk[0];
+  for (int k1 = 1; k1 < nmodels; k1++) {
+    Lkmax = max(Lkmax, Lk[k1]);
+  }
   double *thetan = (double *)malloc(mdim_max * sizeof(double));
   double *work = (double *)malloc(mdim_max * sizeof(double));
   double *palloc = (double *)malloc(Lkmax * sizeof(double));
