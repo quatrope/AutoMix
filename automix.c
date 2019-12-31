@@ -55,7 +55,7 @@
 
 #define NMODELS_MAX 15
 #define Lkmaxmax 30
-#define logrtpi 0.3990899342 // 0.5 * log(2.0 * pi)
+#define logrtpi 0.9189385332046727 // 0.5 * log(2.0 * pi)
 
 /* --- Internal functions (described below) ----------------- */
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   // Default values
   int nsweep = 1E5;
   int nsweep2 = 1E5;
-  char fname_default[] = "output";
+  char *const fname_default = "output";
   char *fname = fname_default;
   int doperm = 1;
   unsigned long seed = 0;
@@ -596,11 +596,9 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
 
   int i2 = 0;
   int remain = nsweepr;
-  double tol = 1E-5;
   for (int sweep = 1; sweep <= nsweepr; sweep++) {
     remain--;
-    if ((sweep >= nburn) &&
-        (fmod((sweep - nburn), ((nsweepr - nburn) / 10)) < tol)) {
+    if ((sweep >= nburn) && ((10 * (sweep - nburn)) % (nsweepr - nburn) == 0)) {
       printf("\nNo. of iterations remaining: %d", remain);
       fflush(NULL);
     }
@@ -616,7 +614,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
           rwm[i] = rwmn[i];
         }
         lp = lpn;
-        llh = llhn;
+        llh = llhn; // This may not ever be used!
       }
     } else {
       double gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
@@ -673,27 +671,6 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
   double lpn = 0.0;
   double costfn = 0.0;
   double costfnmin = 0.0;
-  double tol = 1E-5;
-
-  double ***BBT = (double ***)malloc(Lkmaxmax * sizeof(double **));
-  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    BBT[l1] = (double **)malloc(mdim * sizeof(double *));
-    for (int j1 = 0; j1 < mdim; j1++) {
-      BBT[l1][j1] = (double *)malloc(mdim * sizeof(double));
-    }
-  }
-  double ***Bmin = (double ***)malloc(Lkmaxmax * sizeof(double **));
-  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    Bmin[l1] = (double **)malloc(mdim * sizeof(double *));
-    for (int j1 = 0; j1 < mdim; j1++) {
-      Bmin[l1][j1] = (double *)malloc(mdim * sizeof(double));
-    }
-  }
-  double *lambdamin = (double *)malloc(Lkmaxmax * sizeof(double));
-  double **mumin = (double **)malloc(Lkmaxmax * sizeof(double *));
-  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
-    mumin[l1] = (double *)malloc(mdim * sizeof(double));
-  }
 
   while (l1 < Lkk) {
     int indic = 0;
@@ -712,45 +689,25 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
     }
   }
 
-  double *datamean = (double *)malloc(mdim * sizeof(double));
-  double **M1 = (double **)malloc(mdim * sizeof(double *));
-  for (int i = 0; i < mdim; i++) {
-    M1[i] = (double *)malloc(mdim * sizeof(double));
-  }
-  for (int j = 0; j < mdim; j++) {
-    datamean[j] = 0.0;
-    for (int i = 0; i < lendata; i++) {
-      datamean[j] += data[i][j];
-    }
-    datamean[j] /= ((double)lendata);
-  }
-  for (int i = 0; i < mdim; i++) {
-    for (int j = 0; j < mdim; j++) {
-      M1[i][j] = 0;
-      for (int k = 0; k < lendata; k++) {
-        M1[i][j] += (data[k][i] - datamean[i]) * (data[k][j] - datamean[j]);
-      }
-      M1[i][j] /= ((double)lendata);
-    }
-  }
-  free(datamean);
+  // sigma holds the trace of the covariance matrix plus some normalization.
   double sigma = 0.0;
-  for (int j1 = 0; j1 < mdim; j1++) {
-    sigma += M1[j1][j1];
+  for (int j = 0; j < mdim; j++) {
+    double datasum = 0.0;
+    double datasqsum = 0.0;
+    for (int i = 0; i < lendata; i++) {
+      datasum += data[i][j];
+      datasqsum += data[i][j] * data[i][j];
+    }
+    double len = (double)lendata;
+    sigma += (datasqsum - datasum * datasum / len) / len;
   }
   sigma /= (10.0 * mdim);
-  for (int i = 0; i < mdim; i++) {
-    free(M1[i]);
-  }
-  free(M1);
 
   for (int i = 0; i < Lkk; i++) {
     for (int j = 0; j < mdim; j++) {
       mu_k[i][j] = data[init[i]][j];
-      BBT[i][j][j] = sigma;
       B_k[i][j][j] = sigma;
       for (int k = 0; k < j; k++) {
-        BBT[i][j][k] = 0.0;
         B_k[i][j][k] = 0.0;
       }
     }
@@ -786,6 +743,19 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
   double wnewl1 = 0.0;
   int nparams = mdim + (mdim * (mdim + 1)) / 2;
   int Lkkmin = 0;
+
+  double ***Bmin = (double ***)malloc(Lkmaxmax * sizeof(double **));
+  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
+    Bmin[l1] = (double **)malloc(mdim * sizeof(double *));
+    for (int j1 = 0; j1 < mdim; j1++) {
+      Bmin[l1][j1] = (double *)malloc(mdim * sizeof(double));
+    }
+  }
+  double **mumin = (double **)malloc(Lkmaxmax * sizeof(double *));
+  for (int l1 = 0; l1 < Lkmaxmax; l1++) {
+    mumin[l1] = (double *)malloc(mdim * sizeof(double));
+  }
+  double *lambdamin = (double *)malloc(Lkmaxmax * sizeof(double));
 
   while (!stop) {
     count++;
@@ -824,13 +794,12 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
           mu_k[l1][j1] /= sumw[l1];
 
           for (int j2 = 0; j2 <= j1; j2++) {
-            BBT[l1][j1][j2] = 0.0;
+            double temp = 0.0;
             for (int i1 = 0; i1 < lendata; i1++) {
-              BBT[l1][j1][j2] += (data[i1][j1] - mu_k[l1][j1]) *
-                                 (data[i1][j2] - mu_k[l1][j2]) * w[i1][l1];
+              temp += (data[i1][j1] - mu_k[l1][j1]) *
+                      (data[i1][j2] - mu_k[l1][j2]) * w[i1][l1];
             }
-            BBT[l1][j1][j2] /= sumw[l1];
-            B_k[l1][j1][j2] = BBT[l1][j1][j2];
+            B_k[l1][j1][j2] = temp / sumw[l1];
           }
         }
 
@@ -842,7 +811,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
         l1++;
 
       } else {
-        if (fmod(Lkk, 5) < 0.05) {
+        if (Lkk % 5 == 0) {
           printf("\n");
         }
         printf("%d(%d-n) ", Lkk, count);
@@ -853,7 +822,6 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
             for (int j1 = 0; j1 < mdim; j1++) {
               mu_k[l2][j1] = mu_k[l2 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
-                BBT[l2][j1][j2] = BBT[l2 + 1][j1][j2];
                 B_k[l2][j1][j2] = B_k[l2 + 1][j1][j2];
               }
             }
@@ -890,7 +858,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
           for (int l2 = 0; l2 < Lkk; l2++) {
             w[i1][l2] = 1.0 / Lkk;
           }
-          lpn += (-500.0);
+          lpn -= 500.0;
         }
       }
     }
@@ -919,12 +887,12 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
         }
       }
     }
-    if ((fabs(costfn - costfnnew) < min(tol * fabs(costfn), 0.01)) &&
+    if ((fabs(costfn - costfnnew) < min(1E-5 * fabs(costfn), 0.01)) &&
         (count > 1)) {
       if (Lkk == 1) {
         stop = 1;
       } else {
-        if (fmod(Lkk, 5) < 0.05) {
+        if (Lkk % 5 == 0) {
           printf("\n");
         }
         printf("%d(%d-f) ", Lkk, count);
@@ -943,7 +911,6 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
             for (int j1 = 0; j1 < mdim; j1++) {
               mu_k[l1][j1] = mu_k[l1 + 1][j1];
               for (int j2 = 0; j2 <= j1; j2++) {
-                BBT[l1][j1][j2] = BBT[l1 + 1][j1][j2];
                 B_k[l1][j1][j2] = B_k[l1 + 1][j1][j2];
               }
             }
@@ -979,7 +946,7 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
             for (int l2 = 0; l2 < Lkk; l2++) {
               w[i1][l2] = 1.0 / Lkk;
             }
-            lpn += (-500.0);
+            lpn -= 500.0;
           }
         }
 
@@ -999,13 +966,6 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
     fflush(NULL);
   }
 
-  for (int i = 0; i < Lkmaxmax; i++) {
-    for (int j = 0; j < mdim; j++) {
-      free(BBT[i][j]);
-    }
-    free(BBT[i]);
-  }
-  free(BBT);
   for (int i = 0; i < lendata; i++) {
     free(w[i]);
     free(lpdatagivenl[i]);
@@ -1100,8 +1060,8 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     /* else do component-wise RWM */
     memcpy(thetan, theta, (*mdim) * sizeof(*thetan));
     for (int j1 = 0; j1 < *mdim; j1++) {
-      double Z;
       (*ntryrwms)++;
+      double Z;
       rt(&Z, 1, dof);
       thetan[j1] = theta[j1] + sig[*current_model_k][j1] * Z;
       double llhn;
@@ -1300,6 +1260,7 @@ void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
     for (int k1 = 0; k1 < nmodels; k1++) {
       if (pk[k1] < *pkllim) {
         *reinit = 1;
+        break;
       }
     }
     if (*reinit == 1) {
