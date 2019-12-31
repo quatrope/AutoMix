@@ -1,7 +1,7 @@
 // AutoMix - By David Hastie.
 // See automix.h for full license and credits.
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 #include "automix.h"
 #include <math.h>
