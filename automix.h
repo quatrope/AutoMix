@@ -40,7 +40,7 @@ be a published paper in the not too distant future.  */
 #define NMODELS_MAX 15
 // Lkmaxmax = initial number of mixture components fitted in stage 2 of
 // AutoMix algorithm
-#define Lkmaxmax 30
+#define NUM_MIX_COMPS_MAX 30
 
 // C does not have a bool type but int is just as good
 typedef int bool;
@@ -63,27 +63,31 @@ typedef struct {
   double gamma_sweep;
 } chainState;
 
-void initChain(chainState *aChain, int nmodels, int *model_dims, int *Lk,
-               int adapt);
+typedef struct {
+  int nmodels;
+  int *nMixComps;
+  int *model_dims;
+  double **lambda;
+  double ***mu;
+  double ****B;
+  bool isInitialized;
+} proposalDist;
+
+void initChain(chainState *ch, proposalDist jd, int adapt);
 void freeChain(chainState *aChain);
 
-int read_mixture_params(char *fname, int kmax, int *model_dims, double **sig,
-                        int *Lk, double **lambda, double ***mu, double ****B);
+int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
 void rwn_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
                       FILE *fpcf, FILE *fpad, double **sig, int dof,
                       double **data);
 
-void fit_mixture_from_samples(int mdim, double **data, int lendata,
-                              double **mu_k, double ***B_k, double *lambda_k,
-                              FILE *fpcf, int *Lk_k);
+void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
+                              int lendata, FILE *fpcf);
 
-void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
-                double ***B_k, double **data, int lendata);
+void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
 
-void reversible_jump_move(chainState *ch, double ****B, int *Lk, double **detB,
-                          int dof, double **lambda, double *llh, int nmodels,
-                          int *model_dims, double ***mu, int *naccrwmb,
-                          int *naccrwms, int *nacctd, int *ntryrwmb,
-                          int *ntryrwms, int *ntrytd, double *propk,
-                          double **sig);
+void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
+                          int dof, double *llh, int *naccrwmb, int *naccrwms,
+                          int *nacctd, int *ntryrwmb, int *ntryrwms,
+                          int *ntrytd, double *propk, double **sig);
