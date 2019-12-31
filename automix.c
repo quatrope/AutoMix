@@ -255,26 +255,8 @@ int main(int argc, char *argv[]) {
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
-  ch.current_model_k = (int)floor(nmodels * sdrand());
-  ch.mdim = model_dims[ch.current_model_k];
-  int mdim_max = model_dims[0];
-  for (int i = 1; i < nmodels; i++) {
-    mdim_max = max(model_dims[i], mdim_max);
-  }
-  ch.theta = (double *)malloc(mdim_max * sizeof(double));
-  ch.pk = (double *)malloc(nmodels * sizeof(double));
-  get_rwm_init(ch.current_model_k, ch.mdim, ch.theta);
-  ch.current_Lkk = Lk[ch.current_model_k];
+  initChain(&ch, nmodels, model_dims, Lk, adapt);
   double llh;
-  ch.lp = logpost(ch.current_model_k, ch.mdim, ch.theta, &llh);
-  for (int i = 0; i < nmodels; i++) {
-    ch.pk[i] = 1.0 / nmodels;
-  }
-  ch.nreinit = 1;
-  ch.reinit = 0;
-  ch.pkllim = 1.0 / 10.0;
-  ch.doAdapt = adapt;
-  ch.isInitialized = 1;
 
   // propk and detB are auxiliary arrays
   double *propk = (double *)malloc(nmodels * sizeof(double));
@@ -317,7 +299,7 @@ int main(int argc, char *argv[]) {
 
     reversible_jump_move(&ch, B, Lk, detB, dof, lambda, &llh, nmodels,
                          model_dims, mu, &naccrwmb, &naccrwms, &nacctd,
-                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig, mdim_max);
+                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -335,7 +317,7 @@ int main(int argc, char *argv[]) {
 
     reversible_jump_move(&ch, B, Lk, detB, dof, lambda, &llh, nmodels,
                          model_dims, mu, &naccrwmb, &naccrwms, &nacctd,
-                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig, mdim_max);
+                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
 
     (ksummary[ch.current_model_k])++;
     // --- Section 10 - Write variables to files ---------
@@ -359,6 +341,7 @@ int main(int argc, char *argv[]) {
     fflush(NULL);
   }
   printf("\n");
+  freeChain(&ch);
 
   // --- Section 11 - Write log file ----------------------
 
@@ -389,6 +372,40 @@ int main(int argc, char *argv[]) {
   fprintf(fpl, "Time: %lf\n", timesecs);
 
   return 0;
+}
+
+void initChain(chainState *ch, int nmodels, int *model_dims, int *Lk,
+               int adapt) {
+  ch->current_model_k = (int)floor(nmodels * sdrand());
+  ch->mdim = model_dims[ch->current_model_k];
+  int mdim_max = model_dims[0];
+  for (int i = 1; i < nmodels; i++) {
+    mdim_max = max(model_dims[i], mdim_max);
+  }
+  ch->theta = (double *)malloc(mdim_max * sizeof(double));
+  ch->pk = (double *)malloc(nmodels * sizeof(double));
+  get_rwm_init(ch->current_model_k, ch->mdim, ch->theta);
+  ch->current_Lkk = Lk[ch->current_model_k];
+  double llh;
+  ch->lp = logpost(ch->current_model_k, ch->mdim, ch->theta, &llh);
+  for (int i = 0; i < nmodels; i++) {
+    ch->pk[i] = 1.0 / nmodels;
+  }
+  ch->nreinit = 1;
+  ch->reinit = 0;
+  ch->pkllim = 1.0 / 10.0;
+  ch->doAdapt = adapt;
+  ch->isInitialized = 1;
+}
+
+void freeChain(chainState *ch) {
+  if (ch->theta != NULL) {
+    free(ch->theta);
+  }
+  if (ch->pk != NULL) {
+    free(ch->pk);
+  }
+  ch->isInitialized = 0;
 }
 
 int read_mixture_params(char *fname, int nmodels, int *model_dims, double **sig,
@@ -945,10 +962,14 @@ void reversible_jump_move(chainState *ch, double ****B, int *Lk, double **detB,
                           int *model_dims, double ***mu, int *naccrwmb,
                           int *naccrwms, int *nacctd, int *ntryrwmb,
                           int *ntryrwms, int *ntrytd, double *propk,
-                          double **sig, int mdim_max) {
+                          double **sig) {
   int Lkmax = Lk[0];
   for (int k1 = 1; k1 < nmodels; k1++) {
     Lkmax = max(Lkmax, Lk[k1]);
+  }
+  int mdim_max = model_dims[0];
+  for (int i = 1; i < nmodels; i++) {
+    mdim_max = max(model_dims[i], mdim_max);
   }
   double *theta = ch->theta;
   double *thetan = (double *)malloc(mdim_max * sizeof(double));

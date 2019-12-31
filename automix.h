@@ -63,6 +63,10 @@ typedef struct {
   double gamma_sweep;
 } chainState;
 
+void initChain(chainState *aChain, int nmodels, int *model_dims, int *Lk,
+               int adapt);
+void freeChain(chainState *aChain);
+
 int read_mixture_params(char *fname, int kmax, int *model_dims, double **sig,
                         int *Lk, double **lambda, double ***mu, double ****B);
 
@@ -82,4 +86,4 @@ void reversible_jump_move(chainState *ch, double ****B, int *Lk, double **detB,
                           int *model_dims, double ***mu, int *naccrwmb,
                           int *naccrwms, int *nacctd, int *ntryrwmb,
                           int *ntryrwms, int *ntrytd, double *propk,
-                          double **sig, int mdim_max);
+                          double **sig);
