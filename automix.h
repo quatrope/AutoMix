@@ -42,6 +42,27 @@ be a published paper in the not too distant future.  */
 // AutoMix algorithm
 #define Lkmaxmax 30
 
+// C does not have a bool type but int is just as good
+typedef int bool;
+// Struct to hold the MCMC chain state
+typedef struct {
+  bool isInitialized;
+  double *theta;
+  double *pk;
+  double lp;
+  int current_model_k;
+  int mdim;
+  int current_Lkk;
+  int nreinit;
+  int reinit;
+  double pkllim;
+  bool doBlockRWM;
+  bool doAdapt;
+  bool doPerm;
+  bool isBurning;
+  double gamma_sweep;
+} chainState;
+
 int read_mixture_params(char *fname, int kmax, int *model_dims, double **sig,
                         int *Lk, double **lambda, double ***mu, double ****B);
 
@@ -56,12 +77,9 @@ void fit_mixture_from_samples(int mdim, double **data, int lendata,
 void fit_autorj(double *lambda_k, int *Lk_k, int mdim, double **mu_k,
                 double ***B_k, double **data, int lendata);
 
-void reversible_jump_move(int is_burning, double ****B, int *Lk, int adapt,
-                          int *current_Lkk, int *current_model_k, double **detB,
-                          int do_block_RWM, int dof, int doperm,
-                          double **lambda, double *llh, double *lp, int *mdim,
+void reversible_jump_move(chainState *ch, double ****B, int *Lk, double **detB,
+                          int dof, double **lambda, double *llh, int nmodels,
                           int *model_dims, double ***mu, int *naccrwmb,
-                          int *naccrwms, int *nacctd, int nmodels, int *nreinit,
-                          int *ntryrwmb, int *ntryrwms, int *ntrytd, double *pk,
-                          int *pkllim, double *propk, int *reinit, double **sig,
-                          double gamma_sweep, double *theta, int mdim_max);
+                          int *naccrwms, int *nacctd, int *ntryrwmb,
+                          int *ntryrwms, int *ntrytd, double *propk,
+                          double **sig, int mdim_max);
