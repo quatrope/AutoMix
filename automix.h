@@ -71,10 +71,14 @@ typedef struct {
   double ***mu;
   double ****B;
   bool isInitialized;
+  bool isAllocated;
 } proposalDist;
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
 void freeChain(chainState *aChain);
+int initJD(proposalDist *jd);
+int allocJD(proposalDist *jd);
+void freeJD(proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 

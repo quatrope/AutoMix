@@ -114,36 +114,7 @@ int main(int argc, char *argv[]) {
 
   // Initialize the Proposal (jumping) Distribution
   proposalDist jd;
-  // nmodels is the number of models
-  int Lkmaxmax = NUM_MIX_COMPS_MAX;
-  jd.nmodels = get_nmodels();
-  if (jd.nmodels > NMODELS_MAX) {
-    printf("\nError:kmax too large \n");
-    return 0;
-  } else if (jd.nmodels < 0) {
-    printf("\nError:negative kmax \n");
-    return 0;
-  }
-  jd.model_dims = (int *)malloc(jd.nmodels * sizeof(int));
-  load_model_dims(jd.nmodels, jd.model_dims);
-  jd.nMixComps = (int *)malloc(jd.nmodels * sizeof(int));
-
-  jd.lambda = (double **)malloc(jd.nmodels * sizeof(double *));
-  jd.mu = (double ***)malloc(jd.nmodels * sizeof(double **));
-  jd.B = (double ****)malloc(jd.nmodels * sizeof(double ***));
-  for (int k = 0; k < jd.nmodels; k++) {
-    int mdim = jd.model_dims[k];
-    jd.lambda[k] = (double *)malloc(Lkmaxmax * sizeof(double));
-    jd.mu[k] = (double **)malloc(Lkmaxmax * sizeof(double *));
-    jd.B[k] = (double ***)malloc(Lkmaxmax * sizeof(double **));
-    for (int i = 0; i < Lkmaxmax; i++) {
-      jd.mu[k][i] = (double *)malloc(mdim * sizeof(double));
-      jd.B[k][i] = (double **)malloc(mdim * sizeof(double *));
-      for (int j = 0; j < mdim; j++) {
-        jd.B[k][i][j] = (double *)malloc(mdim * sizeof(double));
-      }
-    }
-  }
+  initJD(&jd);
 
   double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -260,6 +231,7 @@ int main(int argc, char *argv[]) {
   double llh;
 
   // propk and detB are auxiliary arrays
+  int Lkmaxmax = NUM_MIX_COMPS_MAX;
   double *propk = (double *)malloc(jd.nmodels * sizeof(double));
   double **detB = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -359,6 +331,7 @@ int main(int argc, char *argv[]) {
     fprintf(fpl, "Model %d: %lf\n", i + 1,
             (double)ksummary[i] / (double)nsweep);
   }
+  freeJD(jd);
 
   fprintf(fpl, "\nAcceptance Rates:\n");
   fprintf(fpl, "Block RWM: %lf\n", (double)naccrwmb / (double)ntryrwmb);
@@ -404,6 +377,122 @@ void freeChain(chainState *ch) {
     free(ch->pk);
   }
   ch->isInitialized = 0;
+}
+
+int initJD(proposalDist *jd) {
+  jd->nmodels = get_nmodels();
+  if (jd->nmodels > NMODELS_MAX) {
+    printf("\nError:kmax too large \n");
+    return EXIT_FAILURE;
+  } else if (jd->nmodels < 0) {
+    printf("\nError:negative kmax \n");
+    return EXIT_FAILURE;
+  }
+  allocJD(jd);
+  jd->isInitialized = 1;
+  return EXIT_SUCCESS;
+}
+
+int allocJD(proposalDist *jd) {
+  // nmodels is the number of models
+  int Lkmaxmax = NUM_MIX_COMPS_MAX;
+  jd->model_dims = (int *)malloc(jd->nmodels * sizeof(int));
+  if (jd->model_dims == NULL) {
+    return EXIT_FAILURE;
+  }
+  load_model_dims(jd->nmodels, jd->model_dims);
+  jd->nMixComps = (int *)malloc(jd->nmodels * sizeof(int));
+  if (jd->nMixComps == NULL) {
+    return EXIT_FAILURE;
+  }
+  jd->lambda = (double **)malloc(jd->nmodels * sizeof(double *));
+  if (jd->lambda == NULL) {
+    return EXIT_FAILURE;
+  }
+  jd->mu = (double ***)malloc(jd->nmodels * sizeof(double **));
+  if (jd->mu == NULL) {
+    return EXIT_FAILURE;
+  }
+  jd->B = (double ****)malloc(jd->nmodels * sizeof(double ***));
+  if (jd->B == NULL) {
+    return EXIT_FAILURE;
+  }
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim = jd->model_dims[k];
+    jd->lambda[k] = (double *)malloc(Lkmaxmax * sizeof(double));
+    if (jd->lambda[k] == NULL) {
+      return EXIT_FAILURE;
+    }
+    jd->mu[k] = (double **)malloc(Lkmaxmax * sizeof(double *));
+    if (jd->mu[k] == NULL) {
+      return EXIT_FAILURE;
+    }
+    jd->B[k] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    if (jd->B[k] == NULL) {
+      return EXIT_FAILURE;
+    }
+    for (int i = 0; i < Lkmaxmax; i++) {
+      jd->mu[k][i] = (double *)malloc(mdim * sizeof(double));
+      if (jd->mu[k][i] == NULL) {
+        return EXIT_FAILURE;
+      }
+      jd->B[k][i] = (double **)malloc(mdim * sizeof(double *));
+      if (jd->B[k][i] == NULL) {
+        return EXIT_FAILURE;
+      }
+      for (int j = 0; j < mdim; j++) {
+        jd->B[k][i][j] = (double *)malloc(mdim * sizeof(double));
+        if (jd->B[k][i][j] == NULL) {
+          return EXIT_FAILURE;
+        }
+      }
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+void freeJD(proposalDist jd) {
+  int Lkmaxmax = NUM_MIX_COMPS_MAX;
+  for (int k = 0; k < jd.nmodels; k++) {
+    int mdim = jd.model_dims[k];
+    for (int i = 0; i < Lkmaxmax; i++) {
+      for (int j = 0; j < mdim; j++) {
+        if (jd.B[k][i][j] != NULL) {
+          free(jd.B[k][i][j]);
+        }
+      }
+      if (jd.mu[k][i] != NULL) {
+        free(jd.mu[k][i]);
+      }
+      if (jd.B[k][i] != NULL) {
+        free(jd.B[k][i]);
+      }
+    }
+    if (jd.lambda[k] != NULL) {
+      free(jd.lambda[k]);
+    }
+    if (jd.mu[k] != NULL) {
+      free(jd.mu[k]);
+    }
+    if (jd.B[k] != NULL) {
+      free(jd.B[k]);
+    }
+  }
+  if (jd.lambda != NULL) {
+    free(jd.lambda);
+  }
+  if (jd.mu != NULL) {
+    free(jd.mu);
+  }
+  if (jd.B != NULL) {
+    free(jd.B);
+  }
+  if (jd.model_dims != NULL) {
+    free(jd.model_dims);
+  }
+  if (jd.nMixComps != NULL) {
+    free(jd.nMixComps);
+  }
 }
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig) {
