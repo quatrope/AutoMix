@@ -26,6 +26,7 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
                          double *theta);
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
+void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
 
 int main(int argc, char *argv[]) {
 
@@ -199,13 +200,13 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
 
+  // Arrays to hold statistics
   double **pk_summary = (double **)malloc(nsweep * sizeof(*pk_summary));
   pk_summary[0] = (double *)malloc(nsweep * jd.nmodels * sizeof(**pk_summary));
   for (int i = 1; i < nsweep; i++) {
     pk_summary[i] = pk_summary[i - 1] + jd.nmodels;
   }
-  sprintf(datafname, "%s_k.data", fname);
-  FILE *fp_k = fopen(datafname, "w");
+  int *k_which_summary = (int *)malloc(nsweep * sizeof(*k_which_summary));
   sprintf(datafname, "%s_lp.data", fname);
   FILE *fp_lp = fopen(datafname, "w");
   // Start here main sample
@@ -222,7 +223,7 @@ int main(int argc, char *argv[]) {
     (ksummary[ch.current_model_k])++;
 
     // --- Section 10 - Write variables to files ---------
-    fprintf(fp_k, "%d\n", ch.current_model_k + 1);
+    k_which_summary[sweep - nburn - 1] = ch.current_model_k + 1;
     fprintf(fp_lp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
@@ -239,11 +240,14 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
   freeChain(&ch);
-  fclose(fp_k);
   fclose(fp_lp);
   free(datafname);
 
   write_pk_to_file(fname, nsweep, jd.nmodels, pk_summary);
+  free(pk_summary[0]);
+  free(pk_summary);
+  write_k_to_file(fname, nsweep, k_which_summary);
+  free(k_which_summary);
 
   // --- Section 11 - Write log file ----------------------
   double var, tau;
@@ -259,6 +263,18 @@ int main(int argc, char *argv[]) {
   write_ac_to_file(fname, m, xr);
   free(xr);
   return 0;
+}
+
+void write_k_to_file(char *fname, int nsweep, int *k_which_summary) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_k.data", fname);
+  FILE *fp_k = fopen(datafname, "w");
+  free(datafname);
+  for (int i = 0; i < nsweep; i++) {
+    fprintf(fp_k, "%d\n", k_which_summary[i]);
+  }
+  fclose(fp_k);
 }
 
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
