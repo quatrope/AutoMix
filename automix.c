@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
         data[i] = data[i - 1] + mdim;
       }
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-      rwn_within_model(model_k, jd.model_dims, nsweep2, fpl, fpcf, fpad, sig,
+      rwm_within_model(model_k, jd.model_dims, nsweep2, fpl, fpcf, fpad, sig,
                        dof, data);
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
@@ -291,8 +291,8 @@ int main(int argc, char *argv[]) {
                          &nacctd, &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
 
     (ksummary[ch.current_model_k])++;
-    // --- Section 10 - Write variables to files ---------
 
+    // --- Section 10 - Write variables to files ---------
     fprintf(fpk, "%d\n", ch.current_model_k + 1);
     fprintf(fplp, "%lf %lf\n", ch.lp, llh);
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
@@ -315,7 +315,6 @@ int main(int argc, char *argv[]) {
   freeChain(&ch);
 
   // --- Section 11 - Write log file ----------------------
-
   double var, tau;
   int m;
   sokal(nkeep, xr, &var, &tau, &m);
@@ -578,7 +577,7 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   return EXIT_SUCCESS;
 }
 
-void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
+void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
                       FILE *fpcf, FILE *fpad, double **sig, int dof,
                       double **data) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
@@ -606,7 +605,7 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
     nacc[j1] = 0;
     ntry[j1] = 0;
   }
-  double llh, llhn, lpn;
+  double llh;
   double lp = logpost(model_k, mdim, rwm, &llh);
 
   int i2 = 0;
@@ -623,13 +622,12 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
       for (int i = 0; i < mdim; i++) {
         rwmn[i] = rwm[i] + sig[model_k][i] * Znkk[i];
       }
-      lpn = logpost(model_k, mdim, rwmn, &llhn);
+      double lpn = logpost(model_k, mdim, rwmn, &llh);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         for (int i = 0; i < mdim; i++) {
           rwm[i] = rwmn[i];
         }
         lp = lpn;
-        llh = llhn; // This may not ever be used!
       }
     } else {
       double gamma = 10.0 * pow(1.0 / (sweep + 1), 2.0 / 3.0);
@@ -640,14 +638,13 @@ void rwn_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
         double Z;
         rt(&Z, 1, dof);
         rwmn[i] = rwm[i] + sig[model_k][i] * Z;
-        lpn = logpost(model_k, mdim, rwmn, &llhn);
+        double lpn = logpost(model_k, mdim, rwmn, &llh);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
         if (sdrand() < accept) {
           (nacc[i])++;
           (ntry[i])++;
           rwm[i] = rwmn[i];
           lp = lpn;
-          llh = llhn;
           sig[model_k][i] = max(0, sig[model_k][i] - gamma * (alphastar - 1));
         } else {
           (ntry[i])++;

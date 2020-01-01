@@ -82,7 +82,7 @@ void freeJD(proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
-void rwn_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
+void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
                       FILE *fpcf, FILE *fpad, double **sig, int dof,
                       double **data);
 
