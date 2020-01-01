@@ -229,20 +229,8 @@ int main(int argc, char *argv[]) {
   chainState ch;
   initChain(&ch, jd, adapt);
 
-  // propk and detB are auxiliary arrays
-  int Lkmaxmax = NUM_MIX_COMPS_MAX;
+  // propk is an auxiliary array
   double *propk = (double *)malloc(jd.nmodels * sizeof(double));
-  double **detB = (double **)malloc(jd.nmodels * sizeof(double *));
-  for (int k = 0; k < jd.nmodels; k++) {
-    detB[k] = (double *)malloc(Lkmaxmax * sizeof(double));
-  }
-  for (int k1 = 0; k1 < jd.nmodels; k1++) {
-    int Lkk = jd.nMixComps[k1];
-    int mdim = jd.model_dims[k1];
-    for (int l1 = 0; l1 < Lkk; l1++) {
-      detB[k1][l1] = det(mdim, jd.B[k1][l1]);
-    }
-  }
   for (int k1 = 0; k1 < jd.nmodels; k1++) {
     if (k1 == ch.current_model_k) {
       propk[k1] = 1.0;
@@ -269,8 +257,8 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, detB, dof, &naccrwmb, &naccrwms, &nacctd,
-                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
+    reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
+                         &ntryrwms, &ntrytd, propk, sig);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -286,8 +274,8 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, detB, dof, &naccrwmb, &naccrwms, &nacctd,
-                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
+    reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
+                         &ntryrwms, &ntrytd, propk, sig);
 
     (ksummary[ch.current_model_k])++;
 
@@ -1047,8 +1035,8 @@ void fit_autorj(int model_k, proposalDist jd, double **data, int lendata) {
   chol(mdim, B_k[0]);
 }
 
-void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
-                          int dof, int *naccrwmb, int *naccrwms, int *nacctd,
+void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
+                          int *naccrwmb, int *naccrwms, int *nacctd,
                           int *ntryrwmb, int *ntryrwms, int *ntrytd,
                           double *propk, double **sig) {
   int Lkmax = jd.nMixComps[0];
@@ -1258,10 +1246,12 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
   double lpn, llhn;
   logpost(kn, mdim_kn, thetan, &lpn, &llhn);
 
+  int mdim = jd.model_dims[ch->current_model_k];
   logratio += (lpn - ch->log_posterior);
   logratio += (log(pallocn[ln]) - log(palloc[l]));
   logratio += (log(jd.lambda[ch->current_model_k][l]) - log(jd.lambda[kn][ln]));
-  logratio += (log(detB[kn][ln]) - log(detB[ch->current_model_k][l]));
+  logratio += (log(det(mdim_kn, jd.B[kn][ln])) -
+               log(det(mdim, jd.B[ch->current_model_k][l])));
 
   if (sdrand() < exp(max(-30.0, min(0.0, logratio)))) {
     for (int j1 = 0; j1 < mdim_kn; j1++) {
