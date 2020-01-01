@@ -21,6 +21,7 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        double tau, int *ksummary, int naccrwmb, int ntryrwmb,
                        int naccrwms, int ntryrwms, int nacctd, int ntrytd,
                        double timesecs);
+void write_ac_to_file(char *fname, int m, double *xr);
 
 int main(int argc, char *argv[]) {
 
@@ -243,6 +244,7 @@ int main(int argc, char *argv[]) {
   fclose(fp_pk);
   fclose(fp_k);
   fclose(fp_lp);
+  free(datafname);
 
   // --- Section 11 - Write log file ----------------------
   double var, tau;
@@ -255,16 +257,21 @@ int main(int argc, char *argv[]) {
                     nkeep, nsokal, var, tau, ksummary, naccrwmb, ntryrwmb,
                     naccrwms, ntryrwms, nacctd, ntrytd, timesecs);
   freeJD(jd);
+  write_ac_to_file(fname, m, xr);
+  free(xr);
+  return 0;
+}
 
+void write_ac_to_file(char *fname, int m, double *xr) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_ac.data", fname);
   FILE *fp_ac = fopen(datafname, "w");
+  free(datafname);
   for (int i1 = 0; i1 < m; i1++) {
     fprintf(fp_ac, "%lf\n", xr[i1]);
   }
   fclose(fp_ac);
-
-  free(datafname);
-  return 0;
 }
 
 void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
