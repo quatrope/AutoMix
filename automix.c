@@ -22,6 +22,10 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int naccrwms, int ntryrwms, int nacctd, int ntrytd,
                        double timesecs);
 void write_ac_to_file(char *fname, int m, double *xr);
+void write_theta_to_file(char *fname, int current_model_k, int mdim,
+                         double *theta);
+void write_pk_to_file(char *fname, int nsweep, int nmodels,
+                      double **pk_summary);
 
 int main(int argc, char *argv[]) {
 
@@ -195,8 +199,11 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
 
-  sprintf(datafname, "%s_pk.data", fname);
-  FILE *fp_pk = fopen(datafname, "w");
+  double **pk_summary = (double **)malloc(nsweep * sizeof(*pk_summary));
+  pk_summary[0] = (double *)malloc(nsweep * jd.nmodels * sizeof(**pk_summary));
+  for (int i = 1; i < nsweep; i++) {
+    pk_summary[i] = pk_summary[i - 1] + jd.nmodels;
+  }
   sprintf(datafname, "%s_k.data", fname);
   FILE *fp_k = fopen(datafname, "w");
   sprintf(datafname, "%s_lp.data", fname);
@@ -218,18 +225,9 @@ int main(int argc, char *argv[]) {
     fprintf(fp_k, "%d\n", ch.current_model_k + 1);
     fprintf(fp_lp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      fprintf(fp_pk, "%lf ", ch.pk[k1]);
+      pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
     }
-    fprintf(fp_pk, "\n");
-
-    FILE *fp_theta;
-    sprintf(datafname, "%s_theta%d.data", fname, ch.current_model_k + 1);
-    fp_theta = fopen(datafname, "w");
-    for (int j1 = 0; j1 < ch.mdim; j1++) {
-      fprintf(fp_theta, "%lf ", ch.theta[j1]);
-    }
-    fprintf(fp_theta, "\n");
-    fclose(fp_theta);
+    write_theta_to_file(fname, ch.current_model_k, ch.mdim, ch.theta);
 
     if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
       xr[((sweep - keep) / nsokal) - 1] = ch.current_model_k;
@@ -241,10 +239,11 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
   freeChain(&ch);
-  fclose(fp_pk);
   fclose(fp_k);
   fclose(fp_lp);
   free(datafname);
+
+  write_pk_to_file(fname, nsweep, jd.nmodels, pk_summary);
 
   // --- Section 11 - Write log file ----------------------
   double var, tau;
@@ -260,6 +259,36 @@ int main(int argc, char *argv[]) {
   write_ac_to_file(fname, m, xr);
   free(xr);
   return 0;
+}
+
+void write_pk_to_file(char *fname, int nsweep, int nmodels,
+                      double **pk_summary) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_pk.data", fname);
+  FILE *fp_pk = fopen(datafname, "w");
+  free(datafname);
+  for (int i = 0; i < nsweep; i++) {
+    for (int j = 0; j < nmodels; j++) {
+      fprintf(fp_pk, "%lf ", pk_summary[i][j]);
+    }
+    fprintf(fp_pk, "\n");
+  }
+  fclose(fp_pk);
+}
+
+void write_theta_to_file(char *fname, int current_model_k, int mdim,
+                         double *theta) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_theta%d.data", fname, current_model_k + 1);
+  FILE *fp_theta = fopen(datafname, "w");
+  free(datafname);
+  for (int j1 = 0; j1 < mdim; j1++) {
+    fprintf(fp_theta, "%lf ", theta[j1]);
+  }
+  fprintf(fp_theta, "\n");
+  fclose(fp_theta);
 }
 
 void write_ac_to_file(char *fname, int m, double *xr) {
