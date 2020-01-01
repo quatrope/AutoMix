@@ -27,6 +27,7 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
+void write_lp_to_file(char *fname, int nsweep, double **logp_summary);
 
 int main(int argc, char *argv[]) {
 
@@ -156,6 +157,7 @@ int main(int argc, char *argv[]) {
   }
   fclose(fp_adapt);
   fclose(fp_cf);
+  free(datafname);
 
   // Print mixture parameters to file
   write_mix_to_file(fname, jd, sig);
@@ -207,8 +209,12 @@ int main(int argc, char *argv[]) {
     pk_summary[i] = pk_summary[i - 1] + jd.nmodels;
   }
   int *k_which_summary = (int *)malloc(nsweep * sizeof(*k_which_summary));
-  sprintf(datafname, "%s_lp.data", fname);
-  FILE *fp_lp = fopen(datafname, "w");
+  double **logp_summary = (double **)malloc(nsweep * sizeof(*logp_summary));
+  logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(**logp_summary));
+  for (int i = 1; i < nsweep; i++) {
+    logp_summary[i] = logp_summary[i - 1] + 2;
+  }
+
   // Start here main sample
   printf("Start of main sample:");
   ch.isBurning = 0;
@@ -221,10 +227,9 @@ int main(int argc, char *argv[]) {
                          &ntryrwms, &ntrytd, sig);
 
     (ksummary[ch.current_model_k])++;
-
-    // --- Section 10 - Write variables to files ---------
     k_which_summary[sweep - nburn - 1] = ch.current_model_k + 1;
-    fprintf(fp_lp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
+    logp_summary[sweep - nburn - 1][0] = ch.log_posterior;
+    logp_summary[sweep - nburn - 1][1] = ch.log_likelihood;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
     }
@@ -240,14 +245,16 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
   freeChain(&ch);
-  fclose(fp_lp);
-  free(datafname);
 
+  // --- Section 10 - Write variables to files ---------
   write_pk_to_file(fname, nsweep, jd.nmodels, pk_summary);
   free(pk_summary[0]);
   free(pk_summary);
   write_k_to_file(fname, nsweep, k_which_summary);
   free(k_which_summary);
+  write_lp_to_file(fname, nsweep, logp_summary);
+  free(logp_summary[0]);
+  free(logp_summary);
 
   // --- Section 11 - Write log file ----------------------
   double var, tau;
@@ -263,6 +270,18 @@ int main(int argc, char *argv[]) {
   write_ac_to_file(fname, m, xr);
   free(xr);
   return 0;
+}
+
+void write_lp_to_file(char *fname, int nsweep, double **logp_summary) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_lp.data", fname);
+  FILE *fp_lp = fopen(datafname, "w");
+  free(datafname);
+  for (int i = 0; i < nsweep; i++) {
+    fprintf(fp_lp, "%lf %lf\n", logp_summary[i][0], logp_summary[i][1]);
+  }
+  fclose(fp_lp);
 }
 
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary) {
