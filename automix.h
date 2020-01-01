@@ -75,6 +75,26 @@ typedef struct {
   bool isAllocated;
 } proposalDist;
 
+typedef struct {
+  // Block RWM acceptance and tries
+  unsigned long naccrwmb;
+  unsigned long ntryrwmb;
+  // Single RWM acceptance and tries
+  unsigned long naccrwms;
+  unsigned long ntryrwms;
+  // Auto RJ acceptance and tries
+  unsigned long nacctd;
+  unsigned long ntrytd;
+  int m;
+  double *xr;
+  double var;
+  double tau;
+  int *ksummary;
+  double **pk_summary;
+  int *k_which_summary;
+  double **logp_summary;
+} runStats;
+
 void initChain(chainState *ch, proposalDist jd, int adapt);
 void freeChain(chainState *aChain);
 int initJD(proposalDist *jd);
@@ -83,8 +103,8 @@ void freeJD(proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
-void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpcf,
-                      FILE *fpad, double **sig, int dof, double **data);
+void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpad,
+                      double **sig, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
                               int lendata, FILE *fpcf);
@@ -92,6 +112,4 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
 void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          int *naccrwmb, int *naccrwms, int *nacctd,
-                          int *ntryrwmb, int *ntryrwms, int *ntrytd,
-                          double **sig);
+                          runStats *st, double **sig);

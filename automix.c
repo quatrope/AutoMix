@@ -14,12 +14,14 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 void usage(char *invocation);
+void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
+                         int doperm, int nsweep2, int nsweep, proposalDist jd,
+                         double **sig, int nkeep, int nsokal, runStats st,
+                         double timesecs);
 void write_mix_to_file(char *fname, proposalDist jd, double **sig);
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int doperm, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, int nkeep, int nsokal, double var,
-                       double tau, int *ksummary, int naccrwmb, int ntryrwmb,
-                       int naccrwms, int ntryrwms, int nacctd, int ntrytd,
+                       double **sig, int nkeep, int nsokal, runStats st,
                        double timesecs);
 void write_ac_to_file(char *fname, int m, double *xr);
 void write_theta_to_file(char *fname, int current_model_k, int mdim,
@@ -108,6 +110,8 @@ int main(int argc, char *argv[]) {
   // Initialize the Proposal (jumping) Distribution
   proposalDist jd;
   initJD(&jd);
+  // Struct to hold run statistic variables
+  runStats st;
 
   double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -136,9 +140,10 @@ int main(int argc, char *argv[]) {
         data[i] = data[i - 1] + mdim;
       }
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-
-      rwm_within_model(model_k, jd.model_dims, nsweep2, fp_cf, fp_adapt, sig,
-                       dof, data);
+      fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
+      fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
+      rwm_within_model(model_k, jd.model_dims, nsweep2, fp_adapt, sig, dof,
+                       data);
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
@@ -164,12 +169,12 @@ int main(int argc, char *argv[]) {
 
   // --Section 7 - Final initialisation of variables ----
 
-  int naccrwmb = 0;
-  int ntryrwmb = 0;
-  int naccrwms = 0;
-  int ntryrwms = 0;
-  int nacctd = 0;
-  int ntrytd = 0;
+  st.naccrwmb = 0;
+  st.ntryrwmb = 0;
+  st.naccrwms = 0;
+  st.ntryrwms = 0;
+  st.nacctd = 0;
+  st.ntrytd = 0;
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
@@ -181,8 +186,8 @@ int main(int argc, char *argv[]) {
   int nkeep = nsweep / (2 * nsokal);
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
   int keep = nburn + (nsweep - nkeep * nsokal);
-  double *xr = (double *)malloc(nkeep * sizeof(double));
-  int *ksummary = (int *)calloc(jd.nmodels, sizeof(int));
+  st.xr = (double *)malloc(nkeep * sizeof(double));
+  st.ksummary = (int *)calloc(jd.nmodels, sizeof(int));
 
   // -----Start of main loop ----------------
   // Burn some samples first
@@ -193,8 +198,7 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
-                         &ntryrwms, &ntrytd, sig);
+    reversible_jump_move(&ch, jd, dof, &st, sig);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -203,16 +207,17 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   // Arrays to hold statistics
-  double **pk_summary = (double **)malloc(nsweep * sizeof(*pk_summary));
-  pk_summary[0] = (double *)malloc(nsweep * jd.nmodels * sizeof(**pk_summary));
+  st.pk_summary = (double **)malloc(nsweep * sizeof(*st.pk_summary));
+  st.pk_summary[0] =
+      (double *)malloc(nsweep * jd.nmodels * sizeof(**st.pk_summary));
   for (int i = 1; i < nsweep; i++) {
-    pk_summary[i] = pk_summary[i - 1] + jd.nmodels;
+    st.pk_summary[i] = st.pk_summary[i - 1] + jd.nmodels;
   }
-  int *k_which_summary = (int *)malloc(nsweep * sizeof(*k_which_summary));
-  double **logp_summary = (double **)malloc(nsweep * sizeof(*logp_summary));
-  logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(**logp_summary));
+  st.k_which_summary = (int *)malloc(nsweep * sizeof(*st.k_which_summary));
+  st.logp_summary = (double **)malloc(nsweep * sizeof(*st.logp_summary));
+  st.logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(**st.logp_summary));
   for (int i = 1; i < nsweep; i++) {
-    logp_summary[i] = logp_summary[i - 1] + 2;
+    st.logp_summary[i] = st.logp_summary[i - 1] + 2;
   }
 
   // Start here main sample
@@ -223,20 +228,19 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
-                         &ntryrwms, &ntrytd, sig);
+    reversible_jump_move(&ch, jd, dof, &st, sig);
 
-    (ksummary[ch.current_model_k])++;
-    k_which_summary[sweep - nburn - 1] = ch.current_model_k + 1;
-    logp_summary[sweep - nburn - 1][0] = ch.log_posterior;
-    logp_summary[sweep - nburn - 1][1] = ch.log_likelihood;
+    (st.ksummary[ch.current_model_k])++;
+    st.k_which_summary[sweep - nburn - 1] = ch.current_model_k + 1;
+    st.logp_summary[sweep - nburn - 1][0] = ch.log_posterior;
+    st.logp_summary[sweep - nburn - 1][1] = ch.log_likelihood;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
+      st.pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
     }
     write_theta_to_file(fname, ch.current_model_k, ch.mdim, ch.theta);
 
     if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
-      xr[((sweep - keep) / nsokal) - 1] = ch.current_model_k;
+      st.xr[((sweep - keep) / nsokal) - 1] = ch.current_model_k;
     }
     if ((10 * (sweep - nburn)) % nsweep == 0) {
       printf("\nNo. of iterations remaining: %d", nsweep + nburn - sweep);
@@ -246,29 +250,19 @@ int main(int argc, char *argv[]) {
   printf("\n");
   freeChain(&ch);
 
-  // --- Section 10 - Write variables to files ---------
-  write_pk_to_file(fname, nsweep, jd.nmodels, pk_summary);
-  free(pk_summary[0]);
-  free(pk_summary);
-  write_k_to_file(fname, nsweep, k_which_summary);
-  free(k_which_summary);
-  write_lp_to_file(fname, nsweep, logp_summary);
-  free(logp_summary[0]);
-  free(logp_summary);
-
-  // --- Section 11 - Write log file ----------------------
-  double var, tau;
-  int m;
-  sokal(nkeep, xr, &var, &tau, &m);
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
 
-  write_log_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd, sig,
-                    nkeep, nsokal, var, tau, ksummary, naccrwmb, ntryrwmb,
-                    naccrwms, ntryrwms, nacctd, ntrytd, timesecs);
+  // --- Section 10 - Write statistics to files ---------
+  write_stats_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd,
+                      sig, nkeep, nsokal, st, timesecs);
   freeJD(jd);
-  write_ac_to_file(fname, m, xr);
-  free(xr);
+  free(st.logp_summary[0]);
+  free(st.logp_summary);
+  free(st.k_which_summary);
+  free(st.pk_summary[0]);
+  free(st.pk_summary);
+  free(st.xr);
   return 0;
 }
 
@@ -326,6 +320,19 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
   fclose(fp_theta);
 }
 
+void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
+                         int doperm, int nsweep2, int nsweep, proposalDist jd,
+                         double **sig, int nkeep, int nsokal, runStats st,
+                         double timesecs) {
+  write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
+  write_k_to_file(fname, nsweep, st.k_which_summary);
+  write_lp_to_file(fname, nsweep, st.logp_summary);
+  sokal(nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
+  write_log_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd, sig,
+                    nkeep, nsokal, st, timesecs);
+  write_ac_to_file(fname, st.m, st.xr);
+}
+
 void write_ac_to_file(char *fname, int m, double *xr) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
@@ -372,9 +379,7 @@ void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
 
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int doperm, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, int nkeep, int nsokal, double var,
-                       double tau, int *ksummary, int naccrwmb, int ntryrwmb,
-                       int naccrwms, int ntryrwms, int nacctd, int ntrytd,
+                       double **sig, int nkeep, int nsokal, runStats st,
                        double timesecs) {
 
   // Print user options to log file
@@ -421,17 +426,19 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
     }
   }
   fprintf(fp_log, "\nAutocorrelation Time:\n");
-  fprintf(fp_log, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal, var,
-          tau);
+  fprintf(fp_log, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal,
+          st.var, st.tau);
   fprintf(fp_log, "\nPosterior Model Probabilities:\n");
   for (int i = 0; i < jd.nmodels; i++) {
     fprintf(fp_log, "Model %d: %lf\n", i + 1,
-            (double)ksummary[i] / (double)nsweep);
+            (double)st.ksummary[i] / (double)nsweep);
   }
   fprintf(fp_log, "\nAcceptance Rates:\n");
-  fprintf(fp_log, "Block RWM: %lf\n", (double)naccrwmb / (double)ntryrwmb);
-  fprintf(fp_log, "Single RWM: %lf\n", (double)naccrwms / (double)ntryrwms);
-  fprintf(fp_log, "Auto RJ: %lf\n", (double)nacctd / (double)ntrytd);
+  fprintf(fp_log, "Block RWM: %lf\n",
+          (double)st.naccrwmb / (double)st.ntryrwmb);
+  fprintf(fp_log, "Single RWM: %lf\n",
+          (double)st.naccrwms / (double)st.ntryrwms);
+  fprintf(fp_log, "Auto RJ: %lf\n", (double)st.nacctd / (double)st.ntrytd);
   fprintf(fp_log, "\nRun time:\n");
   fprintf(fp_log, "Time: %lf\n", timesecs);
   fclose(fp_log);
@@ -669,8 +676,8 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   return EXIT_SUCCESS;
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpcf,
-                      FILE *fpad, double **sig, int dof, double **data) {
+void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
+                      double **sig, int dof, double **data) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
 
   int mdim = model_dims[model_k];
@@ -685,8 +692,6 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpcf,
   double *Znkk = (double *)malloc(mdim * sizeof(double));
 
   printf("\nRWM for Model %d", model_k + 1);
-  fprintf(fpcf, "RWM for Model %d\n", model_k + 1);
-  fprintf(fpad, "RWM for Model %d\n", model_k + 1);
   fflush(NULL);
   get_rwm_init(model_k, mdim, rwm);
   for (int j1 = 0; j1 < mdim; j1++) {
@@ -1139,9 +1144,7 @@ void fit_autorj(int model_k, proposalDist jd, double **data, int lendata) {
 }
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          int *naccrwmb, int *naccrwms, int *nacctd,
-                          int *ntryrwmb, int *ntryrwms, int *ntrytd,
-                          double **sig) {
+                          runStats *st, double **sig) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -1161,7 +1164,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
   // --Section 8 - RWM within-model moves ---
   // Every 10 sweeps to block RWM */
   if (ch->doBlockRWM) {
-    (*ntryrwmb)++;
+    (st->ntryrwmb)++;
     rt(Znkk, ch->mdim, dof);
     for (int i = 0; i < ch->mdim; i++) {
       thetan[i] = theta[i] + sig[ch->current_model_k][i] * Znkk[i];
@@ -1169,7 +1172,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     double lpn, llhn;
     logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
     if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
-      (*naccrwmb)++;
+      (st->naccrwmb)++;
       memcpy(theta, thetan, ch->mdim * sizeof(*thetan));
       ch->log_posterior = lpn;
       ch->log_likelihood = llhn;
@@ -1178,14 +1181,14 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     // else do component-wise RWM
     memcpy(thetan, theta, (ch->mdim) * sizeof(*thetan));
     for (int j1 = 0; j1 < ch->mdim; j1++) {
-      (*ntryrwms)++;
+      (st->ntryrwms)++;
       double Z;
       rt(&Z, 1, dof);
       thetan[j1] = theta[j1] + sig[ch->current_model_k][j1] * Z;
       double lpn, llhn;
       logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
-        (*naccrwms)++;
+        (st->naccrwms)++;
         theta[j1] = thetan[j1];
         ch->log_posterior = lpn;
         ch->log_likelihood = llhn;
@@ -1199,7 +1202,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
 
   // --Section 9.1 - Allocate current position to a component --
   int l = 0;
-  (*ntrytd)++;
+  (st->ntrytd)++;
   int ln = 0;
   if (ch->current_Lkk > 1) {
     double sum = 0.0;
@@ -1365,7 +1368,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     ch->current_model_k = kn;
     ch->mdim = mdim_kn;
     ch->current_Lkk = Lkkn;
-    (*nacctd)++;
+    (st->nacctd)++;
   }
 
   if (ch->doAdapt && !ch->isBurning) {
