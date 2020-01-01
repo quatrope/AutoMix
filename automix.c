@@ -228,7 +228,6 @@ int main(int argc, char *argv[]) {
   // Initialization of the MC Markov Chain parameters
   chainState ch;
   initChain(&ch, jd, adapt);
-  double llh;
 
   // propk and detB are auxiliary arrays
   int Lkmaxmax = NUM_MIX_COMPS_MAX;
@@ -270,8 +269,8 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, detB, dof, &llh, &naccrwmb, &naccrwms,
-                         &nacctd, &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
+    reversible_jump_move(&ch, jd, detB, dof, &naccrwmb, &naccrwms, &nacctd,
+                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -287,14 +286,14 @@ int main(int argc, char *argv[]) {
     ch.doBlockRWM = (sweep % 10 == 0);
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(&ch, jd, detB, dof, &llh, &naccrwmb, &naccrwms,
-                         &nacctd, &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
+    reversible_jump_move(&ch, jd, detB, dof, &naccrwmb, &naccrwms, &nacctd,
+                         &ntryrwmb, &ntryrwms, &ntrytd, propk, sig);
 
     (ksummary[ch.current_model_k])++;
 
     // --- Section 10 - Write variables to files ---------
     fprintf(fpk, "%d\n", ch.current_model_k + 1);
-    fprintf(fplp, "%lf %lf\n", ch.lp, llh);
+    fprintf(fplp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       fprintf(fpp, "%lf ", ch.pk[k1]);
     }
@@ -356,8 +355,8 @@ void initChain(chainState *ch, proposalDist jd, int adapt) {
   ch->pk = (double *)malloc(jd.nmodels * sizeof(double));
   get_rwm_init(ch->current_model_k, ch->mdim, ch->theta);
   ch->current_Lkk = jd.nMixComps[ch->current_model_k];
-  double llh;
-  logpost(ch->current_model_k, ch->mdim, ch->theta, &(ch->lp), &llh);
+  logpost(ch->current_model_k, ch->mdim, ch->theta, &(ch->log_posterior),
+          &(ch->log_likelihood));
   for (int i = 0; i < jd.nmodels; i++) {
     ch->pk[i] = 1.0 / jd.nmodels;
   }
@@ -1049,9 +1048,9 @@ void fit_autorj(int model_k, proposalDist jd, double **data, int lendata) {
 }
 
 void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
-                          int dof, double *llh, int *naccrwmb, int *naccrwms,
-                          int *nacctd, int *ntryrwmb, int *ntryrwms,
-                          int *ntrytd, double *propk, double **sig) {
+                          int dof, int *naccrwmb, int *naccrwms, int *nacctd,
+                          int *ntryrwmb, int *ntryrwms, int *ntrytd,
+                          double *propk, double **sig) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -1078,11 +1077,11 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
     }
     double lpn, llhn;
     logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
-    if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->lp)))) {
+    if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
       (*naccrwmb)++;
       memcpy(theta, thetan, ch->mdim * sizeof(*thetan));
-      ch->lp = lpn;
-      *llh = llhn;
+      ch->log_posterior = lpn;
+      ch->log_likelihood = llhn;
     }
   } else {
     // else do component-wise RWM
@@ -1094,11 +1093,11 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
       thetan[j1] = theta[j1] + sig[ch->current_model_k][j1] * Z;
       double lpn, llhn;
       logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
-      if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->lp)))) {
+      if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
         (*naccrwms)++;
         theta[j1] = thetan[j1];
-        ch->lp = lpn;
-        *llh = llhn;
+        ch->log_posterior = lpn;
+        ch->log_likelihood = llhn;
       } else {
         thetan[j1] = theta[j1];
       }
@@ -1259,7 +1258,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
   double lpn, llhn;
   logpost(kn, mdim_kn, thetan, &lpn, &llhn);
 
-  logratio += (lpn - ch->lp);
+  logratio += (lpn - ch->log_posterior);
   logratio += (log(pallocn[ln]) - log(palloc[l]));
   logratio += (log(jd.lambda[ch->current_model_k][l]) - log(jd.lambda[kn][ln]));
   logratio += (log(detB[kn][ln]) - log(detB[ch->current_model_k][l]));
@@ -1268,8 +1267,8 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
     for (int j1 = 0; j1 < mdim_kn; j1++) {
       theta[j1] = thetan[j1];
     }
-    ch->lp = lpn;
-    *llh = llhn;
+    ch->log_posterior = lpn;
+    ch->log_likelihood = llhn;
     ch->current_model_k = kn;
     ch->mdim = mdim_kn;
     ch->current_Lkk = Lkkn;

@@ -49,7 +49,8 @@ typedef struct {
   bool isInitialized;
   double *theta;
   double *pk;
-  double lp;
+  double log_posterior;
+  double log_likelihood;
   int current_model_k;
   int mdim;
   int current_Lkk;
@@ -92,6 +93,6 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
 void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
-                          int dof, double *llh, int *naccrwmb, int *naccrwms,
-                          int *nacctd, int *ntryrwmb, int *ntryrwms,
-                          int *ntrytd, double *propk, double **sig);
+                          int dof, int *naccrwmb, int *naccrwms, int *nacctd,
+                          int *ntryrwmb, int *ntryrwms, int *ntrytd,
+                          double *propk, double **sig);
