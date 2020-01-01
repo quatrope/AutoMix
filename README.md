@@ -51,9 +51,9 @@ If random initial states are used, the user must also declare the random number 
 
 4.  A function to return the log of the target function pi evaluated at a given point in the state space, up to an additive constant.
 
-    ```double logpost(int model_k, int mdim, double *theta, double *llh)```
+    ```void logpost(int model_k, int mdim, double *theta, double* lp, double *llh)```
 
-Given the model index `model_k`, and parameter vector `theta` (of dimension `mdim`), the function must return the log of the target function (up to an additive constant) evaluated at this point. If pi is a posterior distribution, the double `llh` should contain the likelihood evaluated at this point (although this is only necessary for returning the likelihood to output file, and can contain any other value if preferred).
+Given the model index `model_k`, and parameter vector `theta` (of dimension `mdim`), the function must load in `lp` the log of the target function (up to an additive constant) evaluated at this point. If pi is a posterior distribution, the double `llh` should contain the log-likelihood evaluated at this point (although this is only necessary for returning the log-likelihood to output file, and can contain any other value if preferred).
 
 The examples provided, with comments, show typical examples of these user files for the problems under consideration. 
 

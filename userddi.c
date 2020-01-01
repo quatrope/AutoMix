@@ -195,10 +195,10 @@ BEGIN_IC:
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 - prior settings as in Han and Carlin, 2001*/
 
-double logpost(int k, int mdim, double *theta, double *llh1) {
+void logpost(int k, int mdim, double *theta, double *lp, double *llh1) {
 
   int i, j, j1, j2, posdef;
-  double lp, llh, alpha[9], gamma[6], **V, **U, **Vmin1, **Umin1;
+  double llh, alpha[9], gamma[6], **V, **U, **Vmin1, **Umin1;
   double sigmasq = 0.0;
   double tausq = 0.0;
   double detVmin1, detUmin1;
@@ -290,9 +290,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
       free(tempmat2);
       free(V);
       free(Vmin1);
-      lp = -10000000.0;
-      *llh1 = lp;
-      return lp;
+      *lp = -10000000.0;
+      *llh1 = *lp;
+      return;
     }
 
   } else if (k == 1) {
@@ -323,9 +323,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
       free(tempmat2);
       free(U);
       free(Umin1);
-      lp = -10000000.0;
-      *llh1 = lp;
-      return lp;
+      *lp = -10000000.0;
+      *llh1 = *lp;
+      return;
     }
 
   } else {
@@ -345,9 +345,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
     free(tempmat2);
     free(U);
     free(Umin1);
-    lp = -10000000.0;
-    *llh1 = lp;
-    return lp;
+    *lp = -10000000.0;
+    *llh1 = *lp;
+    return;
   }
 
   /* first check V^(-1) or U^(-1) is positive definite  */
@@ -376,9 +376,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
       free(tempmat2);
       free(V);
       free(Vmin1);
-      lp = -10000000.0;
-      *llh1 = lp;
-      return lp;
+      *lp = -10000000.0;
+      *llh1 = *lp;
+      return;
     }
   } else {
     for (j = 0; j < 2; j++) {
@@ -405,9 +405,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
       free(tempmat2);
       free(U);
       free(Umin1);
-      lp = -10000000.0;
-      *llh1 = lp;
-      return lp;
+      *lp = -10000000.0;
+      *llh1 = *lp;
+      return;
     }
   }
 
@@ -469,63 +469,63 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
   /* Start with prior contribution */
 
   if (k == 0) {
-    lp = 1.0;
+    *lp = 1.0;
     /* Normal for alpha */
     for (j = 0; j < 9; j++) {
-      lp *= D0min1[j];
+      *lp *= D0min1[j];
     }
-    lp = 0.5 * log(lp);
-    lp -= 4.5 * log(tpi);
+    *lp = 0.5 * log(*lp);
+    *lp -= 4.5 * log(tpi);
     for (j = 0; j < 9; j++) {
-      lp -= 0.5 * (alpha[j] - c0[j]) * (alpha[j] - c0[j]) * D0min1[j];
+      *lp -= 0.5 * (alpha[j] - c0[j]) * (alpha[j] - c0[j]) * D0min1[j];
     }
 
     /* Wishart for V^(-1) */
 
     detVmin1 = pow(det2(3, tempmat), 2.0);
 
-    lp += ((rho - 3.0 - 1.0) / 2.0) * log(detVmin1);
+    *lp += ((rho - 3.0 - 1.0) / 2.0) * log(detVmin1);
     for (j = 0; j < 3; j++) {
-      lp -= 0.5 * rho * R0[j][j] * Vmin1[j][j];
+      *lp -= 0.5 * rho * R0[j][j] * Vmin1[j][j];
     }
-    lp -= (rho / 2.0) * log(pow(rho, -3.0) * det2(3, R0min1));
-    lp -= (rho * 3.0 / 2.0) * log(2.0);
-    lp -= (3.0 * 2.0 / 4.0) * log(pi);
+    *lp -= (rho / 2.0) * log(pow(rho, -3.0) * det2(3, R0min1));
+    *lp -= (rho * 3.0 / 2.0) * log(2.0);
+    *lp -= (3.0 * 2.0 / 4.0) * log(pi);
     for (j = 0; j < 3; j++) {
-      lp -= loggamma((double)(rho - j) / 2.0);
+      *lp -= loggamma((double)(rho - j) / 2.0);
     }
     /* Inverse gamma for sigmasq */
-    lp += (-(a + 1.0) * log(sigmasq) - a * log(b) - 1.0 / (b * sigmasq) -
-           loggamma(a));
+    *lp += (-(a + 1.0) * log(sigmasq) - a * log(b) - 1.0 / (b * sigmasq) -
+            loggamma(a));
   } else {
-    lp = 1.0;
+    *lp = 1.0;
     /* Normal for gamma */
     for (j = 0; j < 6; j++) {
-      lp *= D1min1[j];
+      *lp *= D1min1[j];
     }
-    lp = 0.5 * log(lp);
-    lp -= 3.0 * log(tpi);
+    *lp = 0.5 * log(*lp);
+    *lp -= 3.0 * log(tpi);
     for (j = 0; j < 6; j++) {
-      lp -= 0.5 * (gamma[j] - c1[j]) * (gamma[j] - c1[j]) * D1min1[j];
+      *lp -= 0.5 * (gamma[j] - c1[j]) * (gamma[j] - c1[j]) * D1min1[j];
     }
 
     /* Wishart for U^(-1) */
 
     detUmin1 = pow(det2(2, tempmat), 2.0);
 
-    lp += ((rho - 2.0 - 1.0) / 2.0) * log(detUmin1);
+    *lp += ((rho - 2.0 - 1.0) / 2.0) * log(detUmin1);
     for (j = 0; j < 2; j++) {
-      lp -= 0.5 * rho * R1[j][j] * Umin1[j][j];
+      *lp -= 0.5 * rho * R1[j][j] * Umin1[j][j];
     }
-    lp -= (rho / 2.0) * log(pow(rho, -2.0) * det2(2, R1min1));
-    lp -= (rho * 2.0 / 2.0) * log(2.0);
-    lp -= (2.0 * 1.0 / 4.0) * log(pi);
+    *lp -= (rho / 2.0) * log(pow(rho, -2.0) * det2(2, R1min1));
+    *lp -= (rho * 2.0 / 2.0) * log(2.0);
+    *lp -= (2.0 * 1.0 / 4.0) * log(pi);
     for (j = 0; j < 2; j++) {
-      lp -= loggamma((double)(rho - j) / 2.0);
+      *lp -= loggamma((double)(rho - j) / 2.0);
     }
     /* Inverse gamma for tausq */
-    lp += (-(a + 1.0) * log(tausq) - a * log(b) - 1.0 / (b * tausq) -
-           loggamma(a));
+    *lp += (-(a + 1.0) * log(tausq) - a * log(b) - 1.0 / (b * tausq) -
+            loggamma(a));
   }
 
   /* Look at likelihood contribution */
@@ -576,9 +576,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
         free(tempmat2);
         free(V);
         free(Vmin1);
-        lp = -10000000.0;
-        *llh1 = lp;
-        return lp;
+        *lp = -10000000.0;
+        *llh1 = *lp;
+        return;
       }
 
       for (j = 0; j < S[i]; j++) {
@@ -644,9 +644,9 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
         free(tempmat2);
         free(U);
         free(Umin1);
-        lp = -10000000.0;
-        *llh1 = lp;
-        return lp;
+        *lp = -10000000.0;
+        *llh1 = *lp;
+        return;
       }
 
       for (j = 0; j < S[i]; j++) {
@@ -667,7 +667,7 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
     }
   }
   *llh1 = llh;
-  lp += llh;
+  *lp += llh;
 
   if (k == 0) {
     for (j = 0; j < 5; j++) {
@@ -705,7 +705,7 @@ double logpost(int k, int mdim, double *theta, double *llh1) {
     free(Umin1);
   }
 
-  return lp;
+  return;
 }
 
 double boxm2() {

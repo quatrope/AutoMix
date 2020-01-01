@@ -6,7 +6,8 @@
 
 // Evaluates log posterior (up to an additive constant) at (k,theta).
 // The function can also return the likelihood at this point in llh.
-double logpost(int model_k, int mdim, double *theta, double *llh);
+void logpost(int model_k, int mdim, double *theta, double *log_posterior,
+             double *log_likelihood);
 
 // Returns the number of models
 int get_nmodels(void);

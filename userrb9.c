@@ -62,11 +62,11 @@ void get_rwm_init(int k, int mdim, double *rwm) {
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 - prior settings as in Thesis chapter 3 */
 
-double logpost(int k, int nkk, double *theta, double *llh1) {
+void logpost(int k, int nkk, double *theta, double *lp, double *llh1) {
 
   int i, j, ql, qk, cumnobs;
   int nobs[4], nlambda[10], nkappa[10], pindic[4];
-  double lp, llh, lambda[4], kappa[4], dlgdummy1, dlgdummy2, kappamin1;
+  double llh, lambda[4], kappa[4], dlgdummy1, dlgdummy2, kappamin1;
   int X[66] = {121, 169, 112, 199, 80,  121, 194, 140, 131, 199, 262,
                121, 140, 166, 150, 103, 5,   15,  13,  9,   15,  13,
                13,  9,   18,  12,  8,   7,   16,  11,  12,  8,   14,
@@ -76,8 +76,8 @@ double logpost(int k, int nkk, double *theta, double *llh1) {
 
   for (i = 0; i < nkk; i++) {
     if (theta[i] < 0) {
-      lp = -1000000.0;
-      return lp;
+      *lp = -1000000.0;
+      return;
     }
   }
   nobs[0] = 16;
@@ -139,14 +139,14 @@ double logpost(int k, int nkk, double *theta, double *llh1) {
   }
 
   /* prior */
-  lp = 0.0;
+  *lp = 0.0;
   for (i = 0; i < ql; i++) {
-    lp += alpha1 * log(beta1) + (alpha1 - 1.0) * log(theta[i]) -
-          beta1 * theta[i] - loggamma(alpha1);
+    *lp += alpha1 * log(beta1) + (alpha1 - 1.0) * log(theta[i]) -
+           beta1 * theta[i] - loggamma(alpha1);
   }
   for (i = ql; i < ql + qk; i++) {
-    lp += alpha2 * log(beta2) + (alpha2 - 1.0) * log(theta[i]) -
-          beta2 * theta[i] - loggamma(alpha2);
+    *lp += alpha2 * log(beta2) + (alpha2 - 1.0) * log(theta[i]) -
+           beta2 * theta[i] - loggamma(alpha2);
   }
 
   /* likelihood */
@@ -177,8 +177,8 @@ double logpost(int k, int nkk, double *theta, double *llh1) {
   }
 
   *llh1 = llh;
-  lp += llh;
-  return lp;
+  *lp += llh;
+  return;
 }
 
 double boxm() {

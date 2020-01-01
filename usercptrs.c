@@ -43,10 +43,10 @@ void get_rwm_init(int k, int mdim, double *rwm) {
 /* Function to return log of posterior up to additive const at (k,theta)
    likelihood returned in llh1 */
 
-double logpost(int k, int nkk, double *theta, double *llh1) {
+void logpost(int k, int nkk, double *theta, double *lp, double *llh1) {
 
   int i, j, nsteps = (k + 1), nsofar, nj;
-  double lp, llh, logl, abcon, top;
+  double llh, logl, abcon, top;
   double h[nsteps + 1], s[nsteps + 2], ds[nsteps + 1];
 
   /* Rescaled data */
@@ -89,20 +89,20 @@ double logpost(int k, int nkk, double *theta, double *llh1) {
 
   for (i = 0; i <= nsteps; i++) {
     if ((h[i] <= 0.0) || ds[i] <= 0.0) {
-      lp = -100000.0;
-      return lp;
+      *lp = -100000.0;
+      return;
     }
   }
 
   /* Prior (equivalent to settings detailed in Green, 1995) */
-  lp = -lambda + nsteps * log(lambda) - loggamma((double)(nsteps + 1));
+  *lp = -lambda + nsteps * log(lambda) - loggamma((double)(nsteps + 1));
 
   for (i = 0; i <= nsteps; i++) {
-    lp += (abcon + (alpha - 1.0) * log(h[i]) - beta * h[i]);
-    lp += log(ds[i]);
+    *lp += (abcon + (alpha - 1.0) * log(h[i]) - beta * h[i]);
+    *lp += log(ds[i]);
   }
 
-  lp += (loggamma(2.0 * (nsteps + 1)) - (2.0 * nsteps + 1.0) * logl);
+  *lp += (loggamma(2.0 * (nsteps + 1)) - (2.0 * nsteps + 1.0) * logl);
 
   nsofar = 0;
   top = s[1];
@@ -117,14 +117,14 @@ double logpost(int k, int nkk, double *theta, double *llh1) {
       llh += (nj * log(h[j]) - h[j] * ds[j]);
       j++;
       if (j > nsteps) {
-        return lp;
+        return;
       }
       top = s[j + 1];
     }
   }
   nj = 191 - nsofar;
   llh += nj * log(h[j]) - h[j] * ds[j];
-  lp += llh;
+  *lp += llh;
   *llh1 = llh;
-  return lp;
+  return;
 }

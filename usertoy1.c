@@ -31,11 +31,11 @@ void get_rwm_init(int k, int mdim, double *rwm) {
 /* Function to return log target distribution up to additive const at (k,theta)
    value also returned in llh */
 
-double logpost(int k, int nkk, double *theta, double *llh) {
+void logpost(int k, int nkk, double *theta, double *lp, double *llh) {
   int j1, j2, l1;
   double work[nkk], mu[nkk + 1][nkk];
   double sig[nkk + 1][nkk][nkk], detsig[nkk + 1], w[nkk + 1];
-  double lp, lptemp;
+  double lptemp;
 
   if (k == 0) {
     mu[0][0] = -3;
@@ -73,7 +73,7 @@ double logpost(int k, int nkk, double *theta, double *llh) {
     }
   }
 
-  lp = 0.0;
+  *lp = 0.0;
   for (l1 = 0; l1 < (nkk + 1); l1++) {
     for (j1 = 0; j1 < nkk; j1++) {
       work[j1] = theta[j1] - mu[l1][j1];
@@ -89,16 +89,16 @@ double logpost(int k, int nkk, double *theta, double *llh) {
       lptemp += (work[j1] * work[j1]);
     }
     lptemp = w[l1] * exp(-0.5 * lptemp) * pow(tpi, -nkk / 2.0) / (detsig[l1]);
-    lp += lptemp;
+    *lp += lptemp;
   }
   if (k == 0) {
-    lp = log(0.3 * lp);
+    *lp = log(0.3 * *lp);
   } else {
-    lp = log(0.7 * lp);
+    *lp = log(0.7 * *lp);
   }
 
-  *llh = lp;
-  return lp;
+  *llh = *lp;
+  return;
 }
 
 double boxm() {
