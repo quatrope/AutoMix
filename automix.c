@@ -14,6 +14,13 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 void usage(char *invocation);
+void write_mix_to_file(char *fname, proposalDist jd, double **sig);
+void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
+                       int doperm, int nsweep2, int nsweep, proposalDist jd,
+                       double **sig, int nkeep, int nsokal, double var,
+                       double tau, int *ksummary, int naccrwmb, int ntryrwmb,
+                       int naccrwms, int ntryrwms, int nacctd, int ntrytd,
+                       double timesecs);
 
 int main(int argc, char *argv[]) {
 
@@ -86,29 +93,8 @@ int main(int argc, char *argv[]) {
     }
   }
   sdrni(&seed);
-
-  // --- Section 3 - Initial File handling ---------------------
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
-  sprintf(datafname, "%s_log.data", fname);
-  FILE *fpl = fopen(datafname, "w");
-  sprintf(datafname, "%s_pk.data", fname);
-  FILE *fpp = fopen(datafname, "w");
-  sprintf(datafname, "%s_ac.data", fname);
-  FILE *fpac = fopen(datafname, "w");
-  sprintf(datafname, "%s_adapt.data", fname);
-  FILE *fpad = fopen(datafname, "w");
-  sprintf(datafname, "%s_cf.data", fname);
-  FILE *fpcf = fopen(datafname, "w");
-
-  // Print user options to log file
-
-  fprintf(fpl, "seed: %ld\n", seed);
-  fprintf(fpl, "m: %d\n", mode);
-  fprintf(fpl, "a: %d\n", adapt);
-  fprintf(fpl, "p: %d\n", doperm);
-  fprintf(fpl, "n: %d\n", nsweep2);
-  fprintf(fpl, "N: %d\n", nsweep);
 
   // --- Section 4.0 - Read in key variables from user functions -
 
@@ -122,7 +108,10 @@ int main(int argc, char *argv[]) {
     sig[k] = (double *)malloc(mdim * sizeof(double));
   }
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
-
+  sprintf(datafname, "%s_cf.data", fname);
+  FILE *fp_cf = fopen(datafname, "w");
+  sprintf(datafname, "%s_adapt.data", fname);
+  FILE *fp_adapt = fopen(datafname, "w");
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -140,7 +129,8 @@ int main(int argc, char *argv[]) {
         data[i] = data[i - 1] + mdim;
       }
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-      rwm_within_model(model_k, jd.model_dims, nsweep2, fpl, fpcf, fpad, sig,
+
+      rwm_within_model(model_k, jd.model_dims, nsweep2, fp_cf, fp_adapt, sig,
                        dof, data);
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
@@ -148,7 +138,7 @@ int main(int argc, char *argv[]) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
         // Mixture fitting done component wise EM algorithm described in
         // Figueiredo and Jain, 2002 (see thesis for full reference)
-        fit_mixture_from_samples(model_k, jd, data, lendata, fpcf);
+        fit_mixture_from_samples(model_k, jd, data, lendata, fp_cf);
       }
       if (mode == 2) {
         //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -158,63 +148,11 @@ int main(int argc, char *argv[]) {
       free(data);
     }
   }
+  fclose(fp_adapt);
+  fclose(fp_cf);
 
-  // Print mixture parameters to file (log and mix files)
-  sprintf(datafname, "%s_mix.data", fname);
-  FILE *fpmix = fopen(datafname, "w");
-  fprintf(fpmix, "%d\n", jd.nmodels);
-  for (int k1 = 0; k1 < jd.nmodels; k1++) {
-    fprintf(fpmix, "%d\n", jd.model_dims[k1]);
-  }
-
-  for (int k1 = 0; k1 < jd.nmodels; k1++) {
-    fprintf(fpl, "\nModel:%d\n", k1 + 1);
-    int Lkk = jd.nMixComps[k1];
-    int mdim = jd.model_dims[k1];
-    fprintf(fpl, "\nARW params:\n");
-    for (int j1 = 0; j1 < mdim; j1++) {
-      fprintf(fpl, "%lf ", sig[k1][j1]);
-    }
-    fprintf(fpl, "\n");
-    fprintf(fpl, "\nLkk:%d\n", Lkk);
-    for (int j1 = 0; j1 < mdim; j1++) {
-      fprintf(fpmix, "%lf\n", sig[k1][j1]);
-    }
-    fprintf(fpmix, "%d\n", Lkk);
-    for (int l1 = 0; l1 < Lkk; l1++) {
-      fprintf(fpl, "\nComponent:%d\n", l1 + 1);
-      fprintf(fpl, "lambda:%lf\n", jd.lambda[k1][l1]);
-      fprintf(fpmix, "%lf\n", jd.lambda[k1][l1]);
-      fprintf(fpl, "mu:\n");
-      for (int j1 = 0; j1 < mdim; j1++) {
-        fprintf(fpl, "%lf ", jd.mu[k1][l1][j1]);
-        fprintf(fpmix, "%lf\n", jd.mu[k1][l1][j1]);
-      }
-      fprintf(fpl, "\nB:\n");
-      for (int j1 = 0; j1 < mdim; j1++) {
-        for (int j2 = 0; j2 <= j1; j2++) {
-          fprintf(fpl, "%lf ", jd.B[k1][l1][j1][j2]);
-          fprintf(fpmix, "%lf\n", jd.B[k1][l1][j1][j2]);
-        }
-        fprintf(fpl, "\n");
-      }
-    }
-  }
-  fflush(NULL);
-
-  // --Section 6 - Secondary file handling -------------
-
-  sprintf(datafname, "%s_k.data", fname);
-  FILE *fpk = fopen(datafname, "w");
-  sprintf(datafname, "%s_lp.data", fname);
-  FILE *fplp = fopen(datafname, "w");
-
-  FILE *fpt[NMODELS_MAX];
-  for (int k1 = 0; k1 < jd.nmodels; k1++) {
-    sprintf(datafname, "%s_theta%d.data", fname, k1 + 1);
-    fpt[k1] = fopen(datafname, "w");
-  }
-  free(datafname);
+  // Print mixture parameters to file
+  write_mix_to_file(fname, jd, sig);
 
   // --Section 7 - Final initialisation of variables ----
 
@@ -256,6 +194,12 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
 
+  sprintf(datafname, "%s_pk.data", fname);
+  FILE *fp_pk = fopen(datafname, "w");
+  sprintf(datafname, "%s_k.data", fname);
+  FILE *fp_k = fopen(datafname, "w");
+  sprintf(datafname, "%s_lp.data", fname);
+  FILE *fp_lp = fopen(datafname, "w");
   // Start here main sample
   printf("Start of main sample:");
   ch.isBurning = 0;
@@ -270,16 +214,22 @@ int main(int argc, char *argv[]) {
     (ksummary[ch.current_model_k])++;
 
     // --- Section 10 - Write variables to files ---------
-    fprintf(fpk, "%d\n", ch.current_model_k + 1);
-    fprintf(fplp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
+    fprintf(fp_k, "%d\n", ch.current_model_k + 1);
+    fprintf(fp_lp, "%lf %lf\n", ch.log_posterior, ch.log_likelihood);
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      fprintf(fpp, "%lf ", ch.pk[k1]);
+      fprintf(fp_pk, "%lf ", ch.pk[k1]);
     }
-    fprintf(fpp, "\n");
+    fprintf(fp_pk, "\n");
+
+    FILE *fp_theta;
+    sprintf(datafname, "%s_theta%d.data", fname, ch.current_model_k + 1);
+    fp_theta = fopen(datafname, "w");
     for (int j1 = 0; j1 < ch.mdim; j1++) {
-      fprintf(fpt[ch.current_model_k], "%lf ", ch.theta[j1]);
+      fprintf(fp_theta, "%lf ", ch.theta[j1]);
     }
-    fprintf(fpt[ch.current_model_k], "\n");
+    fprintf(fp_theta, "\n");
+    fclose(fp_theta);
+
     if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
       xr[((sweep - keep) / nsokal) - 1] = ch.current_model_k;
     }
@@ -290,36 +240,130 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
   freeChain(&ch);
+  fclose(fp_pk);
+  fclose(fp_k);
+  fclose(fp_lp);
 
   // --- Section 11 - Write log file ----------------------
   double var, tau;
   int m;
   sokal(nkeep, xr, &var, &tau, &m);
-  fprintf(fpl, "\nAutocorrelation Time:\n");
-  fprintf(fpl, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal, var,
-          tau);
-  for (int i1 = 0; i1 < m; i1++) {
-    fprintf(fpac, "%lf\n", xr[i1]);
-  }
-
-  fprintf(fpl, "\nPosterior Model Probabilities:\n");
-  for (int i = 0; i < jd.nmodels; i++) {
-    fprintf(fpl, "Model %d: %lf\n", i + 1,
-            (double)ksummary[i] / (double)nsweep);
-  }
-  freeJD(jd);
-
-  fprintf(fpl, "\nAcceptance Rates:\n");
-  fprintf(fpl, "Block RWM: %lf\n", (double)naccrwmb / (double)ntryrwmb);
-  fprintf(fpl, "Single RWM: %lf\n", (double)naccrwms / (double)ntryrwms);
-  fprintf(fpl, "Auto RJ: %lf\n", (double)nacctd / (double)ntrytd);
-
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
-  fprintf(fpl, "\nRun time:\n");
-  fprintf(fpl, "Time: %lf\n", timesecs);
 
+  write_log_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd, sig,
+                    nkeep, nsokal, var, tau, ksummary, naccrwmb, ntryrwmb,
+                    naccrwms, ntryrwms, nacctd, ntrytd, timesecs);
+  freeJD(jd);
+
+  sprintf(datafname, "%s_ac.data", fname);
+  FILE *fp_ac = fopen(datafname, "w");
+  for (int i1 = 0; i1 < m; i1++) {
+    fprintf(fp_ac, "%lf\n", xr[i1]);
+  }
+  fclose(fp_ac);
+
+  free(datafname);
   return 0;
+}
+
+void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_mix.data", fname);
+  FILE *fp_mix = fopen(datafname, "w");
+  free(datafname);
+  fprintf(fp_mix, "%d\n", jd.nmodels);
+  for (int k1 = 0; k1 < jd.nmodels; k1++) {
+    fprintf(fp_mix, "%d\n", jd.model_dims[k1]);
+  }
+  for (int k1 = 0; k1 < jd.nmodels; k1++) {
+    int Lkk = jd.nMixComps[k1];
+    int mdim = jd.model_dims[k1];
+    for (int j1 = 0; j1 < mdim; j1++) {
+      fprintf(fp_mix, "%lf\n", sig[k1][j1]);
+    }
+    fprintf(fp_mix, "%d\n", Lkk);
+    for (int l1 = 0; l1 < Lkk; l1++) {
+      fprintf(fp_mix, "%lf\n", jd.lambda[k1][l1]);
+      for (int j1 = 0; j1 < mdim; j1++) {
+        fprintf(fp_mix, "%lf\n", jd.mu[k1][l1][j1]);
+      }
+      for (int j1 = 0; j1 < mdim; j1++) {
+        for (int j2 = 0; j2 <= j1; j2++) {
+          fprintf(fp_mix, "%lf\n", jd.B[k1][l1][j1][j2]);
+        }
+      }
+    }
+  }
+  fclose(fp_mix);
+}
+
+void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
+                       int doperm, int nsweep2, int nsweep, proposalDist jd,
+                       double **sig, int nkeep, int nsokal, double var,
+                       double tau, int *ksummary, int naccrwmb, int ntryrwmb,
+                       int naccrwms, int ntryrwms, int nacctd, int ntrytd,
+                       double timesecs) {
+
+  // Print user options to log file
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_log.data", fname);
+  FILE *fp_log = fopen(datafname, "w");
+  free(datafname);
+  fprintf(fp_log, "seed: %ld\n", seed);
+  fprintf(fp_log, "m: %d\n", mode);
+  fprintf(fp_log, "a: %d\n", adapt);
+  fprintf(fp_log, "p: %d\n", doperm);
+  fprintf(fp_log, "n: %d\n", nsweep2);
+  fprintf(fp_log, "N: %d\n", nsweep);
+  if (mode != 1) {
+    for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+      fprintf(fp_log, "\nRWM for Model %d", model_k + 1);
+    }
+  }
+  for (int k1 = 0; k1 < jd.nmodels; k1++) {
+    fprintf(fp_log, "\nModel:%d\n", k1 + 1);
+    int Lkk = jd.nMixComps[k1];
+    int mdim = jd.model_dims[k1];
+    fprintf(fp_log, "\nARW params:\n");
+    for (int j1 = 0; j1 < mdim; j1++) {
+      fprintf(fp_log, "%lf ", sig[k1][j1]);
+    }
+    fprintf(fp_log, "\n");
+    fprintf(fp_log, "\nLkk:%d\n", Lkk);
+    for (int l1 = 0; l1 < Lkk; l1++) {
+      fprintf(fp_log, "\nComponent:%d\n", l1 + 1);
+      fprintf(fp_log, "lambda:%lf\n", jd.lambda[k1][l1]);
+      fprintf(fp_log, "mu:\n");
+      for (int j1 = 0; j1 < mdim; j1++) {
+        fprintf(fp_log, "%lf ", jd.mu[k1][l1][j1]);
+      }
+      fprintf(fp_log, "\nB:\n");
+      for (int j1 = 0; j1 < mdim; j1++) {
+        for (int j2 = 0; j2 <= j1; j2++) {
+          fprintf(fp_log, "%lf ", jd.B[k1][l1][j1][j2]);
+        }
+        fprintf(fp_log, "\n");
+      }
+    }
+  }
+  fprintf(fp_log, "\nAutocorrelation Time:\n");
+  fprintf(fp_log, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal, var,
+          tau);
+  fprintf(fp_log, "\nPosterior Model Probabilities:\n");
+  for (int i = 0; i < jd.nmodels; i++) {
+    fprintf(fp_log, "Model %d: %lf\n", i + 1,
+            (double)ksummary[i] / (double)nsweep);
+  }
+  fprintf(fp_log, "\nAcceptance Rates:\n");
+  fprintf(fp_log, "Block RWM: %lf\n", (double)naccrwmb / (double)ntryrwmb);
+  fprintf(fp_log, "Single RWM: %lf\n", (double)naccrwms / (double)ntryrwms);
+  fprintf(fp_log, "Auto RJ: %lf\n", (double)nacctd / (double)ntrytd);
+  fprintf(fp_log, "\nRun time:\n");
+  fprintf(fp_log, "Time: %lf\n", timesecs);
+  fclose(fp_log);
 }
 
 void initChain(chainState *ch, proposalDist jd, int adapt) {
@@ -554,9 +598,8 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   return EXIT_SUCCESS;
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
-                      FILE *fpcf, FILE *fpad, double **sig, int dof,
-                      double **data) {
+void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpcf,
+                      FILE *fpad, double **sig, int dof, double **data) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
 
   int mdim = model_dims[model_k];
@@ -571,7 +614,6 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpl,
   double *Znkk = (double *)malloc(mdim * sizeof(double));
 
   printf("\nRWM for Model %d", model_k + 1);
-  fprintf(fpl, "\nRWM for Model %d", model_k + 1);
   fprintf(fpcf, "RWM for Model %d\n", model_k + 1);
   fprintf(fpad, "RWM for Model %d\n", model_k + 1);
   fflush(NULL);

@@ -83,9 +83,8 @@ void freeJD(proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
-void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpl,
-                      FILE *fpcf, FILE *fpad, double **sig, int dof,
-                      double **data);
+void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpcf,
+                      FILE *fpad, double **sig, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
                               int lendata, FILE *fpcf);
