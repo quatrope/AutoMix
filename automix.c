@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
     int Lkk = jd.nMixComps[k1];
     int mdim = jd.model_dims[k1];
     for (int l1 = 0; l1 < Lkk; l1++) {
-      detB[k1][l1] = det(mdim, l1, jd.B[k1]);
+      detB[k1][l1] = det(mdim, jd.B[k1][l1]);
     }
   }
   for (int k1 = 0; k1 < jd.nmodels; k1++) {
@@ -746,7 +746,7 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
   for (int i = 0; i < lendata; i++) {
     double sum = 0.0;
     for (int j = 0; j < Lkk; j++) {
-      lpdatagivenl[i][j] = lnormprob(mdim, j, mu_k, B_k, data[i]);
+      lpdatagivenl[i][j] = lnormprob(mdim, mu_k[j], B_k[j], data[i]);
       logw[j] = log(lambda_k[j]) + lpdatagivenl[i][j];
       w[i][j] = exp(logw[j]);
       sum += w[i][j];
@@ -826,7 +826,7 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
         chol(mdim, B_k[l1]);
 
         for (int i1 = 0; i1 < lendata; i1++) {
-          lpdatagivenl[i1][l1] = lnormprob(mdim, l1, mu_k, B_k, data[i1]);
+          lpdatagivenl[i1][l1] = lnormprob(mdim, mu_k[l1], B_k[l1], data[i1]);
         }
         l1++;
 
@@ -1114,8 +1114,8 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
     double sum = 0.0;
     for (int i = 0; i < ch->current_Lkk; i++) {
       palloc[i] = log(jd.lambda[ch->current_model_k][i]) +
-                  lnormprob(ch->mdim, i, jd.mu[ch->current_model_k],
-                            jd.B[ch->current_model_k], theta);
+                  lnormprob(ch->mdim, jd.mu[ch->current_model_k][i],
+                            jd.B[ch->current_model_k][i], theta);
       palloc[i] = exp(palloc[i]);
       sum += palloc[i];
     }
@@ -1237,7 +1237,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, double **detB,
     double sum = 0.0;
     for (int l1 = 0; l1 < Lkkn; l1++) {
       pallocn[l1] = log(jd.lambda[kn][l1]) +
-                    lnormprob(mdim_kn, l1, jd.mu[kn], jd.B[kn], thetan);
+                    lnormprob(mdim_kn, jd.mu[kn][l1], jd.B[kn][l1], thetan);
       pallocn[l1] = exp(pallocn[l1]);
       sum += pallocn[l1];
     }

@@ -897,7 +897,7 @@ double ltprob(int dof, double z) {
   return out;
 }
 
-double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai) {
+double lnormprob(int n, double *mu_k_l, double **B_k_l, double *datai) {
   /* Evaluates log of p.d.f. for a multivariate normal for model
      k, of dimension n, component l. The summary of means and
      sqrt of cov matrices (for all models and all component)
@@ -906,29 +906,29 @@ double lnormprob(int n, int l, double **mu_k, double ***B_k, double *datai) {
   double work[n];
 
   for (int i = 0; i < n; i++) {
-    work[i] = datai[i] - mu_k[l][i];
+    work[i] = datai[i] - mu_k_l[i];
   }
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < i; j++) {
-      (work[i]) -= B_k[l][i][j] * work[j];
+      (work[i]) -= B_k_l[i][j] * work[j];
     }
-    (work[i]) /= B_k[l][i][i];
+    (work[i]) /= B_k_l[i][i];
   }
   double out = 0.0;
   for (int i = 0; i < n; i++) {
     out += (work[i] * work[i]);
   }
-  out = -0.5 * out - (n / 2.0) * log(2.0 * M_PI) - log(det(n, l, B_k));
+  out = -0.5 * out - (n / 2.0) * log(2.0 * M_PI) - log(det(n, B_k_l));
   return out;
 }
 
-double det(int n, int l, double ***B_k) {
+double det(int n, double **B_k_l) {
 
   /* Evaluates the determinant of a matrix in B corresponding to model k,
      component l. */
   double out = 1.0;
   for (int i = 0; i < n; i++) {
-    out *= B_k[l][i][i];
+    out *= B_k_l[i][i];
   }
   return out;
 }
