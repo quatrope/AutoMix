@@ -95,4 +95,4 @@ void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           int *naccrwmb, int *naccrwms, int *nacctd,
                           int *ntryrwmb, int *ntryrwms, int *ntrytd,
-                          double *propk, double **sig);
+                          double **sig);

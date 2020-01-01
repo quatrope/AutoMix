@@ -229,16 +229,6 @@ int main(int argc, char *argv[]) {
   chainState ch;
   initChain(&ch, jd, adapt);
 
-  // propk is an auxiliary array
-  double *propk = (double *)malloc(jd.nmodels * sizeof(double));
-  for (int k1 = 0; k1 < jd.nmodels; k1++) {
-    if (k1 == ch.current_model_k) {
-      propk[k1] = 1.0;
-    } else {
-      propk[k1] = 0.0;
-    }
-  }
-
   int nburn = max(10000, (int)(nsweep / 10));
 
   int nsokal = 1;
@@ -258,7 +248,7 @@ int main(int argc, char *argv[]) {
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
     reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
-                         &ntryrwms, &ntrytd, propk, sig);
+                         &ntryrwms, &ntrytd, sig);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -275,7 +265,7 @@ int main(int argc, char *argv[]) {
     ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
     reversible_jump_move(&ch, jd, dof, &naccrwmb, &naccrwms, &nacctd, &ntryrwmb,
-                         &ntryrwms, &ntrytd, propk, sig);
+                         &ntryrwms, &ntrytd, sig);
 
     (ksummary[ch.current_model_k])++;
 
@@ -1038,7 +1028,7 @@ void fit_autorj(int model_k, proposalDist jd, double **data, int lendata) {
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           int *naccrwmb, int *naccrwms, int *nacctd,
                           int *ntryrwmb, int *ntryrwms, int *ntrytd,
-                          double *propk, double **sig) {
+                          double **sig) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -1267,12 +1257,13 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
 
   if (ch->doAdapt && !ch->isBurning) {
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
+      double propk;
       if (k1 == ch->current_model_k) {
-        propk[k1] = 1.0;
+        propk = 1.0;
       } else {
-        propk[k1] = 0.0;
+        propk = 0.0;
       }
-      ch->pk[k1] += (gamma * (propk[k1] - ch->pk[k1]));
+      ch->pk[k1] += (gamma * (propk - ch->pk[k1]));
     }
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       if (ch->pk[k1] < ch->pkllim) {
