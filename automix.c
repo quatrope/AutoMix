@@ -16,15 +16,13 @@
 void usage(char *invocation);
 void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
                          int doperm, int nsweep2, int nsweep, proposalDist jd,
-                         double **sig, int nkeep, int nsokal, runStats st,
-                         double timesecs);
+                         double **sig, runStats st, double timesecs);
 void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_mix_to_file(char *fname, proposalDist jd, double **sig);
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int doperm, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, int nkeep, int nsokal, runStats st,
-                       double timesecs);
+                       double **sig, runStats st, double timesecs);
 void write_ac_to_file(char *fname, int m, double *xr);
 void write_theta_to_file(char *fname, int current_model_k, int mdim,
                          double *theta);
@@ -104,21 +102,14 @@ int main(int argc, char *argv[]) {
     }
   }
   sdrni(&seed);
-
-  // Set running sweep variables
   int nburn = max(10000, (int)(nsweep / 10));
-  // nsokal is every how many samples are kept in array xr
-  int nsokal = 1;
-  // nkeep is how many samples are kept in array xr
-  int nkeep = nsweep / (2 * nsokal);
-  nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
 
   // Initialize the Proposal (jumping) Distribution
   proposalDist jd;
   initJD(&jd);
   // Struct to hold run statistic variables
   runStats st;
-  initializeRunStats(&st, nkeep, nsweep, nsweep2, nburn, jd);
+  initializeRunStats(&st, nsweep, nsweep2, nburn, jd);
 
   double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -192,9 +183,6 @@ int main(int argc, char *argv[]) {
 
   // Start here main sample
   int xr_i = 0;
-  // keep is the index from which to start keeping samples in xr
-  // (kept every nsokal samples)
-  int keep = nsweep - nkeep * nsokal;
   printf("Start of main sample:");
   ch.isBurning = 0;
   for (int sweep = 1; sweep <= nsweep; sweep++) {
@@ -213,9 +201,8 @@ int main(int argc, char *argv[]) {
     }
     write_theta_to_file(fname, ch.current_model_k, ch.mdim, ch.theta);
 
-    if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
-      st.xr[xr_i] = ch.current_model_k;
-      xr_i++;
+    if (sweep > st.keep && ((sweep - st.keep) % st.nsokal == 0)) {
+      st.xr[xr_i++] = ch.current_model_k;
     }
     // Print what's below about 10 times
     if (sweep % (nsweep / 10) == 0) {
@@ -231,7 +218,7 @@ int main(int argc, char *argv[]) {
 
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd,
-                      sig, nkeep, nsokal, st, timesecs);
+                      sig, st, timesecs);
   freeRunStats(st, jd);
   freeJD(jd);
 
@@ -336,14 +323,13 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
 
 void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
                          int doperm, int nsweep2, int nsweep, proposalDist jd,
-                         double **sig, int nkeep, int nsokal, runStats st,
-                         double timesecs) {
+                         double **sig, runStats st, double timesecs) {
   write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
-  sokal(nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
+  sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
   write_log_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd, sig,
-                    nkeep, nsokal, st, timesecs);
+                    st, timesecs);
   write_ac_to_file(fname, st.m, st.xr);
 }
 
@@ -393,8 +379,7 @@ void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
 
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int doperm, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, int nkeep, int nsokal, runStats st,
-                       double timesecs) {
+                       double **sig, runStats st, double timesecs) {
 
   // Print user options to log file
   unsigned long fname_len = strlen(fname);
@@ -440,8 +425,8 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
     }
   }
   fprintf(fp_log, "\nAutocorrelation Time:\n");
-  fprintf(fp_log, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", nkeep, nsokal,
-          st.var, st.tau);
+  fprintf(fp_log, "nkeep:%d, nsokal:%d, var:%lf, tau:%lf\n", st.nkeep,
+          st.nsokal, st.var, st.tau);
   fprintf(fp_log, "\nPosterior Model Probabilities:\n");
   for (int i = 0; i < jd.nmodels; i++) {
     fprintf(fp_log, "Model %d: %lf\n", i + 1,
@@ -458,15 +443,19 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
   fclose(fp_log);
 }
 
-void initializeRunStats(runStats *st, int nkeep, int nsweep, int nsweep2,
-                        int nburn, proposalDist jd) {
+void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
+                        proposalDist jd) {
   st->naccrwmb = 0;
   st->ntryrwmb = 0;
   st->naccrwms = 0;
   st->ntryrwms = 0;
   st->nacctd = 0;
   st->ntrytd = 0;
-  st->xr = (double *)malloc(nkeep * sizeof(double));
+  st->nsokal = 1;
+  st->nkeep = (int)pow(
+      2.0, min(15, (int)(log(nsweep / (2 * st->nsokal)) / log(2.0) + 0.001)));
+  st->keep = nsweep - st->nkeep * st->nsokal;
+  st->xr = (double *)malloc(st->nkeep * sizeof(double));
   st->ksummary = (int *)calloc(jd.nmodels, sizeof(int));
   st->pk_summary = (double **)malloc(nsweep * sizeof(double *));
   st->pk_summary[0] = (double *)malloc(nsweep * jd.nmodels * sizeof(double));

@@ -86,6 +86,13 @@ typedef struct {
   // Auto RJ acceptance and tries
   unsigned long nacctd;
   unsigned long ntrytd;
+  // nsokal is every how many samples are kept in array xr
+  int nsokal;
+  // nkeep is how many samples are kept in array xr
+  int nkeep;
+  // keep is the index from which to start keeping samples in xr
+  // (kept every nsokal samples)
+  int keep;
   int m;
   double *xr;
   double var;
@@ -109,8 +116,8 @@ void freeChain(chainState *aChain);
 int initJD(proposalDist *jd);
 int allocJD(proposalDist *jd);
 void freeJD(proposalDist jd);
-void initializeRunStats(runStats *st, int nkeep, int nsweep, int nsweep2,
-                        int nburn, proposalDist jd);
+void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
+                        proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
