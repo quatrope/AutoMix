@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/martinberoiz/AutoMix.svg?branch=master)](https://travis-ci.org/martinberoiz/AutoMix)
+[![Documentation Status](https://readthedocs.org/projects/automix/badge/?version=latest)](https://automix.readthedocs.io/en/latest/?badge=latest)
 ![Style Format](https://img.shields.io/badge/style-clang--format-success)
 
 # AutoMix
