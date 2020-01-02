@@ -105,6 +105,12 @@ int main(int argc, char *argv[]) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
 
+  int nburn = max(10000, (int)(nsweep / 10));
+  int nsokal = 1;
+  int nkeep = nsweep / (2 * nsokal);
+  nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
+  int keep = nburn + (nsweep - nkeep * nsokal);
+
   // --- Section 4.0 - Read in key variables from user functions -
 
   // Initialize the Proposal (jumping) Distribution
@@ -112,6 +118,7 @@ int main(int argc, char *argv[]) {
   initJD(&jd);
   // Struct to hold run statistic variables
   runStats st;
+  initializeRunStats(&st, nkeep, nsweep, jd);
 
   double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -169,25 +176,9 @@ int main(int argc, char *argv[]) {
 
   // --Section 7 - Final initialisation of variables ----
 
-  st.naccrwmb = 0;
-  st.ntryrwmb = 0;
-  st.naccrwms = 0;
-  st.ntryrwms = 0;
-  st.nacctd = 0;
-  st.ntrytd = 0;
-
   // Initialization of the MC Markov Chain parameters
   chainState ch;
   initChain(&ch, jd, adapt);
-
-  int nburn = max(10000, (int)(nsweep / 10));
-
-  int nsokal = 1;
-  int nkeep = nsweep / (2 * nsokal);
-  nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
-  int keep = nburn + (nsweep - nkeep * nsokal);
-  st.xr = (double *)malloc(nkeep * sizeof(double));
-  st.ksummary = (int *)calloc(jd.nmodels, sizeof(int));
 
   // -----Start of main loop ----------------
   // Burn some samples first
@@ -205,20 +196,6 @@ int main(int argc, char *argv[]) {
     }
   }
   printf("\n");
-
-  // Arrays to hold statistics
-  st.pk_summary = (double **)malloc(nsweep * sizeof(*st.pk_summary));
-  st.pk_summary[0] =
-      (double *)malloc(nsweep * jd.nmodels * sizeof(**st.pk_summary));
-  for (int i = 1; i < nsweep; i++) {
-    st.pk_summary[i] = st.pk_summary[i - 1] + jd.nmodels;
-  }
-  st.k_which_summary = (int *)malloc(nsweep * sizeof(*st.k_which_summary));
-  st.logp_summary = (double **)malloc(nsweep * sizeof(*st.logp_summary));
-  st.logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(**st.logp_summary));
-  for (int i = 1; i < nsweep; i++) {
-    st.logp_summary[i] = st.logp_summary[i - 1] + 2;
-  }
 
   // Start here main sample
   printf("Start of main sample:");
@@ -257,12 +234,7 @@ int main(int argc, char *argv[]) {
   write_stats_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd,
                       sig, nkeep, nsokal, st, timesecs);
   freeJD(jd);
-  free(st.logp_summary[0]);
-  free(st.logp_summary);
-  free(st.k_which_summary);
-  free(st.pk_summary[0]);
-  free(st.pk_summary);
-  free(st.xr);
+
   return 0;
 }
 
@@ -442,6 +414,52 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
   fprintf(fp_log, "\nRun time:\n");
   fprintf(fp_log, "Time: %lf\n", timesecs);
   fclose(fp_log);
+}
+
+void initializeRunStats(runStats *st, int nkeep, int nsweep, proposalDist jd) {
+  st->naccrwmb = 0;
+  st->ntryrwmb = 0;
+  st->naccrwms = 0;
+  st->ntryrwms = 0;
+  st->nacctd = 0;
+  st->ntrytd = 0;
+  st->xr = (double *)malloc(nkeep * sizeof(double));
+  st->ksummary = (int *)calloc(jd.nmodels, sizeof(int));
+  st->pk_summary = (double **)malloc(nsweep * sizeof(double *));
+  st->pk_summary[0] = (double *)malloc(nsweep * jd.nmodels * sizeof(double));
+  for (int i = 1; i < nsweep; i++) {
+    st->pk_summary[i] = st->pk_summary[i - 1] + jd.nmodels;
+  }
+  st->k_which_summary = (int *)malloc(nsweep * sizeof(int));
+  st->logp_summary = (double **)malloc(nsweep * sizeof(double *));
+  st->logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(double));
+  for (int i = 1; i < nsweep; i++) {
+    st->logp_summary[i] = st->logp_summary[i - 1] + 2;
+  }
+}
+
+void freeRunStats(runStats st) {
+  if (st.xr != NULL) {
+    free(st.xr);
+  }
+  if (st.ksummary != NULL) {
+    free(st.ksummary);
+  }
+  if (st.pk_summary != NULL) {
+    free(st.pk_summary[0]);
+  }
+  if (st.pk_summary != NULL) {
+    free(st.pk_summary);
+  }
+  if (st.k_which_summary != NULL) {
+    free(st.k_which_summary);
+  }
+  if (st.logp_summary[0] != NULL) {
+    free(st.logp_summary[0]);
+  }
+  if (st.logp_summary != NULL) {
+    free(st.logp_summary);
+  }
 }
 
 void initChain(chainState *ch, proposalDist jd, int adapt) {

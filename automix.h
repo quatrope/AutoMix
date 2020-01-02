@@ -100,6 +100,8 @@ void freeChain(chainState *aChain);
 int initJD(proposalDist *jd);
 int allocJD(proposalDist *jd);
 void freeJD(proposalDist jd);
+void initializeRunStats(runStats *st, int nkeep, int nsweep, proposalDist jd);
+void freeRunStats(runStats st);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
