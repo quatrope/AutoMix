@@ -107,10 +107,11 @@ int main(int argc, char *argv[]) {
 
   // Set running sweep variables
   int nburn = max(10000, (int)(nsweep / 10));
+  // nsokal is every how many samples are kept in array xr
   int nsokal = 1;
+  // nkeep is how many samples are kept in array xr
   int nkeep = nsweep / (2 * nsokal);
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
-  int keep = nburn + (nsweep - nkeep * nsokal);
 
   // Initialize the Proposal (jumping) Distribution
   proposalDist jd;
@@ -190,29 +191,35 @@ int main(int argc, char *argv[]) {
   printf("\n");
 
   // Start here main sample
+  int xr_i = 0;
+  // keep is the index from which to start keeping samples in xr
+  // (kept every nsokal samples)
+  int keep = nsweep - nkeep * nsokal;
   printf("Start of main sample:");
   ch.isBurning = 0;
-  for (int sweep = nburn + 1; sweep <= (nburn + nsweep); sweep++) {
+  for (int sweep = 1; sweep <= nsweep; sweep++) {
     // Every 10 sweeps to block RWM
-    ch.doBlockRWM = (sweep % 10 == 0);
-    ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+    ch.doBlockRWM = (sweep + nburn % 10 == 0);
+    ch.gamma_sweep = pow(1.0 / (sweep + nburn + 1), (2.0 / 3.0));
 
     reversible_jump_move(&ch, jd, dof, &st, sig);
 
     (st.ksummary[ch.current_model_k])++;
-    st.k_which_summary[sweep - nburn - 1] = ch.current_model_k + 1;
-    st.logp_summary[sweep - nburn - 1][0] = ch.log_posterior;
-    st.logp_summary[sweep - nburn - 1][1] = ch.log_likelihood;
+    st.k_which_summary[sweep - 1] = ch.current_model_k + 1;
+    st.logp_summary[sweep - 1][0] = ch.log_posterior;
+    st.logp_summary[sweep - 1][1] = ch.log_likelihood;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      st.pk_summary[sweep - nburn - 1][k1] = ch.pk[k1];
+      st.pk_summary[sweep - 1][k1] = ch.pk[k1];
     }
     write_theta_to_file(fname, ch.current_model_k, ch.mdim, ch.theta);
 
     if (sweep > keep && ((sweep - keep) % nsokal == 0)) {
-      st.xr[((sweep - keep) / nsokal) - 1] = ch.current_model_k;
+      st.xr[xr_i] = ch.current_model_k;
+      xr_i++;
     }
-    if ((10 * (sweep - nburn)) % nsweep == 0) {
-      printf("\nNo. of iterations remaining: %d", nsweep + nburn - sweep);
+    // Print what's below about 10 times
+    if (sweep % (nsweep / 10) == 0) {
+      printf("\nNo. of iterations remaining: %d", nsweep - sweep);
     }
     fflush(NULL);
   }
