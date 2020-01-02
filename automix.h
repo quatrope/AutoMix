@@ -66,11 +66,23 @@ typedef struct {
 } chainState;
 
 typedef struct {
+  // The number of models in M (referred a K_{max} in thesis, p 143)
   int nmodels;
+  // The numberof mixture components for each model (refferred as L_k in thesis,
+  // p144)
   int *nMixComps;
+  // The dimension of the theta parameter space for each model.
   int *model_dims;
+  // The relative weights for each mixture component for each model
+  // lambda[i][j] is the weight of the j-th mixture component for model M_i.
   double **lambda;
+  // The mean vector for the mixture component for each model
+  // mu[i][j][k] is the k-th vector index for the j-th mixture component for
+  // model M_i.
   double ***mu;
+  // B.B^T is the covariance matrix for each mixture component for each model.
+  // B[i][j][k][m] is the k,m index of the B matrix for mixture component j of
+  // model M_i.
   double ****B;
   bool isInitialized;
   bool isAllocated;
@@ -123,12 +135,12 @@ void freeRunStats(runStats st, proposalDist jd);
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
 void rwm_within_model(int k1, int *model_dims, int nsweep2, runStats st,
-                      double *sig_k, int dof, double **data);
+                      double *sig_k, int dof, double **samples);
 
-void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
-                              int lendata, runStats *st);
+void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
+                              int nsamples, runStats *st);
 
-void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
+void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, double **sig);
