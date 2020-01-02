@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
   initJD(&jd);
   // Struct to hold run statistic variables
   runStats st;
-  initializeRunStats(&st, nkeep, nsweep, jd);
+  initializeRunStats(&st, nkeep, nsweep, nsweep2, nburn, jd);
 
   double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
   for (int k = 0; k < jd.nmodels; k++) {
@@ -148,38 +148,18 @@ int main(int argc, char *argv[]) {
       }
       int nsweepr = max(nsweep2, 10000 * mdim);
 
-      int rwm_summary_len = max(1, (nsweepr + nburn) / 100);
-      st.sig_k_rwm_summary =
-          (double **)malloc(rwm_summary_len * sizeof(double *));
-      st.sig_k_rwm_summary[0] =
-          (double *)malloc(rwm_summary_len * mdim * sizeof(double));
-      for (int i = 1; i < rwm_summary_len; i++) {
-        st.sig_k_rwm_summary[i] = st.sig_k_rwm_summary[i - 1] + mdim;
-      }
-      st.nacc_ntry_rwm = (double **)malloc(rwm_summary_len * sizeof(double *));
-      st.nacc_ntry_rwm[0] =
-          (double *)malloc(rwm_summary_len * mdim * sizeof(double));
-      for (int i = 1; i < rwm_summary_len; i++) {
-        st.nacc_ntry_rwm[i] = st.nacc_ntry_rwm[i - 1] + mdim;
-      }
-
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
       fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
       fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
       rwm_within_model(model_k, jd.model_dims, nsweepr, st, sig[model_k], dof,
                        data);
-      for (int j = 0; j < rwm_summary_len; j++) {
+      for (int j = 0; j < st.rwm_summary_len; j++) {
         for (int i = 0; i < mdim; i++) {
-          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[j][i],
-                  st.nacc_ntry_rwm[j][i]);
+          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[model_k][j][i],
+                  st.nacc_ntry_rwm[model_k][j][i]);
         }
         fprintf(fp_adapt, "\n");
       }
-      free(st.sig_k_rwm_summary[0]);
-      free(st.sig_k_rwm_summary);
-      free(st.nacc_ntry_rwm[0]);
-      free(st.nacc_ntry_rwm);
-
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
@@ -259,6 +239,7 @@ int main(int argc, char *argv[]) {
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd,
                       sig, nkeep, nsokal, st, timesecs);
+  freeRunStats(st, jd);
   freeJD(jd);
 
   return EXIT_SUCCESS;
@@ -442,7 +423,8 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
   fclose(fp_log);
 }
 
-void initializeRunStats(runStats *st, int nkeep, int nsweep, proposalDist jd) {
+void initializeRunStats(runStats *st, int nkeep, int nsweep, int nsweep2,
+                        int nburn, proposalDist jd) {
   st->naccrwmb = 0;
   st->ntryrwmb = 0;
   st->naccrwms = 0;
@@ -462,9 +444,31 @@ void initializeRunStats(runStats *st, int nkeep, int nsweep, proposalDist jd) {
   for (int i = 1; i < nsweep; i++) {
     st->logp_summary[i] = st->logp_summary[i - 1] + 2;
   }
+  st->sig_k_rwm_summary = (double ***)malloc(jd.nmodels * sizeof(double **));
+  st->nacc_ntry_rwm = (double ***)malloc(jd.nmodels * sizeof(double **));
+  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    int mdim = jd.model_dims[model_k];
+    int nsweepr = max(nsweep2, 10000 * mdim);
+    st->rwm_summary_len = max(1, (nsweepr + nburn) / 100);
+    st->sig_k_rwm_summary[model_k] =
+        (double **)malloc(st->rwm_summary_len * sizeof(double *));
+    st->sig_k_rwm_summary[model_k][0] =
+        (double *)malloc(st->rwm_summary_len * mdim * sizeof(double));
+    for (int i = 1; i < st->rwm_summary_len; i++) {
+      st->sig_k_rwm_summary[model_k][i] =
+          st->sig_k_rwm_summary[model_k][i - 1] + mdim;
+    }
+    st->nacc_ntry_rwm[model_k] =
+        (double **)malloc(st->rwm_summary_len * sizeof(double *));
+    st->nacc_ntry_rwm[model_k][0] =
+        (double *)malloc(st->rwm_summary_len * mdim * sizeof(double));
+    for (int i = 1; i < st->rwm_summary_len; i++) {
+      st->nacc_ntry_rwm[model_k][i] = st->nacc_ntry_rwm[model_k][i - 1] + mdim;
+    }
+  }
 }
 
-void freeRunStats(runStats st) {
+void freeRunStats(runStats st, proposalDist jd) {
   if (st.xr != NULL) {
     free(st.xr);
   }
@@ -485,6 +489,26 @@ void freeRunStats(runStats st) {
   }
   if (st.logp_summary != NULL) {
     free(st.logp_summary);
+  }
+  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    if (st.sig_k_rwm_summary[model_k][0] != NULL) {
+      free(st.sig_k_rwm_summary[model_k][0]);
+    }
+    if (st.sig_k_rwm_summary[model_k] != NULL) {
+      free(st.sig_k_rwm_summary[model_k]);
+    }
+    if (st.nacc_ntry_rwm[model_k][0] != NULL) {
+      free(st.nacc_ntry_rwm[model_k][0]);
+    }
+    if (st.nacc_ntry_rwm[model_k] != NULL) {
+      free(st.nacc_ntry_rwm[model_k]);
+    }
+  }
+  if (st.sig_k_rwm_summary != NULL) {
+    free(st.sig_k_rwm_summary);
+  }
+  if (st.nacc_ntry_rwm != NULL) {
+    free(st.nacc_ntry_rwm);
   }
 }
 
@@ -802,8 +826,9 @@ void rwm_within_model(int model_k, int *model_dims, int nsweepr, runStats st,
     }
     if (sweep % 100 == 0) {
       for (int i = 0; i < mdim; i++) {
-        st.sig_k_rwm_summary[sig_k_rwm_n][i] = sig_k[i];
-        st.nacc_ntry_rwm[sig_k_rwm_n][i] = (double)nacc[i] / (double)ntry[i];
+        st.sig_k_rwm_summary[model_k][sig_k_rwm_n][i] = sig_k[i];
+        st.nacc_ntry_rwm[model_k][sig_k_rwm_n][i] =
+            (double)nacc[i] / (double)ntry[i];
       }
       sig_k_rwm_n++;
     }

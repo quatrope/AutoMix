@@ -93,8 +93,9 @@ typedef struct {
   double **pk_summary;
   int *k_which_summary;
   double **logp_summary;
-  double **sig_k_rwm_summary;
-  double **nacc_ntry_rwm;
+  int rwm_summary_len;
+  double ***sig_k_rwm_summary;
+  double ***nacc_ntry_rwm;
 } runStats;
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
@@ -102,8 +103,9 @@ void freeChain(chainState *aChain);
 int initJD(proposalDist *jd);
 int allocJD(proposalDist *jd);
 void freeJD(proposalDist jd);
-void initializeRunStats(runStats *st, int nkeep, int nsweep, proposalDist jd);
-void freeRunStats(runStats st);
+void initializeRunStats(runStats *st, int nkeep, int nsweep, int nsweep2,
+                        int nburn, proposalDist jd);
+void freeRunStats(runStats st, proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
