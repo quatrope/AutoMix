@@ -105,13 +105,12 @@ int main(int argc, char *argv[]) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
 
+  // Set running sweep variables
   int nburn = max(10000, (int)(nsweep / 10));
   int nsokal = 1;
   int nkeep = nsweep / (2 * nsokal);
   nkeep = (int)pow(2.0, min(15, (int)(log(nkeep) / log(2.0) + 0.001)));
   int keep = nburn + (nsweep - nkeep * nsokal);
-
-  // --- Section 4.0 - Read in key variables from user functions -
 
   // Initialize the Proposal (jumping) Distribution
   proposalDist jd;
@@ -125,6 +124,7 @@ int main(int argc, char *argv[]) {
     int mdim = jd.model_dims[k];
     sig[k] = (double *)malloc(mdim * sizeof(double));
   }
+
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fp_cf = fopen(datafname, "w");
@@ -146,11 +146,39 @@ int main(int argc, char *argv[]) {
       for (int i = 1; i < lendata; i++) {
         data[i] = data[i - 1] + mdim;
       }
+      int nsweepr = max(nsweep2, 10000 * mdim);
+
+      int rwm_summary_len = max(1, (nsweepr + nburn) / 100);
+      st.sig_k_rwm_summary =
+          (double **)malloc(rwm_summary_len * sizeof(double *));
+      st.sig_k_rwm_summary[0] =
+          (double *)malloc(rwm_summary_len * mdim * sizeof(double));
+      for (int i = 1; i < rwm_summary_len; i++) {
+        st.sig_k_rwm_summary[i] = st.sig_k_rwm_summary[i - 1] + mdim;
+      }
+      st.nacc_ntry_rwm = (double **)malloc(rwm_summary_len * sizeof(double *));
+      st.nacc_ntry_rwm[0] =
+          (double *)malloc(rwm_summary_len * mdim * sizeof(double));
+      for (int i = 1; i < rwm_summary_len; i++) {
+        st.nacc_ntry_rwm[i] = st.nacc_ntry_rwm[i - 1] + mdim;
+      }
+
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
       fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
       fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
-      rwm_within_model(model_k, jd.model_dims, nsweep2, fp_adapt, sig, dof,
+      rwm_within_model(model_k, jd.model_dims, nsweepr, st, sig[model_k], dof,
                        data);
+      for (int j = 0; j < rwm_summary_len; j++) {
+        for (int i = 0; i < mdim; i++) {
+          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[j][i],
+                  st.nacc_ntry_rwm[j][i]);
+        }
+        fprintf(fp_adapt, "\n");
+      }
+      free(st.sig_k_rwm_summary[0]);
+      free(st.sig_k_rwm_summary);
+      free(st.nacc_ntry_rwm[0]);
+      free(st.nacc_ntry_rwm);
 
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
@@ -173,8 +201,6 @@ int main(int argc, char *argv[]) {
 
   // Print mixture parameters to file
   write_mix_to_file(fname, jd, sig);
-
-  // --Section 7 - Final initialisation of variables ----
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
@@ -235,7 +261,7 @@ int main(int argc, char *argv[]) {
                       sig, nkeep, nsokal, st, timesecs);
   freeJD(jd);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 void write_lp_to_file(char *fname, int nsweep, double **logp_summary) {
@@ -694,12 +720,11 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   return EXIT_SUCCESS;
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
-                      double **sig, int dof, double **data) {
+void rwm_within_model(int model_k, int *model_dims, int nsweepr, runStats st,
+                      double *sig_k, int dof, double **data) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
 
   int mdim = model_dims[model_k];
-  int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
   double alphastar = 0.25;
   nsweepr += nburn;
@@ -709,12 +734,13 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
   int *ntry = (int *)malloc(mdim * sizeof(int));
   double *Znkk = (double *)malloc(mdim * sizeof(double));
 
+  int sig_k_rwm_n = 0; // This is used to load stats arrays
   printf("\nRWM for Model %d", model_k + 1);
   fflush(NULL);
   get_rwm_init(model_k, mdim, rwm);
   for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
-    sig[model_k][j1] = 10.0;
+    sig_k[j1] = 10.0;
     nacc[j1] = 0;
     ntry[j1] = 0;
   }
@@ -733,7 +759,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
     if (sweep > nburn && u < 0.1) {
       rt(Znkk, mdim, dof);
       for (int i = 0; i < mdim; i++) {
-        rwmn[i] = rwm[i] + sig[model_k][i] * Znkk[i];
+        rwmn[i] = rwm[i] + sig_k[i] * Znkk[i];
       }
       double lpn;
       logpost(model_k, mdim, rwmn, &lpn, &llh);
@@ -751,7 +777,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
       for (int i = 0; i < mdim; i++) {
         double Z;
         rt(&Z, 1, dof);
-        rwmn[i] = rwm[i] + sig[model_k][i] * Z;
+        rwmn[i] = rwm[i] + sig_k[i] * Z;
         double lpn;
         logpost(model_k, mdim, rwmn, &lpn, &llh);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
@@ -760,11 +786,11 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
           (ntry[i])++;
           rwm[i] = rwmn[i];
           lp = lpn;
-          sig[model_k][i] = max(0, sig[model_k][i] - gamma * (alphastar - 1));
+          sig_k[i] = max(0, sig_k[i] - gamma * (alphastar - 1));
         } else {
           (ntry[i])++;
           rwmn[i] = rwm[i];
-          sig[model_k][i] = max(0, sig[model_k][i] - gamma * (alphastar));
+          sig_k[i] = max(0, sig_k[i] - gamma * (alphastar));
         }
       }
     }
@@ -774,12 +800,12 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, FILE *fpad,
       }
       i2++;
     }
-    if (fmod(sweep, 100.0) < 0.05) {
+    if (sweep % 100 == 0) {
       for (int i = 0; i < mdim; i++) {
-        fprintf(fpad, "%lf %lf ", sig[model_k][i],
-                (double)nacc[i] / (double)ntry[i]);
+        st.sig_k_rwm_summary[sig_k_rwm_n][i] = sig_k[i];
+        st.nacc_ntry_rwm[sig_k_rwm_n][i] = (double)nacc[i] / (double)ntry[i];
       }
-      fprintf(fpad, "\n");
+      sig_k_rwm_n++;
     }
   }
   free(rwm);

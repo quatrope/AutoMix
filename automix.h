@@ -93,6 +93,8 @@ typedef struct {
   double **pk_summary;
   int *k_which_summary;
   double **logp_summary;
+  double **sig_k_rwm_summary;
+  double **nacc_ntry_rwm;
 } runStats;
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
@@ -105,8 +107,8 @@ void freeRunStats(runStats st);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
-void rwm_within_model(int k1, int *model_dims, int nsweep2, FILE *fpad,
-                      double **sig, int dof, double **data);
+void rwm_within_model(int k1, int *model_dims, int nsweepr, runStats st,
+                      double *sig_k, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
                               int lendata, FILE *fpcf);
