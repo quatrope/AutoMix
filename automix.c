@@ -18,6 +18,7 @@ void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
                          int doperm, int nsweep2, int nsweep, proposalDist jd,
                          double **sig, int nkeep, int nsokal, runStats st,
                          double timesecs);
+void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_mix_to_file(char *fname, proposalDist jd, double **sig);
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
                        int doperm, int nsweep2, int nsweep, proposalDist jd,
@@ -128,8 +129,6 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fp_cf = fopen(datafname, "w");
-  sprintf(datafname, "%s_adapt.data", fname);
-  FILE *fp_adapt = fopen(datafname, "w");
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -150,16 +149,9 @@ int main(int argc, char *argv[]) {
 
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
       fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
-      fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
       rwm_within_model(model_k, jd.model_dims, nsweepr, st, sig[model_k], dof,
                        data);
-      for (int j = 0; j < st.rwm_summary_len; j++) {
-        for (int i = 0; i < mdim; i++) {
-          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[model_k][j][i],
-                  st.nacc_ntry_rwm[model_k][j][i]);
-        }
-        fprintf(fp_adapt, "\n");
-      }
+
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
@@ -175,10 +167,11 @@ int main(int argc, char *argv[]) {
       free(data);
     }
   }
-  fclose(fp_adapt);
   fclose(fp_cf);
   free(datafname);
 
+  // Write adaptation statistics to file
+  write_adapt_to_file(fname, mode, jd, st);
   // Print mixture parameters to file
   write_mix_to_file(fname, jd, sig);
 
@@ -243,6 +236,28 @@ int main(int argc, char *argv[]) {
   freeJD(jd);
 
   return EXIT_SUCCESS;
+}
+
+void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_adapt.data", fname);
+  FILE *fp_adapt = fopen(datafname, "w");
+  free(datafname);
+  if (mode != 1) {
+    for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+      int mdim = jd.model_dims[model_k];
+      fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
+      for (int j = 0; j < st.rwm_summary_len; j++) {
+        for (int i = 0; i < mdim; i++) {
+          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[model_k][j][i],
+                  st.nacc_ntry_rwm[model_k][j][i]);
+        }
+        fprintf(fp_adapt, "\n");
+      }
+    }
+  }
+  fclose(fp_adapt);
 }
 
 void write_lp_to_file(char *fname, int nsweep, double **logp_summary) {
