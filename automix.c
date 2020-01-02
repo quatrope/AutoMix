@@ -129,6 +129,10 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fp_cf = fopen(datafname, "w");
+  st.autorj_annulations = (int *)malloc(5000 * sizeof(int));
+  st.autorj_costfnnew = (double *)malloc(5000 * sizeof(double));
+  st.autorj_lpn = (double *)malloc(5000 * sizeof(double));
+  st.autorj_Lkk = (int *)malloc(5000 * sizeof(int));
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -157,7 +161,13 @@ int main(int argc, char *argv[]) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
         // Mixture fitting done component wise EM algorithm described in
         // Figueiredo and Jain, 2002 (see thesis for full reference)
-        fit_mixture_from_samples(model_k, jd, data, lendata, fp_cf);
+        st.nautorj = 0;
+        fit_mixture_from_samples(model_k, jd, data, lendata, &st);
+        for (int i = 0; i < st.nautorj; i++) {
+          fprintf(fp_cf, "%d %lf %lf %d\n", st.autorj_Lkk[i], st.autorj_lpn[i],
+                  st.autorj_costfnnew[i], st.autorj_annulations[i]);
+        }
+        fflush(NULL);
       }
       if (mode == 2) {
         //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -169,6 +179,10 @@ int main(int argc, char *argv[]) {
   }
   fclose(fp_cf);
   free(datafname);
+  free(st.autorj_annulations);
+  free(st.autorj_costfnnew);
+  free(st.autorj_lpn);
+  free(st.autorj_Lkk);
 
   // Write adaptation statistics to file
   write_adapt_to_file(fname, mode, jd, st);
@@ -856,7 +870,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweepr, runStats st,
 }
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
-                              int lendata, FILE *fpcf) {
+                              int lendata, runStats *st) {
   // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
   // Mixture fitting done component wise EM algorithm described in
   // Figueiredo and Jain, 2002 (see thesis for full reference)
@@ -1162,8 +1176,11 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
       stop = 1;
     }
     costfn = costfnnew;
-    fprintf(fpcf, "%d %lf %lf %d\n", Lkk, lpn, costfnnew, (natann + forceann));
-    fflush(NULL);
+    st->autorj_annulations[st->nautorj] = natann + forceann;
+    st->autorj_costfnnew[st->nautorj] = costfnnew;
+    st->autorj_lpn[st->nautorj] = lpn;
+    st->autorj_Lkk[st->nautorj] = Lkk;
+    st->nautorj++;
   }
 
   for (int i = 0; i < lendata; i++) {

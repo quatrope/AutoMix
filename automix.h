@@ -96,6 +96,11 @@ typedef struct {
   int rwm_summary_len;
   double ***sig_k_rwm_summary;
   double ***nacc_ntry_rwm;
+  int nautorj;
+  int *autorj_annulations;
+  double *autorj_costfnnew;
+  double *autorj_lpn;
+  int *autorj_Lkk;
 } runStats;
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
@@ -113,7 +118,7 @@ void rwm_within_model(int k1, int *model_dims, int nsweepr, runStats st,
                       double *sig_k, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
-                              int lendata, FILE *fpcf);
+                              int lendata, runStats *st);
 
 void fit_autorj(int model_k, proposalDist jd, double **data, int lendata);
 
