@@ -129,17 +129,6 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fp_cf = fopen(datafname, "w");
-  st.nfitmix = (int *)malloc(jd.nmodels * sizeof(int));
-  st.fitmix_annulations = (int **)malloc(jd.nmodels * sizeof(int *));
-  st.fitmix_costfnnew = (double **)malloc(jd.nmodels * sizeof(double *));
-  st.fitmix_lpn = (double **)malloc(jd.nmodels * sizeof(double *));
-  st.fitmix_Lkk = (int **)malloc(jd.nmodels * sizeof(int *));
-  for (int i = 0; i < jd.nmodels; i++) {
-    st.fitmix_annulations[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
-    st.fitmix_costfnnew[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
-    st.fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
-    st.fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
-  }
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -168,7 +157,6 @@ int main(int argc, char *argv[]) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
         // Mixture fitting done component wise EM algorithm described in
         // Figueiredo and Jain, 2002 (see thesis for full reference)
-        st.nfitmix[model_k] = 0;
         fit_mixture_from_samples(model_k, jd, data, lendata, &st);
         for (int i = 0; i < st.nfitmix[model_k]; i++) {
           fprintf(fp_cf, "%d %lf %lf %d\n", st.fitmix_Lkk[model_k][i],
@@ -187,18 +175,6 @@ int main(int argc, char *argv[]) {
   }
   fclose(fp_cf);
   free(datafname);
-
-  free(st.nfitmix);
-  for (int i = 0; i < jd.nmodels; i++) {
-    free(st.fitmix_annulations[i]);
-    free(st.fitmix_costfnnew[i]);
-    free(st.fitmix_lpn[i]);
-    free(st.fitmix_Lkk[i]);
-  }
-  free(st.fitmix_annulations);
-  free(st.fitmix_costfnnew);
-  free(st.fitmix_lpn);
-  free(st.fitmix_Lkk);
 
   // Write adaptation statistics to file
   write_adapt_to_file(fname, mode, jd, st);
@@ -511,6 +487,17 @@ void initializeRunStats(runStats *st, int nkeep, int nsweep, int nsweep2,
       st->nacc_ntry_rwm[model_k][i] = st->nacc_ntry_rwm[model_k][i - 1] + mdim;
     }
   }
+  st->nfitmix = (int *)calloc(jd.nmodels, sizeof(int));
+  st->fitmix_annulations = (int **)malloc(jd.nmodels * sizeof(int *));
+  st->fitmix_costfnnew = (double **)malloc(jd.nmodels * sizeof(double *));
+  st->fitmix_lpn = (double **)malloc(jd.nmodels * sizeof(double *));
+  st->fitmix_Lkk = (int **)malloc(jd.nmodels * sizeof(int *));
+  for (int i = 0; i < jd.nmodels; i++) {
+    st->fitmix_annulations[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+    st->fitmix_costfnnew[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    st->fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    st->fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+  }
 }
 
 void freeRunStats(runStats st, proposalDist jd) {
@@ -554,6 +541,35 @@ void freeRunStats(runStats st, proposalDist jd) {
   }
   if (st.nacc_ntry_rwm != NULL) {
     free(st.nacc_ntry_rwm);
+  }
+  if (st.nfitmix != NULL) {
+    free(st.nfitmix);
+  }
+  for (int i = 0; i < jd.nmodels; i++) {
+    if (st.fitmix_annulations[i] != NULL) {
+      free(st.fitmix_annulations[i]);
+    }
+    if (st.fitmix_costfnnew[i] != NULL) {
+      free(st.fitmix_costfnnew[i]);
+    }
+    if (st.fitmix_lpn[i] != NULL) {
+      free(st.fitmix_lpn[i]);
+    }
+    if (st.fitmix_Lkk[i] != NULL) {
+      free(st.fitmix_Lkk[i]);
+    }
+  }
+  if (st.fitmix_annulations != NULL) {
+    free(st.fitmix_annulations);
+  }
+  if (st.fitmix_costfnnew != NULL) {
+    free(st.fitmix_costfnnew);
+  }
+  if (st.fitmix_lpn != NULL) {
+    free(st.fitmix_lpn);
+  }
+  if (st.fitmix_Lkk != NULL) {
+    free(st.fitmix_Lkk);
   }
 }
 
