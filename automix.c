@@ -18,6 +18,7 @@ void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
                          int doperm, int nsweep2, int nsweep, proposalDist jd,
                          double **sig, int nkeep, int nsokal, runStats st,
                          double timesecs);
+void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_mix_to_file(char *fname, proposalDist jd, double **sig);
 void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
@@ -103,8 +104,6 @@ int main(int argc, char *argv[]) {
     }
   }
   sdrni(&seed);
-  unsigned long fname_len = strlen(fname);
-  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
 
   // Set running sweep variables
   int nburn = max(10000, (int)(nsweep / 10));
@@ -127,8 +126,6 @@ int main(int argc, char *argv[]) {
   }
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
-  sprintf(datafname, "%s_cf.data", fname);
-  FILE *fp_cf = fopen(datafname, "w");
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -145,25 +142,15 @@ int main(int argc, char *argv[]) {
       for (int i = 1; i < lendata; i++) {
         data[i] = data[i - 1] + mdim;
       }
-      int nsweepr = max(nsweep2, 10000 * mdim);
-
       // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-      fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
-      rwm_within_model(model_k, jd.model_dims, nsweepr, st, sig[model_k], dof,
+      rwm_within_model(model_k, jd.model_dims, nsweep2, st, sig[model_k], dof,
                        data);
-
       printf("\nMixture Fitting: Model %d", model_k + 1);
       if (mode == 0) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
         // Mixture fitting done component wise EM algorithm described in
         // Figueiredo and Jain, 2002 (see thesis for full reference)
         fit_mixture_from_samples(model_k, jd, data, lendata, &st);
-        for (int i = 0; i < st.nfitmix[model_k]; i++) {
-          fprintf(fp_cf, "%d %lf %lf %d\n", st.fitmix_Lkk[model_k][i],
-                  st.fitmix_lpn[model_k][i], st.fitmix_costfnnew[model_k][i],
-                  st.fitmix_annulations[model_k][i]);
-        }
-        fflush(NULL);
       }
       if (mode == 2) {
         //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -173,13 +160,13 @@ int main(int argc, char *argv[]) {
       free(data);
     }
   }
-  fclose(fp_cf);
-  free(datafname);
 
   // Write adaptation statistics to file
   write_adapt_to_file(fname, mode, jd, st);
-  // Print mixture parameters to file
+  // Write mixture parameters to file
   write_mix_to_file(fname, jd, sig);
+  // Write cf statistics to file
+  write_cf_to_file(fname, mode, jd, st);
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
@@ -242,6 +229,26 @@ int main(int argc, char *argv[]) {
   freeJD(jd);
 
   return EXIT_SUCCESS;
+}
+
+void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st) {
+  unsigned long fname_len = strlen(fname);
+  char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
+  sprintf(datafname, "%s_cf.data", fname);
+  FILE *fp_cf = fopen(datafname, "w");
+  free(datafname);
+  if (mode == 0) {
+    for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+      fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
+      for (int i = 0; i < st.nfitmix[model_k]; i++) {
+        fprintf(fp_cf, "%d %lf %lf %d\n", st.fitmix_Lkk[model_k][i],
+                st.fitmix_lpn[model_k][i], st.fitmix_costfnnew[model_k][i],
+                st.fitmix_annulations[model_k][i]);
+      }
+      fflush(NULL);
+    }
+  }
+  fclose(fp_cf);
 }
 
 void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st) {
@@ -805,11 +812,11 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   return EXIT_SUCCESS;
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweepr, runStats st,
+void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
                       double *sig_k, int dof, double **data) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-
   int mdim = model_dims[model_k];
+  int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
   double alphastar = 0.25;
   nsweepr += nburn;

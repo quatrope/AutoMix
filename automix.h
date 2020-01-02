@@ -115,7 +115,7 @@ void freeRunStats(runStats st, proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd, double **sig);
 
-void rwm_within_model(int k1, int *model_dims, int nsweepr, runStats st,
+void rwm_within_model(int k1, int *model_dims, int nsweep2, runStats st,
                       double *sig_k, int dof, double **data);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
