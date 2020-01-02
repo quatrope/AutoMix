@@ -129,10 +129,17 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   sprintf(datafname, "%s_cf.data", fname);
   FILE *fp_cf = fopen(datafname, "w");
-  st.autorj_annulations = (int *)malloc(5000 * sizeof(int));
-  st.autorj_costfnnew = (double *)malloc(5000 * sizeof(double));
-  st.autorj_lpn = (double *)malloc(5000 * sizeof(double));
-  st.autorj_Lkk = (int *)malloc(5000 * sizeof(int));
+  st.nfitmix = (int *)malloc(jd.nmodels * sizeof(int));
+  st.fitmix_annulations = (int **)malloc(jd.nmodels * sizeof(int *));
+  st.fitmix_costfnnew = (double **)malloc(jd.nmodels * sizeof(double *));
+  st.fitmix_lpn = (double **)malloc(jd.nmodels * sizeof(double *));
+  st.fitmix_Lkk = (int **)malloc(jd.nmodels * sizeof(int *));
+  for (int i = 0; i < jd.nmodels; i++) {
+    st.fitmix_annulations[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+    st.fitmix_costfnnew[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    st.fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    st.fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+  }
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
     int ok = read_mixture_params(fname, jd, sig);
@@ -161,11 +168,12 @@ int main(int argc, char *argv[]) {
         // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
         // Mixture fitting done component wise EM algorithm described in
         // Figueiredo and Jain, 2002 (see thesis for full reference)
-        st.nautorj = 0;
+        st.nfitmix[model_k] = 0;
         fit_mixture_from_samples(model_k, jd, data, lendata, &st);
-        for (int i = 0; i < st.nautorj; i++) {
-          fprintf(fp_cf, "%d %lf %lf %d\n", st.autorj_Lkk[i], st.autorj_lpn[i],
-                  st.autorj_costfnnew[i], st.autorj_annulations[i]);
+        for (int i = 0; i < st.nfitmix[model_k]; i++) {
+          fprintf(fp_cf, "%d %lf %lf %d\n", st.fitmix_Lkk[model_k][i],
+                  st.fitmix_lpn[model_k][i], st.fitmix_costfnnew[model_k][i],
+                  st.fitmix_annulations[model_k][i]);
         }
         fflush(NULL);
       }
@@ -179,10 +187,18 @@ int main(int argc, char *argv[]) {
   }
   fclose(fp_cf);
   free(datafname);
-  free(st.autorj_annulations);
-  free(st.autorj_costfnnew);
-  free(st.autorj_lpn);
-  free(st.autorj_Lkk);
+
+  free(st.nfitmix);
+  for (int i = 0; i < jd.nmodels; i++) {
+    free(st.fitmix_annulations[i]);
+    free(st.fitmix_costfnnew[i]);
+    free(st.fitmix_lpn[i]);
+    free(st.fitmix_Lkk[i]);
+  }
+  free(st.fitmix_annulations);
+  free(st.fitmix_costfnnew);
+  free(st.fitmix_lpn);
+  free(st.fitmix_Lkk);
 
   // Write adaptation statistics to file
   write_adapt_to_file(fname, mode, jd, st);
@@ -1172,15 +1188,16 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **data,
                     Lkk * (nparams + 1) / 2.0 - lpn;
       }
     }
-    if (count > 5000) {
+    if (count > NUM_FITMIX_MAX) {
       stop = 1;
     }
     costfn = costfnnew;
-    st->autorj_annulations[st->nautorj] = natann + forceann;
-    st->autorj_costfnnew[st->nautorj] = costfnnew;
-    st->autorj_lpn[st->nautorj] = lpn;
-    st->autorj_Lkk[st->nautorj] = Lkk;
-    st->nautorj++;
+    int nfitmix = st->nfitmix[model_k];
+    st->fitmix_annulations[model_k][nfitmix] = natann + forceann;
+    st->fitmix_costfnnew[model_k][nfitmix] = costfnnew;
+    st->fitmix_lpn[model_k][nfitmix] = lpn;
+    st->fitmix_Lkk[model_k][nfitmix] = Lkk;
+    (st->nfitmix[model_k])++;
   }
 
   for (int i = 0; i < lendata; i++) {

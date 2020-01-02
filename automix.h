@@ -41,6 +41,7 @@ be a published paper in the not too distant future.  */
 // Lkmaxmax = initial number of mixture components fitted in stage 2 of
 // AutoMix algorithm
 #define NUM_MIX_COMPS_MAX 30
+#define NUM_FITMIX_MAX 5000
 
 // C does not have a bool type but int is just as good
 typedef int bool;
@@ -96,11 +97,11 @@ typedef struct {
   int rwm_summary_len;
   double ***sig_k_rwm_summary;
   double ***nacc_ntry_rwm;
-  int nautorj;
-  int *autorj_annulations;
-  double *autorj_costfnnew;
-  double *autorj_lpn;
-  int *autorj_Lkk;
+  int *nfitmix;
+  int **fitmix_annulations;
+  double **fitmix_costfnnew;
+  double **fitmix_lpn;
+  int **fitmix_Lkk;
 } runStats;
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
