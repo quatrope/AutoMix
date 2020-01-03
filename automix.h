@@ -31,6 +31,12 @@ Users should reference the sampler as instructed on the AutoMix website
 introduces the AutoMix sampler. However, this will hopefully change to
 be a published paper in the not too distant future.  */
 
+#define AUTOMIX_MAJOR_VERSION 1
+#define AUTOMIX_MINOR_VERSION 3
+#define AUTOMIX_REVISION 0
+#define AUTOMIX_VERSION "1.3"
+#define AUTOMIX_VERSION_CHECK(maj, min) ((maj==AUTOMIX_MAJOR_VERSION) && (min<=AUTOMIX_MINOR_VERSION))
+
 // Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
 #define NMODELS_MAX 15
