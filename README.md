@@ -36,7 +36,7 @@ These functions must have names and arguments detailed below and return the foll
 
     ```int get_nmodels(void)```
 
-2. A function to load the dimension of each model in the :
+2. A function to load the dimension of each model:
 
     ```void load_model_dims(int nmodels, int *model_dims)```
 
@@ -89,14 +89,15 @@ To remove the executables and object (.o) files, type
 
 To compile the sampler for a new example, the Makefile can be edited to contain the appropriate commands (remembering to include command for compiling any dependencies) for the new program.
 
-## Runing AutoMix
+## Running AutoMix
 
 The sampler is run by typing the name of the executable, followed by run-time flags separated by spaces. The run-time flags control a number of options within the sampler. If flags are not supplied default values are used. The flags can be used in any order.
 
 The flags can be summarised as follows (I is assumed to be a positive
 integer):
 
-  - **-m D** controls the mode of the sampler. D=0 is mixture fitting;
+  - **-m D** controls the mode of the sampler.
+      - `D=0` is mixture fitting;
       - `D=1` skips stage 1 and 2 if a file containing the mixture parameters is supplied;
       - `D=2` fits AutoMix version of AutoRJ sampler (see Green, 2003 - full reference in thesis).
       - Default uses `D=0`.
