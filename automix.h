@@ -31,10 +31,6 @@ Users should reference the sampler as instructed on the AutoMix website
 introduces the AutoMix sampler. However, this will hopefully change to
 be a published paper in the not too distant future.  */
 
-#include "user.h"
-#include "utils.h"
-#include <stdio.h>
-
 // Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
 #define NMODELS_MAX 15
@@ -45,6 +41,8 @@ be a published paper in the not too distant future.  */
 
 // C does not have a bool type but int is just as good
 typedef int bool;
+#ifndef AUTOMIX_DATA_STRUCTS
+#define AUTOMIX_DATA_STRUCTS
 // Struct to hold the MCMC chain state
 typedef struct {
   bool isInitialized;
@@ -122,6 +120,7 @@ typedef struct {
   double **fitmix_lpn;
   int **fitmix_Lkk;
 } runStats;
+#endif
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
 void freeChain(chainState *aChain);

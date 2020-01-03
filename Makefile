@@ -51,34 +51,42 @@ alldebug: amtoy1d amtoy2d amcptd amcptrsd amrb9d amddid
 ###### Normal (already debugged) progs ############
 
 # Toy example 1
-amtoy1: automix.c usertoy1.o utils.o
-	$(CC) $(CFLAGS) amtoy1 automix.c usertoy1.o utils.o $(LIB)
+amtoy1: main.c automix.o logwrite.o usertoy1.o utils.o
+	$(CC) $(CFLAGS) amtoy1 main.c automix.o logwrite.o usertoy1.o utils.o $(LIB)
 
 # Toy example 2
-amtoy2: automix.c usertoy2.o utils.o
-	$(CC) $(CFLAGS) amtoy2 automix.c usertoy2.o utils.o $(LIB)
+amtoy2: main.c automix.o logwrite.o usertoy2.o utils.o
+	$(CC) $(CFLAGS) amtoy2 main.c automix.o logwrite.o usertoy2.o utils.o $(LIB)
 
 # Change point problem
-amcpt: automix.c usercpt.o utils.o
-	$(CC) $(CFLAGS) amcpt automix.c usercpt.o utils.o $(LIB)
+amcpt: main.c automix.o logwrite.o usercpt.o utils.o
+	$(CC) $(CFLAGS) amcpt main.c automix.o logwrite.o usercpt.o utils.o $(LIB)
 
 # Rescaled change point problem
-amcptrs: automix.c usercptrs.o utils.o
-	$(CC) $(CFLAGS) amcptrs automix.c usercptrs.o utils.o $(LIB)
+amcptrs: main.c automix.o logwrite.o usercptrs.o utils.o
+	$(CC) $(CFLAGS) amcptrs main.c automix.o logwrite.o usercptrs.o utils.o $(LIB)
 
 # Rb9 problem
-amrb9: automix.c userrb9.o utils.o
-	$(CC) $(CFLAGS) amrb9 automix.c userrb9.o utils.o $(LIB)
+amrb9: main.c automix.o logwrite.o userrb9.o utils.o
+	$(CC) $(CFLAGS) amrb9 main.c automix.o logwrite.o userrb9.o utils.o $(LIB)
 
 # DDI Clinical trial problem
-amddi: automix.c ddidata.h userddi.o utils.o
-	$(CC) $(CFLAGS) amddi automix.c userddi.o utils.o $(LIB)
+amddi: main.c automix.o logwrite.o ddidata.h userddi.o utils.o
+	$(CC) $(CFLAGS) amddi main.c automix.o logwrite.o userddi.o utils.o $(LIB)
 
 ### AutoMix dependencies (already debugged)
 
 # Utils
-utils.o: utils.c
+utils.o: utils.c utils.h
 	$(CC) $(DEPFLAGS) utils.c -DDOUB -DRETS
+
+# Log Write
+logwrite.o: logwrite.c logwrite.h automix.h utils.h
+	$(CC) $(DEPFLAGS) logwrite.c -DDOUB -DRETS
+
+# AutoMix
+automix.o: automix.c automix.h user.h
+	$(CC) $(DEPFLAGS) automix.c -DDOUB -DRETS
 
 ### User supplied functions (already debugged)
 
@@ -109,37 +117,46 @@ userddi.o: userddi.c
 ###### Progs to be debugged ############
 
 # Toy example 1
-amtoy1d: automix.c usertoy1d.o utilsd.o
-	$(CC) $(CFLAGSD) amtoy1d automix.c usertoy1d.o utilsd.o $(LIB)
+amtoy1d: main.c automixd.o logwrited.o usertoy1d.o utilsd.o
+	$(CC) $(CFLAGSD) amtoy1d main.c automixd.o logwrited.o usertoy1d.o utilsd.o $(LIB)
 
 # Toy example 2
-amtoy2d: automix.c usertoy2d.o utilsd.o
-	$(CC) $(CFLAGSD) amtoy2d automix.c usertoy2d.o utilsd.o $(LIB)
+amtoy2d: main.c automixd.o logwrited.o usertoy2d.o utilsd.o
+	$(CC) $(CFLAGSD) amtoy2d main.c automixd.o logwrited.o usertoy2d.o utilsd.o $(LIB)
 
 # Change point problem
-amcptd: automix.c usercptd.o utilsd.o
-	$(CC) $(CFLAGSD) amcptd automix.c usercptd.o utilsd.o $(LIB)
+amcptd: main.c automixd.o logwrited.o usercptd.o utilsd.o
+	$(CC) $(CFLAGSD) amcptd main.c automixd.o logwrited.o usercptd.o utilsd.o $(LIB)
 
 # Rescaled change point problem
-amcptrsd: automix.c usercptrsd.o utilsd.o
-	$(CC) $(CFLAGSD) amcptrsd automix.c usercptrsd.o utilsd.o $(LIB)
+amcptrsd: main.c automixd.o logwrited.o usercptrsd.o utilsd.o
+	$(CC) $(CFLAGSD) amcptrsd main.c automixd.o logwrited.o usercptrsd.o utilsd.o $(LIB)
 
 # Rb9 problem
-amrb9d: automix.c userrb9d.o utilsd.o
-	$(CC) $(CFLAGSD) amrb9d automix.c userrb9d.o utilsd.o $(LIB)
+amrb9d: main.c automixd.o logwrited.o userrb9d.o utilsd.o
+	$(CC) $(CFLAGSD) amrb9d main.c automixd.o logwrited.o userrb9d.o utilsd.o $(LIB)
 
 # DDI Clinical trial problem
-amddid: automix.c ddidata.h userddid.o utilsd.o
-	$(CC) $(CFLAGSD) amddid automix.c userddid.o utilsd.o $(LIB)
+amddid: main.c automixd.o logwrited.o ddidata.h userddid.o utilsd.o
+	$(CC) $(CFLAGSD) amddid main.c automixd.o logwrited.o userddid.o utilsd.o $(LIB)
 
 # (Old) Toy problems compiled with automix2.c program, implementing
 # adaptation through regeneration (automix2.c not included in distribution) 
 
 ### AutoMix dependencies (to be debugged)
 
-# Random number generator
-utilsd.o: utils.c
+# Utils
+utilsd.o: utils.c utils.h
 	$(CC) $(DEPFLAGSD) utils.c -DDOUB -DRETS -o utilsd.o
+
+# Log Write
+logwrited.o: logwrite.c logwrite.h automix.h utils.h
+	$(CC) $(DEPFLAGSD) logwrite.c -DDOUB -DRETS -o logwrited.o
+
+# AutoMix
+automixd.o: automix.c automix.h user.h
+	$(CC) $(DEPFLAGSD) automix.c -DDOUB -DRETS -o automixd.o
+
 
 ### User supplied functions (to be debugged)
 
