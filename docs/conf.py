@@ -23,7 +23,7 @@ copyright = '2020, David Hastie & Martin Beroiz'
 author = 'David Hastie & Martin Beroiz'
 
 # Get the version from .c file
-with open(os.path.join('..', 'automix.c'), 'r') as f:
+with open(os.path.join('..', 'main.c'), 'r') as f:
     for line in f:
         if line.startswith('#define VERSION'):
             _, _, __version__ = line.replace('"', '').split()
