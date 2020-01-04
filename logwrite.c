@@ -5,8 +5,7 @@
 #include <string.h>
 
 void write_ac_to_file(char *fname, int m, double *xr);
-void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
-                       int doperm, int nsweep2, int nsweep, proposalDist jd,
+void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch, int nsweep2, int nsweep, proposalDist jd,
                        double **sig, runStats st, double timesecs);
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
@@ -109,14 +108,13 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
   fclose(fp_theta);
 }
 
-void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
-                         int doperm, int nsweep2, int nsweep, proposalDist jd,
+void write_stats_to_file(char *fname, chainState ch, unsigned long seed, int mode, int nsweep2, int nsweep, proposalDist jd,
                          double **sig, runStats st, double timesecs) {
   write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
-  write_log_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd, sig,
+  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, sig,
                     st, timesecs);
   write_ac_to_file(fname, st.m, st.xr);
 }
@@ -165,8 +163,7 @@ void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
   fclose(fp_mix);
 }
 
-void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
-                       int doperm, int nsweep2, int nsweep, proposalDist jd,
+void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch, int nsweep2, int nsweep, proposalDist jd,
                        double **sig, runStats st, double timesecs) {
 
   // Print user options to log file
@@ -177,8 +174,8 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, int adapt,
   free(datafname);
   fprintf(fp_log, "seed: %ld\n", seed);
   fprintf(fp_log, "m: %d\n", mode);
-  fprintf(fp_log, "a: %d\n", adapt);
-  fprintf(fp_log, "p: %d\n", doperm);
+  fprintf(fp_log, "a: %d\n", ch.doAdapt);
+  fprintf(fp_log, "p: %d\n", ch.doPerm);
   fprintf(fp_log, "n: %d\n", nsweep2);
   fprintf(fp_log, "N: %d\n", nsweep);
   if (mode != 1) {

@@ -12,6 +12,9 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 
 void usage(char *invocation);
+int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
+                       int *nsweep2, unsigned long *seed, int *doperm,
+                       int *adapt, int *mode, int *dof);
 
 int main(int argc, char *argv[]) {
 
@@ -40,48 +43,10 @@ int main(int argc, char *argv[]) {
   char *fname = fname_default;
 
   // Override defaults if user supplies command line options
-  for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-f")) {
-      fname = argv[++i];
-      continue;
-    } else if (!strcmp(argv[i], "-N")) {
-      nsweep = atoi(argv[++i]);
-      continue;
-    } else if (!strcmp(argv[i], "-n")) {
-      nsweep2 = atoi(argv[++i]);
-      nsweep2 = max(nsweep2, 1E5);
-      continue;
-    } else if (!strcmp(argv[i], "-s")) {
-      seed = atoi(argv[++i]);
-      continue;
-    } else if (!strcmp(argv[i], "-p")) {
-      doperm = atoi(argv[++i]);
-      continue;
-    } else if (!strcmp(argv[i], "-m")) {
-      mode = atoi(argv[++i]);
-      if (mode > 2 || mode < 0) {
-        printf("Error: Invalid mode entered. Mode must be {0, 1, 2}.\n");
-        usage(argv[0]);
-        return EXIT_FAILURE;
-      }
-      continue;
-    } else if (!strcmp(argv[i], "-a")) {
-      adapt = atoi(argv[++i]);
-      continue;
-    } else if (!strcmp(argv[i], "-t")) {
-      dof = atoi(argv[++i]);
-      continue;
-    } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
-      usage(argv[0]);
-      return EXIT_SUCCESS;
-    } else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--version")) {
-      printf("Version %s\n", VERSION);
-      return EXIT_SUCCESS;
-    } else {
-      printf("Unrecognized argument: %s\n", argv[i]);
-      usage(argv[0]);
-      return EXIT_FAILURE;
-    }
+  int parsing = parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed,
+                                   &doperm, &adapt, &mode, &dof);
+  if (parsing == EXIT_FAILURE) {
+    return EXIT_FAILURE;
   }
   sdrni(&seed);
   int nburn = max(10000, (int)(nsweep / 10));
@@ -122,8 +87,8 @@ int main(int argc, char *argv[]) {
   rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, sig, fname);
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
-  flush_final_stats(fname, timesecs, seed, mode, adapt, doperm, nsweep, nsweep2,
-                    jd, sig, st);
+  flush_final_stats(fname, ch, timesecs, seed, mode, nsweep, nsweep2, jd, sig,
+                    st);
   freeChain(&ch);
   freeRunStats(st, jd);
   freeJD(jd);
@@ -159,4 +124,53 @@ void usage(char *invocation) {
   printf("-h, --help: Print this help and exit.");
   printf(
       "\n(c) Original code by David Hastie. Modifications by Martin Beroiz.\n");
+}
+
+int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
+                       int *nsweep2, unsigned long *seed, int *doperm,
+                       int *adapt, int *mode, int *dof) {
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "-f")) {
+      *fname = argv[++i];
+      continue;
+    } else if (!strcmp(argv[i], "-N")) {
+      *nsweep = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-n")) {
+      *nsweep2 = atoi(argv[++i]);
+      *nsweep2 = max(*nsweep2, 1E5);
+      continue;
+    } else if (!strcmp(argv[i], "-s")) {
+      *seed = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-p")) {
+      *doperm = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-m")) {
+      *mode = atoi(argv[++i]);
+      if (*mode > 2 || *mode < 0) {
+        printf("Error: Invalid mode entered. Mode must be {0, 1, 2}.\n");
+        usage(argv[0]);
+        return EXIT_FAILURE;
+      }
+      continue;
+    } else if (!strcmp(argv[i], "-a")) {
+      *adapt = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-t")) {
+      *dof = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
+      usage(argv[0]);
+      return EXIT_SUCCESS;
+    } else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--version")) {
+      printf("Version %s\n", VERSION);
+      return EXIT_SUCCESS;
+    } else {
+      printf("Unrecognized argument: %s\n", argv[i]);
+      usage(argv[0]);
+      return EXIT_FAILURE;
+    }
+  }
+  return EXIT_SUCCESS;
 }

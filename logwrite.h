@@ -1,7 +1,6 @@
 #include "automix.h"
 
-void write_stats_to_file(char *fname, unsigned long seed, int mode, int adapt,
-                         int doperm, int nsweep2, int nsweep, proposalDist jd,
+void write_stats_to_file(char *fname, chainState ch, unsigned long seed, int mode, int nsweep2, int nsweep, proposalDist jd,
                          double **sig, runStats st, double timesecs);
 void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st);
 void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);

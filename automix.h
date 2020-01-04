@@ -163,6 +163,6 @@ void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
                     int dof, runStats *st, double **sig, char *fname);
 
-void flush_final_stats(char *fname, double timesecs, unsigned long seed,
-                       int mode, int adapt, int doperm, int nsweep, int nsweep2,
+void flush_final_stats(char *fname, chainState ch, double timesecs,
+                       unsigned long seed, int mode, int nsweep, int nsweep2,
                        proposalDist jd, double **sig, runStats st);
