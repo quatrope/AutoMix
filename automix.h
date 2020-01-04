@@ -35,7 +35,8 @@ be a published paper in the not too distant future.  */
 #define AUTOMIX_MINOR_VERSION 3
 #define AUTOMIX_REVISION 0
 #define AUTOMIX_VERSION "1.3"
-#define AUTOMIX_VERSION_CHECK(maj, min) ((maj==AUTOMIX_MAJOR_VERSION) && (min<=AUTOMIX_MINOR_VERSION))
+#define AUTOMIX_VERSION_CHECK(maj, min)                                        \
+  ((maj == AUTOMIX_MAJOR_VERSION) && (min <= AUTOMIX_MINOR_VERSION))
 
 // Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
@@ -44,6 +45,8 @@ be a published paper in the not too distant future.  */
 // AutoMix algorithm
 #define NUM_MIX_COMPS_MAX 30
 #define NUM_FITMIX_MAX 5000
+
+#include <time.h>
 
 // C does not have a bool type but int is just as good
 typedef int bool;
@@ -149,3 +152,17 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, double **sig);
+
+void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
+                                runStats st, double **sig, int mode,
+                                char *fname);
+
+void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
+                       runStats *st, double **sig);
+
+void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
+                    int dof, runStats *st, double **sig, char *fname);
+
+void flush_final_stats(char *fname, double timesecs, unsigned long seed,
+                       int mode, int adapt, int doperm, int nsweep, int nsweep2,
+                       proposalDist jd, double **sig, runStats st);

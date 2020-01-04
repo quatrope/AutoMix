@@ -2,9 +2,8 @@
 #define VERSION "1.3"
 
 #include "automix.h"
-#include "logwrite.h"
 #include "utils.h"
-#include <math.h>
+//#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,44 +108,8 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   } else {
-    // Section 5.2 - Within-model runs if mixture parameters unavailable
-    for (int model_k = 0; model_k < jd.nmodels; model_k++) {
-      int mdim = jd.model_dims[model_k];
-      int nsamples = 1000 * mdim;
-      // samples holds the (sub-sampled) RWM output theta^1,...,theta^{1000 *
-      // mdim} for each model k
-      double **samples = (double **)malloc(nsamples * sizeof(*samples));
-      samples[0] = (double *)malloc(nsamples * mdim * sizeof(**samples));
-      for (int i = 1; i < nsamples; i++) {
-        samples[i] = samples[i - 1] + mdim;
-      }
-      // Section 5.2.1 - Random Walk Metropolis (RWM) Within Model
-      // Adapt within-model RWM samplers and to provide the next stage with
-      // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
-      rwm_within_model(model_k, jd.model_dims, nsweep2, st, sig[model_k], dof,
-                       samples);
-      printf("\nMixture Fitting: Model %d", model_k + 1);
-      if (mode == 0) {
-        // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
-        // Fit a Normal mixture distribution to the conditional target
-        // distributions pi(theta_k|k). See theis, p 144.
-        fit_mixture_from_samples(model_k, jd, samples, nsamples, &st);
-      }
-      if (mode == 2) {
-        //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
-        fit_autorj(model_k, jd, samples, nsamples);
-      }
-      free(samples[0]);
-      free(samples);
-    }
+    estimate_conditional_probs(jd, dof, nsweep2, st, sig, mode, fname);
   }
-
-  // Write adaptation statistics to file
-  write_adapt_to_file(fname, mode, jd, st);
-  // Write mixture parameters to file
-  write_mix_to_file(fname, jd, sig);
-  // Write cf statistics to file
-  write_cf_to_file(fname, mode, jd, st);
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
@@ -154,59 +117,14 @@ int main(int argc, char *argv[]) {
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  printf("\nBurning in");
-  ch.isBurning = 1;
-  for (int sweep = 1; sweep <= nburn; sweep++) {
-    // Every 10 sweeps to block RWM
-    ch.doBlockRWM = (sweep % 10 == 0);
-    ch.gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+  burn_main_samples(&ch, nburn, jd, dof, &st, sig);
 
-    reversible_jump_move(&ch, jd, dof, &st, sig);
-    if ((10 * sweep) % nburn == 0) {
-      printf(" .");
-      fflush(NULL);
-    }
-  }
-  printf("\n");
-
-  // Start here main sample
-  int xr_i = 0;
-  printf("Start of main sample:");
-  ch.isBurning = 0;
-  for (int sweep = 1; sweep <= nsweep; sweep++) {
-    // Every 10 sweeps to block RWM
-    ch.doBlockRWM = (sweep + nburn % 10 == 0);
-    ch.gamma_sweep = pow(1.0 / (sweep + nburn + 1), (2.0 / 3.0));
-
-    reversible_jump_move(&ch, jd, dof, &st, sig);
-
-    (st.ksummary[ch.current_model_k])++;
-    st.k_which_summary[sweep - 1] = ch.current_model_k + 1;
-    st.logp_summary[sweep - 1][0] = ch.log_posterior;
-    st.logp_summary[sweep - 1][1] = ch.log_likelihood;
-    for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      st.pk_summary[sweep - 1][k1] = ch.pk[k1];
-    }
-    write_theta_to_file(fname, ch.current_model_k, ch.mdim, ch.theta);
-
-    if (sweep > st.keep && ((sweep - st.keep) % st.nsokal == 0)) {
-      st.xr[xr_i++] = ch.current_model_k;
-    }
-    // Print what's below about 10 times
-    if (sweep % (nsweep / 10) == 0) {
-      printf("\nNo. of iterations remaining: %d", nsweep - sweep);
-    }
-    fflush(NULL);
-  }
-  printf("\n");
-  freeChain(&ch);
-
+  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, sig, fname);
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
-
-  // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, seed, mode, adapt, doperm, nsweep2, nsweep, jd,
-                      sig, st, timesecs);
+  flush_final_stats(fname, timesecs, seed, mode, adapt, doperm, nsweep, nsweep2,
+                    jd, sig, st);
+  freeChain(&ch);
   freeRunStats(st, jd);
   freeJD(jd);
 
