@@ -14,7 +14,9 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, char *fname) {
+                    int dof, runStats *st, char *fname, unsigned long seed,
+                    int mode, int nsweep2) {
+  clock_t starttime = clock();
   // Start here main sample
   int xr_i = 0;
   printf("Start of main sample:");
@@ -45,18 +47,15 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     fflush(NULL);
   }
   printf("\n");
-}
-
-void flush_final_stats(char *fname, chainState ch, double timesecs,
-                       unsigned long seed, int mode, int nsweep, int nsweep2,
-                       proposalDist jd, runStats st) {
-
+  clock_t endtime = clock();
+  st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, st, timesecs);
+  write_stats_to_file(fname, *ch, seed, mode, nsweep2, nsweep, jd, *st);
 }
 
 void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                        runStats *st) {
+  clock_t starttime = clock();
   printf("\nBurning in");
   ch->isBurning = 1;
   for (int sweep = 1; sweep <= nburn; sweep++) {
@@ -71,10 +70,13 @@ void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
     }
   }
   printf("\n");
+  clock_t endtime = clock();
+  st->timesecs_burn = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats st, int mode, char *fname) {
+                                runStats *st, int mode, char *fname) {
+  clock_t starttime = clock();
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
@@ -89,14 +91,14 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     // Section 5.2.1 - Random Walk Metropolis (RWM) Within Model
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
-    rwm_within_model(model_k, jd.model_dims, nsweep2, st, jd.sig[model_k], dof,
+    rwm_within_model(model_k, jd.model_dims, nsweep2, *st, jd.sig[model_k], dof,
                      samples);
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (mode == 0) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
       // distributions pi(theta_k|k). See theis, p 144.
-      fit_mixture_from_samples(model_k, jd, samples, nsamples, &st);
+      fit_mixture_from_samples(model_k, jd, samples, nsamples, st);
     }
     if (mode == 2) {
       //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -106,11 +108,13 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     free(samples);
   }
   // Write adaptation statistics to file
-  write_adapt_to_file(fname, mode, jd, st);
+  write_adapt_to_file(fname, mode, jd, *st);
   // Write mixture parameters to file
   write_mix_to_file(fname, jd);
   // Write cf statistics to file
-  write_cf_to_file(fname, mode, jd, st);
+  write_cf_to_file(fname, mode, jd, *st);
+  clock_t endtime = clock();
+  st->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
 void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,

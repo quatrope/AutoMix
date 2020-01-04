@@ -130,6 +130,9 @@ typedef struct {
   double **fitmix_costfnnew;
   double **fitmix_lpn;
   int **fitmix_Lkk;
+  double timesecs_condprobs;
+  double timesecs_rjmcmc;
+  double timesecs_burn;
 } runStats;
 #endif
 
@@ -156,13 +159,14 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st);
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats st, int mode, char *fname);
+                                runStats *st, int mode, char *fname);
 
 void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                        runStats *st);
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, char *fname);
+                    int dof, runStats *st, char *fname, unsigned long seed,
+                    int mode, int nsweep2);
 
 void flush_final_stats(char *fname, chainState ch, double timesecs,
                        unsigned long seed, int mode, int nsweep, int nsweep2,

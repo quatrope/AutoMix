@@ -6,8 +6,7 @@
 
 void write_ac_to_file(char *fname, int m, double *xr);
 void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
-                       int nsweep2, int nsweep, proposalDist jd, runStats st,
-                       double timesecs);
+                       int nsweep2, int nsweep, proposalDist jd, runStats st);
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
@@ -111,12 +110,12 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
 
 void write_stats_to_file(char *fname, chainState ch, unsigned long seed,
                          int mode, int nsweep2, int nsweep, proposalDist jd,
-                         runStats st, double timesecs) {
+                         runStats st) {
   write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
-  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, st, timesecs);
+  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, st);
   write_ac_to_file(fname, st.m, st.xr);
 }
 
@@ -165,8 +164,7 @@ void write_mix_to_file(char *fname, proposalDist jd) {
 }
 
 void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
-                       int nsweep2, int nsweep, proposalDist jd, runStats st,
-                       double timesecs) {
+                       int nsweep2, int nsweep, proposalDist jd, runStats st) {
 
   // Print user options to log file
   unsigned long fname_len = strlen(fname);
@@ -226,6 +224,8 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
           (double)st.naccrwms / (double)st.ntryrwms);
   fprintf(fp_log, "Auto RJ: %lf\n", (double)st.nacctd / (double)st.ntrytd);
   fprintf(fp_log, "\nRun time:\n");
+  double timesecs =
+      st.timesecs_condprobs + st.timesecs_burn + st.timesecs_rjmcmc;
   fprintf(fp_log, "Time: %lf\n", timesecs);
   fclose(fp_log);
 }

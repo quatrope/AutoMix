@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   } else {
-    estimate_conditional_probs(jd, dof, nsweep2, st, mode, fname);
+    estimate_conditional_probs(jd, dof, nsweep2, &st, mode, fname);
   }
 
   // Initialization of the MC Markov Chain parameters
@@ -76,14 +76,15 @@ int main(int argc, char *argv[]) {
   // Burn some samples first
   burn_main_samples(&ch, nburn, jd, dof, &st);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname);
+  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2);
 
-  clock_t endtime = clock();
-  double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
-  flush_final_stats(fname, ch, timesecs, seed, mode, nsweep, nsweep2, jd, st);
   freeChain(&ch);
   freeRunStats(st, jd);
   freeJD(jd);
+
+  clock_t endtime = clock();
+  double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
+  printf("Total time elapsed: %f sec.\n", timesecs);
 
   return EXIT_SUCCESS;
 }
