@@ -14,7 +14,7 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, double **sig, char *fname) {
+                    int dof, runStats *st, char *fname) {
   // Start here main sample
   int xr_i = 0;
   printf("Start of main sample:");
@@ -24,7 +24,7 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     ch->doBlockRWM = (sweep + nburn % 10 == 0);
     ch->gamma_sweep = pow(1.0 / (sweep + nburn + 1), (2.0 / 3.0));
 
-    reversible_jump_move(ch, jd, dof, st, sig);
+    reversible_jump_move(ch, jd, dof, st);
 
     (st->ksummary[ch->current_model_k])++;
     st->k_which_summary[sweep - 1] = ch->current_model_k + 1;
@@ -49,15 +49,14 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
 
 void flush_final_stats(char *fname, chainState ch, double timesecs,
                        unsigned long seed, int mode, int nsweep, int nsweep2,
-                       proposalDist jd, double **sig, runStats st) {
+                       proposalDist jd, runStats st) {
 
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, sig, st,
-                      timesecs);
+  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, st, timesecs);
 }
 
 void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                       runStats *st, double **sig) {
+                       runStats *st) {
   printf("\nBurning in");
   ch->isBurning = 1;
   for (int sweep = 1; sweep <= nburn; sweep++) {
@@ -65,7 +64,7 @@ void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
     ch->doBlockRWM = (sweep % 10 == 0);
     ch->gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(ch, jd, dof, st, sig);
+    reversible_jump_move(ch, jd, dof, st);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -75,8 +74,7 @@ void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 }
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats st, double **sig, int mode,
-                                char *fname) {
+                                runStats st, int mode, char *fname) {
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
@@ -91,7 +89,7 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     // Section 5.2.1 - Random Walk Metropolis (RWM) Within Model
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
-    rwm_within_model(model_k, jd.model_dims, nsweep2, st, sig[model_k], dof,
+    rwm_within_model(model_k, jd.model_dims, nsweep2, st, jd.sig[model_k], dof,
                      samples);
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (mode == 0) {
@@ -110,7 +108,7 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
   // Write adaptation statistics to file
   write_adapt_to_file(fname, mode, jd, st);
   // Write mixture parameters to file
-  write_mix_to_file(fname, jd, sig);
+  write_mix_to_file(fname, jd);
   // Write cf statistics to file
   write_cf_to_file(fname, mode, jd, st);
 }
@@ -350,6 +348,12 @@ int allocJD(proposalDist *jd) {
       }
     }
   }
+  jd->sig = (double **)malloc(jd->nmodels * sizeof(double *));
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim = jd->model_dims[k];
+    jd->sig[k] = (double *)malloc(mdim * sizeof(double));
+  }
+
   return EXIT_SUCCESS;
 }
 
@@ -397,7 +401,7 @@ void freeJD(proposalDist jd) {
   }
 }
 
-int read_mixture_params(char *fname, proposalDist jd, double **sig) {
+int read_mixture_params(char *fname, proposalDist jd) {
   // Check user has supplied mixture parameters if trying to use mode 1.
   // If not, abort and exit.
   char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
@@ -431,7 +435,7 @@ int read_mixture_params(char *fname, proposalDist jd, double **sig) {
   for (int k = 0; k < jd.nmodels; k++) {
     int mdim = jd.model_dims[k];
     for (int l = 0; l < mdim; l++) {
-      if (fscanf(fpmix, "%lf", &(sig[k][l])) == EOF) {
+      if (fscanf(fpmix, "%lf", &(jd.sig[k][l])) == EOF) {
         printf("\nEnd of file encountered before parameters read:");
         return EXIT_FAILURE;
       }
@@ -955,7 +959,7 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples) {
 }
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st, double **sig) {
+                          runStats *st) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -978,7 +982,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     (st->ntryrwmb)++;
     rt(Znkk, ch->mdim, dof);
     for (int i = 0; i < ch->mdim; i++) {
-      thetan[i] = theta[i] + sig[ch->current_model_k][i] * Znkk[i];
+      thetan[i] = theta[i] + jd.sig[ch->current_model_k][i] * Znkk[i];
     }
     double lpn, llhn;
     logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
@@ -995,7 +999,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
       (st->ntryrwms)++;
       double Z;
       rt(&Z, 1, dof);
-      thetan[j1] = theta[j1] + sig[ch->current_model_k][j1] * Z;
+      thetan[j1] = theta[j1] + jd.sig[ch->current_model_k][j1] * Z;
       double lpn, llhn;
       logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {

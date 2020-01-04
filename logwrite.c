@@ -5,8 +5,9 @@
 #include <string.h>
 
 void write_ac_to_file(char *fname, int m, double *xr);
-void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, runStats st, double timesecs);
+void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
+                       int nsweep2, int nsweep, proposalDist jd, runStats st,
+                       double timesecs);
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
@@ -108,14 +109,14 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
   fclose(fp_theta);
 }
 
-void write_stats_to_file(char *fname, chainState ch, unsigned long seed, int mode, int nsweep2, int nsweep, proposalDist jd,
-                         double **sig, runStats st, double timesecs) {
+void write_stats_to_file(char *fname, chainState ch, unsigned long seed,
+                         int mode, int nsweep2, int nsweep, proposalDist jd,
+                         runStats st, double timesecs) {
   write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
-  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, sig,
-                    st, timesecs);
+  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, st, timesecs);
   write_ac_to_file(fname, st.m, st.xr);
 }
 
@@ -131,7 +132,7 @@ void write_ac_to_file(char *fname, int m, double *xr) {
   fclose(fp_ac);
 }
 
-void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
+void write_mix_to_file(char *fname, proposalDist jd) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_mix.data", fname);
@@ -145,7 +146,7 @@ void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
     int Lkk = jd.nMixComps[k1];
     int mdim = jd.model_dims[k1];
     for (int j1 = 0; j1 < mdim; j1++) {
-      fprintf(fp_mix, "%lf\n", sig[k1][j1]);
+      fprintf(fp_mix, "%lf\n", jd.sig[k1][j1]);
     }
     fprintf(fp_mix, "%d\n", Lkk);
     for (int l1 = 0; l1 < Lkk; l1++) {
@@ -163,8 +164,9 @@ void write_mix_to_file(char *fname, proposalDist jd, double **sig) {
   fclose(fp_mix);
 }
 
-void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch, int nsweep2, int nsweep, proposalDist jd,
-                       double **sig, runStats st, double timesecs) {
+void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
+                       int nsweep2, int nsweep, proposalDist jd, runStats st,
+                       double timesecs) {
 
   // Print user options to log file
   unsigned long fname_len = strlen(fname);
@@ -189,7 +191,7 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
     int mdim = jd.model_dims[k1];
     fprintf(fp_log, "\nARW params:\n");
     for (int j1 = 0; j1 < mdim; j1++) {
-      fprintf(fp_log, "%lf ", sig[k1][j1]);
+      fprintf(fp_log, "%lf ", jd.sig[k1][j1]);
     }
     fprintf(fp_log, "\n");
     fprintf(fp_log, "\nLkk:%d\n", Lkk);

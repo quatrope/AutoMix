@@ -3,7 +3,6 @@
 
 #include "automix.h"
 #include "utils.h"
-//#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,22 +57,15 @@ int main(int argc, char *argv[]) {
   runStats st;
   initializeRunStats(&st, nsweep, nsweep2, nburn, jd);
 
-  // vector of adapted RWM scale parameters for each model k
-  double **sig = (double **)malloc(jd.nmodels * sizeof(double *));
-  for (int k = 0; k < jd.nmodels; k++) {
-    int mdim = jd.model_dims[k];
-    sig[k] = (double *)malloc(mdim * sizeof(double));
-  }
-
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
-    int ok = read_mixture_params(fname, jd, sig);
+    int ok = read_mixture_params(fname, jd);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
   } else {
-    estimate_conditional_probs(jd, dof, nsweep2, st, sig, mode, fname);
+    estimate_conditional_probs(jd, dof, nsweep2, st, mode, fname);
   }
 
   // Initialization of the MC Markov Chain parameters
@@ -82,13 +74,13 @@ int main(int argc, char *argv[]) {
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_main_samples(&ch, nburn, jd, dof, &st, sig);
+  burn_main_samples(&ch, nburn, jd, dof, &st);
+  // Collect nsweep RJMCMC samples
+  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname);
 
-  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, sig, fname);
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
-  flush_final_stats(fname, ch, timesecs, seed, mode, nsweep, nsweep2, jd, sig,
-                    st);
+  flush_final_stats(fname, ch, timesecs, seed, mode, nsweep, nsweep2, jd, st);
   freeChain(&ch);
   freeRunStats(st, jd);
   freeJD(jd);

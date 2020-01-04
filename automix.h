@@ -91,6 +91,8 @@ typedef struct {
   // B[i][j][k][m] is the k,m index of the B matrix for mixture component j of
   // model M_i.
   double ****B;
+  // vector of adapted RWM scale parameters for each model
+  double **sig;
   bool isInitialized;
   bool isAllocated;
 } proposalDist;
@@ -140,7 +142,7 @@ void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
                         proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 
-int read_mixture_params(char *fname, proposalDist jd, double **sig);
+int read_mixture_params(char *fname, proposalDist jd);
 
 void rwm_within_model(int k1, int *model_dims, int nsweep2, runStats st,
                       double *sig_k, int dof, double **samples);
@@ -151,18 +153,17 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st, double **sig);
+                          runStats *st);
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats st, double **sig, int mode,
-                                char *fname);
+                                runStats st, int mode, char *fname);
 
 void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                       runStats *st, double **sig);
+                       runStats *st);
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, double **sig, char *fname);
+                    int dof, runStats *st, char *fname);
 
 void flush_final_stats(char *fname, chainState ch, double timesecs,
                        unsigned long seed, int mode, int nsweep, int nsweep2,
-                       proposalDist jd, double **sig, runStats st);
+                       proposalDist jd, runStats st);
