@@ -5,15 +5,16 @@ compiler:
   - gcc
 
 script:
-  - make all
+  - make
   - ./amtoy1
-  - ./amtoy1 -m 1
-  - ./amtoy2
-  - ./amtoy2 -m 1
+  - test -f output_mix.data
+  - ./amtoy1 -m 1 -N 1000
+  - ./amtoy2 -f myout
+  - test -f myout_mix.data
+  - ./amtoy2 -m 1 -f myout -N 1000
   - make clean
-  - rm output_*.data
-  - make alldebug
-  - ./amtoy1d
-  - ./amtoy1d -m 1
-  - ./amtoy2d
-  - ./amtoy2d -m 1
+  - rm output_*.data myout*.data
+  - make DEBUG=1
+  - ./amtoy1 -N 1000
+  - test -f output_mix.data
+  - make clean
