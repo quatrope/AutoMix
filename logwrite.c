@@ -99,7 +99,7 @@ void write_theta_to_file(char *fname, int current_model_k, int mdim,
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_theta%d.data", fname, current_model_k + 1);
-  FILE *fp_theta = fopen(datafname, "w");
+  FILE *fp_theta = fopen(datafname, "a");
   free(datafname);
   for (int j1 = 0; j1 < mdim; j1++) {
     fprintf(fp_theta, "%lf ", theta[j1]);
