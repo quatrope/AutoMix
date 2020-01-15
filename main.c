@@ -65,9 +65,6 @@ int main(int argc, char *argv[]) {
   load_model_dims(nmodels, model_dims);
   proposalDist jd;
   initProposalDist(&jd, nmodels, model_dims);
-  // Struct to hold run statistic variables
-  runStats st;
-  initRunStats(&st, nsweep, nsweep2, nburn, jd);
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
@@ -88,6 +85,9 @@ int main(int argc, char *argv[]) {
   // Initialization of the MC Markov Chain parameters
   chainState ch;
   initChain(&ch, jd, adapt, logposterior, get_rwm_init);
+  // Struct to hold run statistic variables
+  runStats st;
+  initRunStats(&st, nsweep, nsweep2, nburn, jd);
 
   // -----Start of main loop ----------------
   // Burn some samples first
