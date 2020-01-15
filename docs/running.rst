@@ -14,10 +14,10 @@ Command-line Arguments
 The flags can be summarised as follows (I is assumed to be a positive integer):
 
   - **-m D** controls the mode of the sampler.
-      - `D=0` is mixture fitting;
-      - `D=1` skips stage 1 and 2 if a file containing the mixture parameters is supplied;
-      - `D=2` fits AutoMix version of AutoRJ sampler (see Green, 2003 - full reference in thesis).
-      - Default uses `D=0`.
+  `D=0` is mixture fitting;
+  `D=1` skips stage 1 and 2 if a file containing the mixture parameters is supplied;
+  `D=2` fits AutoMix version of AutoRJ sampler (see Green, 2003 - full reference in thesis).
+  Default uses `D=0`.
   - **-n I** run the sampler for `max(I,nkk*10000,100000)` iterations in the stage 1 RWM for each model k. (Default uses I=100000)
   - **-N I** run the sampler for I Reversible jump iterations in stage 3. (Default uses I=100000).
   - **-s I** initialises the random number generator with seed I. (Default uses clock as seed).
