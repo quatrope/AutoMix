@@ -16,6 +16,7 @@ void write_cf_to_file(char *fname, int mode, proposalDist jd,
 void write_adapt_to_file(char *fname, int mode, proposalDist jd,
                          condProbStats cpstats);
 void write_mix_to_file(char *fname, proposalDist jd);
+void write_theta_to_file(char *fname, runStats st, proposalDist jd);
 
 void report_cond_prob_estimation(char *fname, int mode, proposalDist jd,
                                  condProbStats cpstats) {
@@ -113,18 +114,24 @@ void write_pk_to_file(char *fname, int nsweep, int nmodels,
   fclose(fp_pk);
 }
 
-void write_theta_to_file(char *fname, int current_model_k, int mdim,
-                         double *theta) {
+void write_theta_to_file(char *fname, runStats st, proposalDist jd) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
-  sprintf(datafname, "%s_theta%d.data", fname, current_model_k + 1);
-  FILE *fp_theta = fopen(datafname, "a");
-  free(datafname);
-  for (int j1 = 0; j1 < mdim; j1++) {
-    fprintf(fp_theta, "%lf ", theta[j1]);
+  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    sprintf(datafname, "%s_theta%d.data", fname, model_k + 1);
+    FILE *fp_theta = fopen(datafname, "a");
+    int sample_len = st.theta_summary_len[model_k];
+    int mdim = jd.model_dims[model_k];
+    for (int sample_i = 0; sample_i < sample_len; sample_i++) {
+      double *theta = st.theta_summary[model_k][sample_i];
+      for (int j = 0; j < mdim; j++) {
+        fprintf(fp_theta, "%lf ", theta[j]);
+      }
+      fprintf(fp_theta, "\n");
+    }
+    fclose(fp_theta);
   }
-  fprintf(fp_theta, "\n");
-  fclose(fp_theta);
+  free(datafname);
 }
 
 void write_stats_to_file(char *fname, chainState ch, unsigned long seed,
@@ -136,6 +143,7 @@ void write_stats_to_file(char *fname, chainState ch, unsigned long seed,
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
   write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, st);
   write_ac_to_file(fname, st.m, st.xr);
+  write_theta_to_file(fname, st, jd);
 }
 
 void write_ac_to_file(char *fname, int m, double *xr) {

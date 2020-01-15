@@ -2,7 +2,6 @@
 // See automix.h for full license and credits.
 
 #include "automix.h"
-#include "logwrite.h"
 #include "utils.h"
 #include <math.h>
 #include <stdio.h>
@@ -39,7 +38,6 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
       theta_k_i[i] = ch->theta[i];
     }
     (st->theta_summary_len[ch->current_model_k])++;
-    write_theta_to_file(fname, ch->current_model_k, ch->mdim, ch->theta);
 
     if (sweep > st->keep && ((sweep - st->keep) % st->nsokal == 0)) {
       st->xr[xr_i++] = ch->current_model_k;
