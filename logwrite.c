@@ -11,21 +11,24 @@ void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
 void write_lp_to_file(char *fname, int nsweep, double **logp_summary);
-void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st);
-void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);
+void write_cf_to_file(char *fname, int mode, proposalDist jd,
+                      condProbStats cpstats);
+void write_adapt_to_file(char *fname, int mode, proposalDist jd,
+                         condProbStats cpstats);
 void write_mix_to_file(char *fname, proposalDist jd);
 
 void report_cond_prob_estimation(char *fname, int mode, proposalDist jd,
-                                 runStats st) {
+                                 condProbStats cpstats) {
   // Write adaptation statistics to file
-  write_adapt_to_file(fname, mode, jd, st);
+  write_adapt_to_file(fname, mode, jd, cpstats);
   // Write mixture parameters to file
   write_mix_to_file(fname, jd);
   // Write cf statistics to file
-  write_cf_to_file(fname, mode, jd, st);
+  write_cf_to_file(fname, mode, jd, cpstats);
 }
 
-void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st) {
+void write_cf_to_file(char *fname, int mode, proposalDist jd,
+                      condProbStats cpstats) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_cf.data", fname);
@@ -34,10 +37,11 @@ void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st) {
   if (mode == 0) {
     for (int model_k = 0; model_k < jd.nmodels; model_k++) {
       fprintf(fp_cf, "RWM for Model %d\n", model_k + 1);
-      for (int i = 0; i < st.nfitmix[model_k]; i++) {
-        fprintf(fp_cf, "%d %lf %lf %d\n", st.fitmix_Lkk[model_k][i],
-                st.fitmix_lpn[model_k][i], st.fitmix_costfnnew[model_k][i],
-                st.fitmix_annulations[model_k][i]);
+      for (int i = 0; i < cpstats.nfitmix[model_k]; i++) {
+        fprintf(fp_cf, "%d %lf %lf %d\n", cpstats.fitmix_Lkk[model_k][i],
+                cpstats.fitmix_lpn[model_k][i],
+                cpstats.fitmix_costfnnew[model_k][i],
+                cpstats.fitmix_annulations[model_k][i]);
       }
       fflush(NULL);
     }
@@ -45,7 +49,8 @@ void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st) {
   fclose(fp_cf);
 }
 
-void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st) {
+void write_adapt_to_file(char *fname, int mode, proposalDist jd,
+                         condProbStats cpstats) {
   unsigned long fname_len = strlen(fname);
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   sprintf(datafname, "%s_adapt.data", fname);
@@ -55,10 +60,11 @@ void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st) {
     for (int model_k = 0; model_k < jd.nmodels; model_k++) {
       int mdim = jd.model_dims[model_k];
       fprintf(fp_adapt, "RWM for Model %d\n", model_k + 1);
-      for (int j = 0; j < st.rwm_summary_len; j++) {
+      for (int j = 0; j < cpstats.rwm_summary_len; j++) {
         for (int i = 0; i < mdim; i++) {
-          fprintf(fp_adapt, "%lf %lf ", st.sig_k_rwm_summary[model_k][j][i],
-                  st.nacc_ntry_rwm[model_k][j][i]);
+          fprintf(fp_adapt, "%lf %lf ",
+                  cpstats.sig_k_rwm_summary[model_k][j][i],
+                  cpstats.nacc_ntry_rwm[model_k][j][i]);
         }
         fprintf(fp_adapt, "\n");
       }
@@ -237,8 +243,7 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
           (double)st.naccrwms / (double)st.ntryrwms);
   fprintf(fp_log, "Auto RJ: %lf\n", (double)st.nacctd / (double)st.ntrytd);
   fprintf(fp_log, "\nRun time:\n");
-  double timesecs =
-      st.timesecs_condprobs + st.timesecs_burn + st.timesecs_rjmcmc;
+  double timesecs = st.timesecs_burn + st.timesecs_rjmcmc;
   fprintf(fp_log, "Time: %lf\n", timesecs);
   fclose(fp_log);
 }

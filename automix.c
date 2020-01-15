@@ -71,7 +71,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 }
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats *st, int mode, char *fname,
+                                condProbStats *cpstats, int mode, char *fname,
                                 targetFunc logpost, rwmInitFunc initRWM) {
   clock_t starttime = clock();
   // Section 5.2 - Within-model runs if mixture parameters unavailable
@@ -88,14 +88,14 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     // Section 5.2.1 - Random Walk Metropolis (RWM) Within Model
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
-    rwm_within_model(model_k, jd.model_dims, nsweep2, *st, jd.sig[model_k], dof,
-                     samples, logpost, initRWM);
+    rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
+                     dof, samples, logpost, initRWM);
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (mode == 0) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
       // distributions pi(theta_k|k). See theis, p 144.
-      fit_mixture_from_samples(model_k, jd, samples, nsamples, st);
+      fit_mixture_from_samples(model_k, jd, samples, nsamples, cpstats);
     }
     if (mode == 2) {
       //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -105,7 +105,102 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     free(samples);
   }
   clock_t endtime = clock();
-  st->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
+  cpstats->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
+}
+
+int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
+
+  cpstats->sig_k_rwm_summary =
+      (double ***)malloc(jd.nmodels * sizeof(double **));
+  cpstats->nacc_ntry_rwm = (double ***)malloc(jd.nmodels * sizeof(double **));
+  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    int mdim = jd.model_dims[model_k];
+    int nsweepr = max(nsweeps2, 10000 * mdim);
+    int nburn = nsweepr / 10;
+    cpstats->rwm_summary_len = max(1, (nsweepr + nburn) / 100);
+    cpstats->sig_k_rwm_summary[model_k] =
+        (double **)malloc(cpstats->rwm_summary_len * sizeof(double *));
+    cpstats->sig_k_rwm_summary[model_k][0] =
+        (double *)malloc(cpstats->rwm_summary_len * mdim * sizeof(double));
+    for (int i = 1; i < cpstats->rwm_summary_len; i++) {
+      cpstats->sig_k_rwm_summary[model_k][i] =
+          cpstats->sig_k_rwm_summary[model_k][i - 1] + mdim;
+    }
+    cpstats->nacc_ntry_rwm[model_k] =
+        (double **)malloc(cpstats->rwm_summary_len * sizeof(double *));
+    cpstats->nacc_ntry_rwm[model_k][0] =
+        (double *)malloc(cpstats->rwm_summary_len * mdim * sizeof(double));
+    for (int i = 1; i < cpstats->rwm_summary_len; i++) {
+      cpstats->nacc_ntry_rwm[model_k][i] =
+          cpstats->nacc_ntry_rwm[model_k][i - 1] + mdim;
+    }
+  }
+  cpstats->nfitmix = (int *)calloc(jd.nmodels, sizeof(int));
+  cpstats->fitmix_annulations = (int **)malloc(jd.nmodels * sizeof(int *));
+  cpstats->fitmix_costfnnew = (double **)malloc(jd.nmodels * sizeof(double *));
+  cpstats->fitmix_lpn = (double **)malloc(jd.nmodels * sizeof(double *));
+  cpstats->fitmix_Lkk = (int **)malloc(jd.nmodels * sizeof(int *));
+  for (int i = 0; i < jd.nmodels; i++) {
+    cpstats->fitmix_annulations[i] =
+        (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+    cpstats->fitmix_costfnnew[i] =
+        (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    cpstats->fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
+    cpstats->fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
+  }
+  return EXIT_SUCCESS;
+}
+
+void freeCondProbStats(condProbStats cpstats, proposalDist jd) {
+  if (cpstats.sig_k_rwm_summary != NULL) {
+    for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+      if (cpstats.sig_k_rwm_summary[model_k][0] != NULL) {
+        free(cpstats.sig_k_rwm_summary[model_k][0]);
+      }
+      if (cpstats.sig_k_rwm_summary[model_k] != NULL) {
+        free(cpstats.sig_k_rwm_summary[model_k]);
+      }
+      if (cpstats.nacc_ntry_rwm[model_k][0] != NULL) {
+        free(cpstats.nacc_ntry_rwm[model_k][0]);
+      }
+      if (cpstats.nacc_ntry_rwm[model_k] != NULL) {
+        free(cpstats.nacc_ntry_rwm[model_k]);
+      }
+    }
+    free(cpstats.sig_k_rwm_summary);
+  }
+  if (cpstats.nacc_ntry_rwm != NULL) {
+    free(cpstats.nacc_ntry_rwm);
+  }
+  if (cpstats.nfitmix != NULL) {
+    free(cpstats.nfitmix);
+  }
+  if (cpstats.fitmix_annulations != NULL) {
+    for (int i = 0; i < jd.nmodels; i++) {
+      if (cpstats.fitmix_annulations[i] != NULL) {
+        free(cpstats.fitmix_annulations[i]);
+      }
+      if (cpstats.fitmix_costfnnew[i] != NULL) {
+        free(cpstats.fitmix_costfnnew[i]);
+      }
+      if (cpstats.fitmix_lpn[i] != NULL) {
+        free(cpstats.fitmix_lpn[i]);
+      }
+      if (cpstats.fitmix_Lkk[i] != NULL) {
+        free(cpstats.fitmix_Lkk[i]);
+      }
+    }
+    free(cpstats.fitmix_annulations);
+  }
+  if (cpstats.fitmix_costfnnew != NULL) {
+    free(cpstats.fitmix_costfnnew);
+  }
+  if (cpstats.fitmix_lpn != NULL) {
+    free(cpstats.fitmix_lpn);
+  }
+  if (cpstats.fitmix_Lkk != NULL) {
+    free(cpstats.fitmix_Lkk);
+  }
 }
 
 void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
@@ -133,39 +228,6 @@ void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
   for (int i = 1; i < nsweep; i++) {
     st->logp_summary[i] = st->logp_summary[i - 1] + 2;
   }
-  st->sig_k_rwm_summary = (double ***)malloc(jd.nmodels * sizeof(double **));
-  st->nacc_ntry_rwm = (double ***)malloc(jd.nmodels * sizeof(double **));
-  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
-    int mdim = jd.model_dims[model_k];
-    int nsweepr = max(nsweep2, 10000 * mdim);
-    st->rwm_summary_len = max(1, (nsweepr + nburn) / 100);
-    st->sig_k_rwm_summary[model_k] =
-        (double **)malloc(st->rwm_summary_len * sizeof(double *));
-    st->sig_k_rwm_summary[model_k][0] =
-        (double *)malloc(st->rwm_summary_len * mdim * sizeof(double));
-    for (int i = 1; i < st->rwm_summary_len; i++) {
-      st->sig_k_rwm_summary[model_k][i] =
-          st->sig_k_rwm_summary[model_k][i - 1] + mdim;
-    }
-    st->nacc_ntry_rwm[model_k] =
-        (double **)malloc(st->rwm_summary_len * sizeof(double *));
-    st->nacc_ntry_rwm[model_k][0] =
-        (double *)malloc(st->rwm_summary_len * mdim * sizeof(double));
-    for (int i = 1; i < st->rwm_summary_len; i++) {
-      st->nacc_ntry_rwm[model_k][i] = st->nacc_ntry_rwm[model_k][i - 1] + mdim;
-    }
-  }
-  st->nfitmix = (int *)calloc(jd.nmodels, sizeof(int));
-  st->fitmix_annulations = (int **)malloc(jd.nmodels * sizeof(int *));
-  st->fitmix_costfnnew = (double **)malloc(jd.nmodels * sizeof(double *));
-  st->fitmix_lpn = (double **)malloc(jd.nmodels * sizeof(double *));
-  st->fitmix_Lkk = (int **)malloc(jd.nmodels * sizeof(int *));
-  for (int i = 0; i < jd.nmodels; i++) {
-    st->fitmix_annulations[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
-    st->fitmix_costfnnew[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
-    st->fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
-    st->fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
-  }
 }
 
 void freeRunStats(runStats st, proposalDist jd) {
@@ -189,55 +251,6 @@ void freeRunStats(runStats st, proposalDist jd) {
   }
   if (st.logp_summary != NULL) {
     free(st.logp_summary);
-  }
-  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
-    if (st.sig_k_rwm_summary[model_k][0] != NULL) {
-      free(st.sig_k_rwm_summary[model_k][0]);
-    }
-    if (st.sig_k_rwm_summary[model_k] != NULL) {
-      free(st.sig_k_rwm_summary[model_k]);
-    }
-    if (st.nacc_ntry_rwm[model_k][0] != NULL) {
-      free(st.nacc_ntry_rwm[model_k][0]);
-    }
-    if (st.nacc_ntry_rwm[model_k] != NULL) {
-      free(st.nacc_ntry_rwm[model_k]);
-    }
-  }
-  if (st.sig_k_rwm_summary != NULL) {
-    free(st.sig_k_rwm_summary);
-  }
-  if (st.nacc_ntry_rwm != NULL) {
-    free(st.nacc_ntry_rwm);
-  }
-  if (st.nfitmix != NULL) {
-    free(st.nfitmix);
-  }
-  for (int i = 0; i < jd.nmodels; i++) {
-    if (st.fitmix_annulations[i] != NULL) {
-      free(st.fitmix_annulations[i]);
-    }
-    if (st.fitmix_costfnnew[i] != NULL) {
-      free(st.fitmix_costfnnew[i]);
-    }
-    if (st.fitmix_lpn[i] != NULL) {
-      free(st.fitmix_lpn[i]);
-    }
-    if (st.fitmix_Lkk[i] != NULL) {
-      free(st.fitmix_Lkk[i]);
-    }
-  }
-  if (st.fitmix_annulations != NULL) {
-    free(st.fitmix_annulations);
-  }
-  if (st.fitmix_costfnnew != NULL) {
-    free(st.fitmix_costfnnew);
-  }
-  if (st.fitmix_lpn != NULL) {
-    free(st.fitmix_lpn);
-  }
-  if (st.fitmix_Lkk != NULL) {
-    free(st.fitmix_Lkk);
   }
 }
 
@@ -477,9 +490,10 @@ int read_mixture_params(char *fname, proposalDist jd) {
   return EXIT_SUCCESS;
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
-                      double *sig_k, int dof, double **samples,
-                      targetFunc logpost, rwmInitFunc initRWM) {
+void rwm_within_model(int model_k, int *model_dims, int nsweep2,
+                      condProbStats *cpstats, double *sig_k, int dof,
+                      double **samples, targetFunc logpost,
+                      rwmInitFunc initRWM) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
   int mdim = model_dims[model_k];
   int nsweepr = max(nsweep2, 10000 * mdim);
@@ -557,8 +571,8 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
     }
     if (sweep % 100 == 0) {
       for (int i = 0; i < mdim; i++) {
-        st.sig_k_rwm_summary[model_k][sig_k_rwm_n][i] = sig_k[i];
-        st.nacc_ntry_rwm[model_k][sig_k_rwm_n][i] =
+        cpstats->sig_k_rwm_summary[model_k][sig_k_rwm_n][i] = sig_k[i];
+        cpstats->nacc_ntry_rwm[model_k][sig_k_rwm_n][i] =
             (double)nacc[i] / (double)ntry[i];
       }
       sig_k_rwm_n++;
@@ -572,7 +586,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
 }
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, runStats *st) {
+                              int nsamples, condProbStats *cpstats) {
   // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
   // Mixture fitting done component wise EM algorithm described in
   // Figueiredo and Jain, 2002 (see thesis for full reference)
@@ -879,12 +893,12 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
       stop = 1;
     }
     costfn = costfnnew;
-    int nfitmix = st->nfitmix[model_k];
-    st->fitmix_annulations[model_k][nfitmix] = natann + forceann;
-    st->fitmix_costfnnew[model_k][nfitmix] = costfnnew;
-    st->fitmix_lpn[model_k][nfitmix] = lpn;
-    st->fitmix_Lkk[model_k][nfitmix] = Lkk;
-    (st->nfitmix[model_k])++;
+    int nfitmix = cpstats->nfitmix[model_k];
+    cpstats->fitmix_annulations[model_k][nfitmix] = natann + forceann;
+    cpstats->fitmix_costfnnew[model_k][nfitmix] = costfnnew;
+    cpstats->fitmix_lpn[model_k][nfitmix] = lpn;
+    cpstats->fitmix_Lkk[model_k][nfitmix] = Lkk;
+    (cpstats->nfitmix[model_k])++;
   }
 
   for (int i = 0; i < nsamples; i++) {

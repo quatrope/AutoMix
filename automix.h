@@ -101,6 +101,22 @@ typedef struct {
 } proposalDist;
 
 typedef struct {
+  int rwm_summary_len;
+  double ***sig_k_rwm_summary;
+  double ***nacc_ntry_rwm;
+  int *nfitmix;
+  int **fitmix_annulations;
+  double **fitmix_costfnnew;
+  double **fitmix_lpn;
+  int **fitmix_Lkk;
+  // Booleans to specify whether using Figuereido or AutoRJ in conditional
+  // probs estimation.
+  bool useAutoMixFit;
+  bool useAutoRJFit;
+  double timesecs_condprobs;
+} condProbStats;
+
+typedef struct {
   // Block RWM acceptance and tries
   unsigned long naccrwmb;
   unsigned long ntryrwmb;
@@ -125,15 +141,6 @@ typedef struct {
   double **pk_summary;
   int *k_which_summary;
   double **logp_summary;
-  int rwm_summary_len;
-  double ***sig_k_rwm_summary;
-  double ***nacc_ntry_rwm;
-  int *nfitmix;
-  int **fitmix_annulations;
-  double **fitmix_costfnnew;
-  double **fitmix_lpn;
-  int **fitmix_Lkk;
-  double timesecs_condprobs;
   double timesecs_rjmcmc;
   double timesecs_burn;
 } runStats;
@@ -147,24 +154,27 @@ void freeProposalDist(proposalDist jd);
 void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
                   proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
+int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
+void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd);
 
-void rwm_within_model(int k1, int *model_dims, int nsweep2, runStats st,
-                      double *sig_k, int dof, double **samples,
-                      targetFunc logpost, rwmInitFunc initRWM);
+void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
+                                condProbStats *cpstats, int mode, char *fname,
+                                targetFunc logpost, rwmInitFunc initRWM);
+
+void rwm_within_model(int k1, int *model_dims, int nsweep2,
+                      condProbStats *cpstats, double *sig_k, int dof,
+                      double **samples, targetFunc logpost,
+                      rwmInitFunc initRWM);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, runStats *st);
+                              int nsamples, condProbStats *cpstats);
 
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, targetFunc logpost);
-
-void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats *st, int mode, char *fname,
-                                targetFunc logpost, rwmInitFunc initRWM);
 
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                   runStats *st, targetFunc logpost);
