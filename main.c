@@ -2,6 +2,7 @@
 #define VERSION "1.3"
 
 #include "automix.h"
+#include "user.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,11 +52,14 @@ int main(int argc, char *argv[]) {
   int nburn = max(10000, (int)(nsweep / 10));
 
   // Initialize the Proposal (jumping) Distribution
+  int nmodels = get_nmodels();
+  int *model_dims = (int *)malloc(nmodels * sizeof(int));
+  load_model_dims(nmodels, model_dims);
   proposalDist jd;
-  initJD(&jd);
+  initProposalDist(&jd, nmodels, model_dims);
   // Struct to hold run statistic variables
   runStats st;
-  initializeRunStats(&st, nsweep, nsweep2, nburn, jd);
+  initRunStats(&st, nsweep, nsweep2, nburn, jd);
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
@@ -74,13 +78,13 @@ int main(int argc, char *argv[]) {
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_main_samples(&ch, nburn, jd, dof, &st);
+  burn_samples(&ch, nburn, jd, dof, &st);
   // Collect nsweep RJMCMC samples
   rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2);
 
   freeChain(&ch);
   freeRunStats(st, jd);
-  freeJD(jd);
+  freeProposalDist(jd);
 
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);

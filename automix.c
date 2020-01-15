@@ -53,8 +53,8 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
   write_stats_to_file(fname, *ch, seed, mode, nsweep2, nsweep, jd, *st);
 }
 
-void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                       runStats *st) {
+void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
+                  runStats *st) {
   clock_t starttime = clock();
   printf("\nBurning in");
   ch->isBurning = 1;
@@ -117,8 +117,8 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
   st->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
-void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
-                        proposalDist jd) {
+void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
+                  proposalDist jd) {
   st->naccrwmb = 0;
   st->ntryrwmb = 0;
   st->naccrwms = 0;
@@ -283,8 +283,8 @@ void freeChain(chainState *ch) {
   ch->isInitialized = 0;
 }
 
-int initJD(proposalDist *jd) {
-  jd->nmodels = get_nmodels();
+int initProposalDist(proposalDist *jd, int nmodels, int *model_dims) {
+  jd->nmodels = nmodels;
   if (jd->nmodels > NMODELS_MAX) {
     printf("\nError:kmax too large \n");
     return EXIT_FAILURE;
@@ -292,19 +292,15 @@ int initJD(proposalDist *jd) {
     printf("\nError:negative kmax \n");
     return EXIT_FAILURE;
   }
-  allocJD(jd);
-  jd->isInitialized = 1;
-  return EXIT_SUCCESS;
-}
-
-int allocJD(proposalDist *jd) {
   // nmodels is the number of models
   int Lkmaxmax = NUM_MIX_COMPS_MAX;
   jd->model_dims = (int *)malloc(jd->nmodels * sizeof(int));
   if (jd->model_dims == NULL) {
     return EXIT_FAILURE;
   }
-  load_model_dims(jd->nmodels, jd->model_dims);
+  for (int i = 0; i < nmodels; i++) {
+    jd->model_dims[i] = model_dims[i];
+  }
   jd->nMixComps = (int *)malloc(jd->nmodels * sizeof(int));
   if (jd->nMixComps == NULL) {
     return EXIT_FAILURE;
@@ -358,10 +354,11 @@ int allocJD(proposalDist *jd) {
     jd->sig[k] = (double *)malloc(mdim * sizeof(double));
   }
 
+  jd->isInitialized = 1;
   return EXIT_SUCCESS;
 }
 
-void freeJD(proposalDist jd) {
+void freeProposalDist(proposalDist jd) {
   int Lkmaxmax = NUM_MIX_COMPS_MAX;
   for (int k = 0; k < jd.nmodels; k++) {
     int mdim = jd.model_dims[k];

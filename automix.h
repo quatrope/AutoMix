@@ -138,11 +138,10 @@ typedef struct {
 
 void initChain(chainState *ch, proposalDist jd, int adapt);
 void freeChain(chainState *aChain);
-int initJD(proposalDist *jd);
-int allocJD(proposalDist *jd);
-void freeJD(proposalDist jd);
-void initializeRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
-                        proposalDist jd);
+int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
+void freeProposalDist(proposalDist jd);
+void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
+                  proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 
 int read_mixture_params(char *fname, proposalDist jd);
@@ -161,8 +160,8 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
                                 runStats *st, int mode, char *fname);
 
-void burn_main_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                       runStats *st);
+void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
+                  runStats *st);
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
                     int dof, runStats *st, char *fname, unsigned long seed,
