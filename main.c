@@ -15,6 +15,13 @@ void usage(char *invocation);
 int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
                        int *nsweep2, unsigned long *seed, int *doperm,
                        int *adapt, int *mode, int *dof);
+// wrapper function to fit with AutoMix
+double logposterior(int model_k, int mdim, double *x) {
+  double lpost = 0;
+  double likelihood;
+  logpost(model_k, mdim, x, &lpost, &likelihood);
+  return lpost;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -69,18 +76,20 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   } else {
-    estimate_conditional_probs(jd, dof, nsweep2, &st, mode, fname);
+    estimate_conditional_probs(jd, dof, nsweep2, &st, mode, fname, logposterior,
+                               get_rwm_init);
   }
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
-  initChain(&ch, jd, adapt);
+  initChain(&ch, jd, adapt, logposterior, get_rwm_init);
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_samples(&ch, nburn, jd, dof, &st);
+  burn_samples(&ch, nburn, jd, dof, &st, logposterior);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2);
+  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2,
+                 logposterior);
 
   freeChain(&ch);
   freeRunStats(st, jd);

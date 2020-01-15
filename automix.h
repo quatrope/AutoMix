@@ -48,6 +48,9 @@ be a published paper in the not too distant future.  */
 
 #include <time.h>
 
+typedef double (*targetFunc)(int model_k, int mdim, double *x);
+typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
+
 // C does not have a bool type but int is just as good
 typedef int bool;
 #ifndef AUTOMIX_DATA_STRUCTS
@@ -58,7 +61,6 @@ typedef struct {
   double *theta;
   double *pk;
   double log_posterior;
-  double log_likelihood;
   int current_model_k;
   int mdim;
   int current_Lkk;
@@ -70,6 +72,7 @@ typedef struct {
   bool doPerm;
   bool isBurning;
   double gamma_sweep;
+  rwmInitFunc initRWM;
 } chainState;
 
 typedef struct {
@@ -136,7 +139,8 @@ typedef struct {
 } runStats;
 #endif
 
-void initChain(chainState *ch, proposalDist jd, int adapt);
+void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
+               rwmInitFunc initRWM);
 void freeChain(chainState *aChain);
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
@@ -147,7 +151,8 @@ void freeRunStats(runStats st, proposalDist jd);
 int read_mixture_params(char *fname, proposalDist jd);
 
 void rwm_within_model(int k1, int *model_dims, int nsweep2, runStats st,
-                      double *sig_k, int dof, double **samples);
+                      double *sig_k, int dof, double **samples,
+                      targetFunc logpost, rwmInitFunc initRWM);
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, runStats *st);
@@ -155,14 +160,15 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st);
+                          runStats *st, targetFunc logpost);
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats *st, int mode, char *fname);
+                                runStats *st, int mode, char *fname,
+                                targetFunc logpost, rwmInitFunc initRWM);
 
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                  runStats *st);
+                  runStats *st, targetFunc logpost);
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
                     int dof, runStats *st, char *fname, unsigned long seed,
-                    int mode, int nsweep2);
+                    int mode, int nsweep2, targetFunc logpost);

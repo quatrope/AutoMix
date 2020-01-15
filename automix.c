@@ -3,7 +3,6 @@
 
 #include "automix.h"
 #include "logwrite.h"
-#include "user.h"
 #include "utils.h"
 #include <math.h>
 #include <stdio.h>
@@ -15,7 +14,7 @@
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
                     int dof, runStats *st, char *fname, unsigned long seed,
-                    int mode, int nsweep2) {
+                    int mode, int nsweep2, targetFunc logpost) {
   clock_t starttime = clock();
   // Start here main sample
   int xr_i = 0;
@@ -26,12 +25,11 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     ch->doBlockRWM = (sweep + nburn % 10 == 0);
     ch->gamma_sweep = pow(1.0 / (sweep + nburn + 1), (2.0 / 3.0));
 
-    reversible_jump_move(ch, jd, dof, st);
+    reversible_jump_move(ch, jd, dof, st, logpost);
 
     (st->ksummary[ch->current_model_k])++;
     st->k_which_summary[sweep - 1] = ch->current_model_k + 1;
     st->logp_summary[sweep - 1][0] = ch->log_posterior;
-    st->logp_summary[sweep - 1][1] = ch->log_likelihood;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       st->pk_summary[sweep - 1][k1] = ch->pk[k1];
     }
@@ -54,7 +52,7 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
 }
 
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                  runStats *st) {
+                  runStats *st, targetFunc logpost) {
   clock_t starttime = clock();
   printf("\nBurning in");
   ch->isBurning = 1;
@@ -63,7 +61,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
     ch->doBlockRWM = (sweep % 10 == 0);
     ch->gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
 
-    reversible_jump_move(ch, jd, dof, st);
+    reversible_jump_move(ch, jd, dof, st, logpost);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -75,7 +73,8 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 }
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                runStats *st, int mode, char *fname) {
+                                runStats *st, int mode, char *fname,
+                                targetFunc logpost, rwmInitFunc initRWM) {
   clock_t starttime = clock();
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
@@ -92,7 +91,7 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
     rwm_within_model(model_k, jd.model_dims, nsweep2, *st, jd.sig[model_k], dof,
-                     samples);
+                     samples, logpost, initRWM);
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (mode == 0) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
@@ -250,7 +249,8 @@ void freeRunStats(runStats st, proposalDist jd) {
   }
 }
 
-void initChain(chainState *ch, proposalDist jd, int adapt) {
+void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
+               rwmInitFunc initRWM) {
   ch->current_model_k = (int)floor(jd.nmodels * sdrand());
   ch->mdim = jd.model_dims[ch->current_model_k];
   int mdim_max = jd.model_dims[0];
@@ -259,10 +259,10 @@ void initChain(chainState *ch, proposalDist jd, int adapt) {
   }
   ch->theta = (double *)malloc(mdim_max * sizeof(double));
   ch->pk = (double *)malloc(jd.nmodels * sizeof(double));
-  get_rwm_init(ch->current_model_k, ch->mdim, ch->theta);
+  ch->initRWM = initRWM;
+  ch->initRWM(ch->current_model_k, ch->mdim, ch->theta);
   ch->current_Lkk = jd.nMixComps[ch->current_model_k];
-  logpost(ch->current_model_k, ch->mdim, ch->theta, &(ch->log_posterior),
-          &(ch->log_likelihood));
+  ch->log_posterior = logpost(ch->current_model_k, ch->mdim, ch->theta);
   for (int i = 0; i < jd.nmodels; i++) {
     ch->pk[i] = 1.0 / jd.nmodels;
   }
@@ -486,7 +486,8 @@ int read_mixture_params(char *fname, proposalDist jd) {
 }
 
 void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
-                      double *sig_k, int dof, double **samples) {
+                      double *sig_k, int dof, double **samples,
+                      targetFunc logpost, rwmInitFunc initRWM) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
   int mdim = model_dims[model_k];
   int nsweepr = max(nsweep2, 10000 * mdim);
@@ -502,15 +503,14 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
   int sig_k_rwm_n = 0; // This is used to load stats arrays
   printf("\nRWM for Model %d", model_k + 1);
   fflush(NULL);
-  get_rwm_init(model_k, mdim, rwm);
+  initRWM(model_k, mdim, rwm);
   for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
     sig_k[j1] = 10.0;
     nacc[j1] = 0;
     ntry[j1] = 0;
   }
-  double lp, llh;
-  logpost(model_k, mdim, rwm, &lp, &llh);
+  double lp = logpost(model_k, mdim, rwm);
 
   int i2 = 0;
   int remain = nsweepr;
@@ -526,8 +526,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
       for (int i = 0; i < mdim; i++) {
         rwmn[i] = rwm[i] + sig_k[i] * Znkk[i];
       }
-      double lpn;
-      logpost(model_k, mdim, rwmn, &lpn, &llh);
+      double lpn = logpost(model_k, mdim, rwmn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         for (int i = 0; i < mdim; i++) {
           rwm[i] = rwmn[i];
@@ -543,8 +542,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2, runStats st,
         double Z;
         rt(&Z, 1, dof);
         rwmn[i] = rwm[i] + sig_k[i] * Z;
-        double lpn;
-        logpost(model_k, mdim, rwmn, &lpn, &llh);
+        double lpn = logpost(model_k, mdim, rwmn);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
         if (sdrand() < accept) {
           (nacc[i])++;
@@ -960,7 +958,7 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples) {
 }
 
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st) {
+                          runStats *st, targetFunc logpost) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -985,13 +983,11 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     for (int i = 0; i < ch->mdim; i++) {
       thetan[i] = theta[i] + jd.sig[ch->current_model_k][i] * Znkk[i];
     }
-    double lpn, llhn;
-    logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
+    double lpn = logpost(ch->current_model_k, ch->mdim, thetan);
     if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
       (st->naccrwmb)++;
       memcpy(theta, thetan, ch->mdim * sizeof(*thetan));
       ch->log_posterior = lpn;
-      ch->log_likelihood = llhn;
     }
   } else {
     // else do component-wise RWM
@@ -1001,13 +997,11 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
       double Z;
       rt(&Z, 1, dof);
       thetan[j1] = theta[j1] + jd.sig[ch->current_model_k][j1] * Z;
-      double lpn, llhn;
-      logpost(ch->current_model_k, ch->mdim, thetan, &lpn, &llhn);
+      double lpn = logpost(ch->current_model_k, ch->mdim, thetan);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
         (st->naccrwms)++;
         theta[j1] = thetan[j1];
         ch->log_posterior = lpn;
-        ch->log_likelihood = llhn;
       } else {
         thetan[j1] = theta[j1];
       }
@@ -1165,8 +1159,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
   }
 
   // --Section 9.6 - Work out acceptance probability  and new state --
-  double lpn, llhn;
-  logpost(kn, mdim_kn, thetan, &lpn, &llhn);
+  double lpn = logpost(kn, mdim_kn, thetan);
 
   int mdim = jd.model_dims[ch->current_model_k];
   logratio += (lpn - ch->log_posterior);
@@ -1180,7 +1173,6 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
       theta[j1] = thetan[j1];
     }
     ch->log_posterior = lpn;
-    ch->log_likelihood = llhn;
     ch->current_model_k = kn;
     ch->mdim = mdim_kn;
     ch->current_Lkk = Lkkn;
