@@ -126,6 +126,10 @@ typedef struct {
   // Auto RJ acceptance and tries
   unsigned long nacctd;
   unsigned long ntrytd;
+
+  double ***theta_summary;
+  int *theta_summary_len;
+
   // nsokal is every how many samples are kept in array xr
   int nsokal;
   // nkeep is how many samples are kept in array xr

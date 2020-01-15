@@ -33,6 +33,12 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       st->pk_summary[sweep - 1][k1] = ch->pk[k1];
     }
+    int sample_i = st->theta_summary_len[ch->current_model_k];
+    double *theta_k_i = st->theta_summary[ch->current_model_k][sample_i];
+    for (int i = 0; i < ch->mdim; i++) {
+      theta_k_i[i] = ch->theta[i];
+    }
+    (st->theta_summary_len[ch->current_model_k])++;
     write_theta_to_file(fname, ch->current_model_k, ch->mdim, ch->theta);
 
     if (sweep > st->keep && ((sweep - st->keep) % st->nsokal == 0)) {
@@ -227,6 +233,15 @@ void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
   st->logp_summary[0] = (double *)malloc(nsweep * 2 * sizeof(double));
   for (int i = 1; i < nsweep; i++) {
     st->logp_summary[i] = st->logp_summary[i - 1] + 2;
+  }
+  st->theta_summary_len = (int *)calloc(jd.nmodels, sizeof(int));
+  st->theta_summary = (double ***)malloc(jd.nmodels * sizeof(double **));
+  for (int i = 0; i < jd.nmodels; i++) {
+    st->theta_summary[i] = (double **)malloc(nsweep * sizeof(double *));
+    int mdim = jd.model_dims[i];
+    for (int j = 0; j < nsweep; j++) {
+      st->theta_summary[i][j] = (double *)malloc(mdim * sizeof(double));
+    }
   }
 }
 
