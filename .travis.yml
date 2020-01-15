@@ -18,3 +18,8 @@ script:
   - ./amtoy1 -N 1000
   - test -f output_mix.data
   - make clean
+  - clang-format main.c | diff - main.c
+  - clang-format automix.c | diff - automix.c
+  - clang-format automix.h | diff - automix.h
+  - clang-format logwrite.c | diff - logwrite.c
+  - clang-format logwrite.h | diff - logwrite.h
