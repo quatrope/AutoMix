@@ -11,6 +11,19 @@ void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
 void write_lp_to_file(char *fname, int nsweep, double **logp_summary);
+void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st);
+void write_adapt_to_file(char *fname, int mode, proposalDist jd, runStats st);
+void write_mix_to_file(char *fname, proposalDist jd);
+
+void report_cond_prob_estimation(char *fname, int mode, proposalDist jd,
+                                 runStats st) {
+  // Write adaptation statistics to file
+  write_adapt_to_file(fname, mode, jd, st);
+  // Write mixture parameters to file
+  write_mix_to_file(fname, jd);
+  // Write cf statistics to file
+  write_cf_to_file(fname, mode, jd, st);
+}
 
 void write_cf_to_file(char *fname, int mode, proposalDist jd, runStats st) {
   unsigned long fname_len = strlen(fname);

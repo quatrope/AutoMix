@@ -2,6 +2,7 @@
 #define VERSION "1.3"
 
 #include "automix.h"
+#include "logwrite.h"
 #include "user.h"
 #include "utils.h"
 #include <stdio.h>
@@ -78,6 +79,7 @@ int main(int argc, char *argv[]) {
   } else {
     estimate_conditional_probs(jd, dof, nsweep2, &st, mode, fname, logposterior,
                                get_rwm_init);
+    report_cond_prob_estimation(fname, mode, jd, st);
   }
 
   // Initialization of the MC Markov Chain parameters
@@ -90,6 +92,8 @@ int main(int argc, char *argv[]) {
   // Collect nsweep RJMCMC samples
   rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2,
                  logposterior);
+  // --- Section 10 - Write statistics to files ---------
+  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, st);
 
   freeChain(&ch);
   freeRunStats(st, jd);

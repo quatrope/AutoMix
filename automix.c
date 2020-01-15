@@ -47,8 +47,6 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
   printf("\n");
   clock_t endtime = clock();
   st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
-  // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, *ch, seed, mode, nsweep2, nsweep, jd, *st);
 }
 
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
@@ -106,12 +104,6 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     free(samples[0]);
     free(samples);
   }
-  // Write adaptation statistics to file
-  write_adapt_to_file(fname, mode, jd, *st);
-  // Write mixture parameters to file
-  write_mix_to_file(fname, jd);
-  // Write cf statistics to file
-  write_cf_to_file(fname, mode, jd, *st);
   clock_t endtime = clock();
   st->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
