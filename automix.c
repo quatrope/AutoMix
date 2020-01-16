@@ -51,6 +51,11 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     fflush(NULL);
   }
   printf("\n");
+  for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    st->theta_summary[model_k] =
+        realloc(st->theta_summary[model_k],
+                st->theta_summary_len[model_k] * sizeof(double **));
+  }
   clock_t endtime = clock();
   st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
