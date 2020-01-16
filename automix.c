@@ -33,6 +33,13 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
       st->pk_summary[sweep - 1][k1] = ch->pk[k1];
     }
     int sample_i = st->theta_summary_len[ch->current_model_k];
+    int size = st->theta_summary_size[ch->current_model_k];
+    if (sample_i == size - 1) {
+      int newsize = (size * 2) > nsweep ? nsweep : (2 * size);
+      st->theta_summary[ch->current_model_k] = realloc(
+          st->theta_summary[ch->current_model_k], newsize * sizeof(double **));
+      st->theta_summary_size[ch->current_model_k] = newsize;
+    }
     st->theta_summary[ch->current_model_k][sample_i] =
         (double *)malloc(ch->mdim * sizeof(double));
     double *theta_k_i = st->theta_summary[ch->current_model_k][sample_i];
@@ -52,9 +59,9 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
   }
   printf("\n");
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
+    int finalsize = st->theta_summary_len[model_k];
     st->theta_summary[model_k] =
-        realloc(st->theta_summary[model_k],
-                st->theta_summary_len[model_k] * sizeof(double **));
+        realloc(st->theta_summary[model_k], finalsize * sizeof(double **));
   }
   clock_t endtime = clock();
   st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
@@ -240,9 +247,14 @@ void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
     st->logp_summary[i] = st->logp_summary[i - 1] + 2;
   }
   st->theta_summary_len = (int *)calloc(jd.nmodels, sizeof(int));
+  st->theta_summary_size = (int *)malloc(jd.nmodels * sizeof(int));
+  int initial_size = 1000;
+  for (int i = 0; i < jd.nmodels; i++) {
+    st->theta_summary_size[i] = initial_size;
+  }
   st->theta_summary = (double ***)malloc(jd.nmodels * sizeof(double **));
   for (int i = 0; i < jd.nmodels; i++) {
-    st->theta_summary[i] = (double **)malloc(nsweep * sizeof(double *));
+    st->theta_summary[i] = (double **)malloc(initial_size * sizeof(double *));
   }
 }
 

@@ -129,6 +129,7 @@ typedef struct {
 
   double ***theta_summary;
   int *theta_summary_len;
+  int *theta_summary_size;
 
   // nsokal is every how many samples are kept in array xr
   int nsokal;
