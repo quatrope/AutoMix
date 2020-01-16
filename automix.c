@@ -33,6 +33,8 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
       st->pk_summary[sweep - 1][k1] = ch->pk[k1];
     }
     int sample_i = st->theta_summary_len[ch->current_model_k];
+    st->theta_summary[ch->current_model_k][sample_i] =
+        (double *)malloc(ch->mdim * sizeof(double));
     double *theta_k_i = st->theta_summary[ch->current_model_k][sample_i];
     for (int i = 0; i < ch->mdim; i++) {
       theta_k_i[i] = ch->theta[i];
@@ -236,10 +238,6 @@ void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
   st->theta_summary = (double ***)malloc(jd.nmodels * sizeof(double **));
   for (int i = 0; i < jd.nmodels; i++) {
     st->theta_summary[i] = (double **)malloc(nsweep * sizeof(double *));
-    int mdim = jd.model_dims[i];
-    for (int j = 0; j < nsweep; j++) {
-      st->theta_summary[i][j] = (double *)malloc(mdim * sizeof(double));
-    }
   }
 }
 
