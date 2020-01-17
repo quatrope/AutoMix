@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
   // Collect nsweep RJMCMC samples
   rjmcmc_samples(&am, nsweep, &st);
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, am.ch, seed, mode, nsweep2, nsweep, am.jd, st);
+  write_stats_to_file(fname, am, mode, nsweep2, nsweep, st);
 
   freeChain(&(am.ch));
   freeRunStats(st, am.jd);

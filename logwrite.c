@@ -127,16 +127,16 @@ void write_theta_to_file(char *fname, runStats st, proposalDist jd) {
   free(datafname);
 }
 
-void write_stats_to_file(char *fname, chainState ch, unsigned long seed,
-                         int mode, int nsweep2, int nsweep, proposalDist jd,
-                         runStats st) {
-  write_pk_to_file(fname, nsweep, jd.nmodels, st.pk_summary);
+void write_stats_to_file(char *fname, amSampler am, int mode, int nsweep2,
+                         int nsweep, runStats st) {
+
+  write_pk_to_file(fname, nsweep, (am.jd).nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
-  write_log_to_file(fname, seed, mode, ch, nsweep2, nsweep, jd, st);
+  write_log_to_file(fname, am.seed, mode, am.ch, nsweep2, nsweep, am.jd, st);
   write_ac_to_file(fname, st.m, st.xr);
-  write_theta_to_file(fname, st, jd);
+  write_theta_to_file(fname, st, am.jd);
 }
 
 void write_ac_to_file(char *fname, int m, double *xr) {
