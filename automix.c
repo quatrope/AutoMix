@@ -22,6 +22,8 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, targetFunc logpost);
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
+int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
+void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
@@ -111,6 +113,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
   clock_t starttime = clock();
   proposalDist jd = am->jd;
   condProbStats *cpstats = &(am->cpstats);
+  initCondProbStats(cpstats, jd, nsweep2);
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
@@ -148,6 +151,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logposterior, rwmInitFunc initRWM) {
   initProposalDist(&(am->jd), nmodels, model_dims);
+  (&(am->cpstats))->isInitialized = 0;
   am->logposterior = logposterior;
   am->initRWM = initRWM;
   // Set default values
@@ -160,13 +164,17 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   return EXIT_SUCCESS;
 }
 
-void freeAMSampler(amSampler am) {
-  freeProposalDist(am.jd);
+void freeAMSampler(amSampler *am) {
+  freeCondProbStats(&(am->cpstats), am->jd);
+  freeProposalDist(am->jd);
   return;
 }
 
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
 
+  if (cpstats->isInitialized) {
+    return EXIT_SUCCESS;
+  }
   cpstats->sig_k_rwm_summary =
       (double ***)malloc(jd.nmodels * sizeof(double **));
   cpstats->nacc_ntry_rwm = (double ***)malloc(jd.nmodels * sizeof(double **));
@@ -205,59 +213,64 @@ int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
     cpstats->fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
     cpstats->fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
   }
+  cpstats->isInitialized = 1;
   return EXIT_SUCCESS;
 }
 
-void freeCondProbStats(condProbStats cpstats, proposalDist jd) {
-  if (cpstats.sig_k_rwm_summary != NULL) {
+void freeCondProbStats(condProbStats *cpstats, proposalDist jd) {
+  if (!cpstats->isInitialized) {
+    return;
+  }
+  if (cpstats->sig_k_rwm_summary != NULL) {
     for (int model_k = 0; model_k < jd.nmodels; model_k++) {
-      if (cpstats.sig_k_rwm_summary[model_k][0] != NULL) {
-        free(cpstats.sig_k_rwm_summary[model_k][0]);
+      if (cpstats->sig_k_rwm_summary[model_k][0] != NULL) {
+        free(cpstats->sig_k_rwm_summary[model_k][0]);
       }
-      if (cpstats.sig_k_rwm_summary[model_k] != NULL) {
-        free(cpstats.sig_k_rwm_summary[model_k]);
+      if (cpstats->sig_k_rwm_summary[model_k] != NULL) {
+        free(cpstats->sig_k_rwm_summary[model_k]);
       }
-      if (cpstats.nacc_ntry_rwm[model_k][0] != NULL) {
-        free(cpstats.nacc_ntry_rwm[model_k][0]);
+      if (cpstats->nacc_ntry_rwm[model_k][0] != NULL) {
+        free(cpstats->nacc_ntry_rwm[model_k][0]);
       }
-      if (cpstats.nacc_ntry_rwm[model_k] != NULL) {
-        free(cpstats.nacc_ntry_rwm[model_k]);
+      if (cpstats->nacc_ntry_rwm[model_k] != NULL) {
+        free(cpstats->nacc_ntry_rwm[model_k]);
       }
     }
-    free(cpstats.sig_k_rwm_summary);
+    free(cpstats->sig_k_rwm_summary);
   }
-  if (cpstats.nacc_ntry_rwm != NULL) {
-    free(cpstats.nacc_ntry_rwm);
+  if (cpstats->nacc_ntry_rwm != NULL) {
+    free(cpstats->nacc_ntry_rwm);
   }
-  if (cpstats.nfitmix != NULL) {
-    free(cpstats.nfitmix);
+  if (cpstats->nfitmix != NULL) {
+    free(cpstats->nfitmix);
   }
-  if (cpstats.fitmix_annulations != NULL) {
+  if (cpstats->fitmix_annulations != NULL) {
     for (int i = 0; i < jd.nmodels; i++) {
-      if (cpstats.fitmix_annulations[i] != NULL) {
-        free(cpstats.fitmix_annulations[i]);
+      if (cpstats->fitmix_annulations[i] != NULL) {
+        free(cpstats->fitmix_annulations[i]);
       }
-      if (cpstats.fitmix_costfnnew[i] != NULL) {
-        free(cpstats.fitmix_costfnnew[i]);
+      if (cpstats->fitmix_costfnnew[i] != NULL) {
+        free(cpstats->fitmix_costfnnew[i]);
       }
-      if (cpstats.fitmix_lpn[i] != NULL) {
-        free(cpstats.fitmix_lpn[i]);
+      if (cpstats->fitmix_lpn[i] != NULL) {
+        free(cpstats->fitmix_lpn[i]);
       }
-      if (cpstats.fitmix_Lkk[i] != NULL) {
-        free(cpstats.fitmix_Lkk[i]);
+      if (cpstats->fitmix_Lkk[i] != NULL) {
+        free(cpstats->fitmix_Lkk[i]);
       }
     }
-    free(cpstats.fitmix_annulations);
+    free(cpstats->fitmix_annulations);
   }
-  if (cpstats.fitmix_costfnnew != NULL) {
-    free(cpstats.fitmix_costfnnew);
+  if (cpstats->fitmix_costfnnew != NULL) {
+    free(cpstats->fitmix_costfnnew);
   }
-  if (cpstats.fitmix_lpn != NULL) {
-    free(cpstats.fitmix_lpn);
+  if (cpstats->fitmix_lpn != NULL) {
+    free(cpstats->fitmix_lpn);
   }
-  if (cpstats.fitmix_Lkk != NULL) {
-    free(cpstats.fitmix_Lkk);
+  if (cpstats->fitmix_Lkk != NULL) {
+    free(cpstats->fitmix_Lkk);
   }
+  cpstats->isInitialized = 0;
 }
 
 void initRunStats(runStats *st, int nsweep, proposalDist jd) {

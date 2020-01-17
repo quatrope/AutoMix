@@ -116,6 +116,7 @@ typedef struct {
   bool useAutoMixFit;
   bool useAutoRJFit;
   double timesecs_condprobs;
+  bool isInitialized;
 } condProbStats;
 
 typedef struct {
@@ -170,14 +171,12 @@ typedef struct {
 /*** Constructors and Destructors ***/
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logpost, rwmInitFunc initRWM);
-void freeAMSampler(amSampler am);
+void freeAMSampler(amSampler *am);
 void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
                rwmInitFunc initRWM);
 void freeChain(chainState *aChain);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
-int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
-void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 
 /*** Public Functions ***/
 int read_mixture_params(char *fname, amSampler *am);

@@ -74,10 +74,8 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   } else {
-    initCondProbStats(&(am.cpstats), am.jd, nsweep2);
     estimate_conditional_probs(&am, nsweep2);
     report_cond_prob_estimation(fname, am);
-    freeCondProbStats(am.cpstats, am.jd);
   }
 
   // Initialization of the MC Markov Chain parameters
@@ -95,7 +93,7 @@ int main(int argc, char *argv[]) {
 
   freeChain(&(am.ch));
   freeRunStats(am.st, am.jd);
-  freeAMSampler(am);
+  freeAMSampler(&am);
 
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);
