@@ -76,8 +76,8 @@ int main(int argc, char *argv[]) {
   } else {
     condProbStats cpstats;
     initCondProbStats(&cpstats, jd, nsweep2);
-    estimate_conditional_probs(jd, dof, nsweep2, &cpstats, mode, fname,
-                               logposterior, get_rwm_init);
+    estimate_conditional_probs(jd, dof, nsweep2, &cpstats, mode, logposterior,
+                               get_rwm_init);
     report_cond_prob_estimation(fname, mode, jd, cpstats);
     freeCondProbStats(cpstats, jd);
   }
@@ -93,8 +93,7 @@ int main(int argc, char *argv[]) {
   // Burn some samples first
   burn_samples(&ch, nburn, jd, dof, &st, logposterior);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, fname, seed, mode, nsweep2,
-                 logposterior);
+  rjmcmc_samples(&ch, nsweep, nburn, jd, dof, &st, logposterior);
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, st);
 

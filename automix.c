@@ -12,8 +12,7 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, char *fname, unsigned long seed,
-                    int mode, int nsweep2, targetFunc logpost) {
+                    int dof, runStats *st, targetFunc logpost) {
   clock_t starttime = clock();
   // Start here main sample
   int xr_i = 0;
@@ -89,7 +88,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 }
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                condProbStats *cpstats, int mode, char *fname,
+                                condProbStats *cpstats, int mode,
                                 targetFunc logpost, rwmInitFunc initRWM) {
   clock_t starttime = clock();
   // Section 5.2 - Within-model runs if mixture parameters unavailable

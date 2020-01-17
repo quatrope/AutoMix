@@ -165,7 +165,7 @@ void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 int read_mixture_params(char *fname, proposalDist jd);
 
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                condProbStats *cpstats, int mode, char *fname,
+                                condProbStats *cpstats, int mode,
                                 targetFunc logpost, rwmInitFunc initRWM);
 
 void rwm_within_model(int k1, int *model_dims, int nsweep2,
@@ -185,5 +185,4 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                   runStats *st, targetFunc logpost);
 
 void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, char *fname, unsigned long seed,
-                    int mode, int nsweep2, targetFunc logpost);
+                    int dof, runStats *st, targetFunc logpost);
