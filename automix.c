@@ -224,8 +224,7 @@ void freeCondProbStats(condProbStats cpstats, proposalDist jd) {
   }
 }
 
-void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
-                  proposalDist jd) {
+void initRunStats(runStats *st, int nsweep, proposalDist jd) {
   st->naccrwmb = 0;
   st->ntryrwmb = 0;
   st->naccrwms = 0;

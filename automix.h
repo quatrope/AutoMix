@@ -156,8 +156,7 @@ void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
 void freeChain(chainState *aChain);
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
-void initRunStats(runStats *st, int nsweep, int nsweep2, int nburn,
-                  proposalDist jd);
+void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
 void freeCondProbStats(condProbStats cpstats, proposalDist jd);

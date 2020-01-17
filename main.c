@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
   initChain(&ch, jd, adapt, logposterior, get_rwm_init);
   // Struct to hold run statistic variables
   runStats st;
-  initRunStats(&st, nsweep, nsweep2, nburn, jd);
+  initRunStats(&st, nsweep, jd);
 
   // -----Start of main loop ----------------
   // Burn some samples first
