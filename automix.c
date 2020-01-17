@@ -138,6 +138,22 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
   cpstats->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
+int initAMSampler(amSampler *am, int nmodels, int *model_dims,
+                  targetFunc logposterior, rwmInitFunc initRWM) {
+  initProposalDist(&(am->jd), nmodels, model_dims);
+  am->logposterior = logposterior;
+  am->initRWM = initRWM;
+  // Set default values
+  am->doAdapt = 1;
+  am->doPerm = 1;
+  am->student_T_dof = 0;
+  am->am_mixfit = FIGUEREIDO_MIX_FIT;
+  am->seed = 0;
+  return EXIT_SUCCESS;
+}
+
+void freeAMSampler(amSampler am) { return; }
+
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
 
   cpstats->sig_k_rwm_summary =

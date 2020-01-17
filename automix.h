@@ -164,13 +164,17 @@ typedef struct {
   runStats st;
   bool doAdapt;
   bool doPerm;
-  targetFunc logpost;
+  targetFunc logposterior;
   rwmInitFunc initRWM;
   int student_T_dof;
   AUTOMIX_MIX_FIT am_mixfit;
+  unsigned long seed;
 } amSampler;
 
 /*** Constructors and Destructors ***/
+int initAMSampler(amSampler *am, int nmodels, int *model_dims,
+                  targetFunc logpost, rwmInitFunc initRWM);
+void freeAMSampler(amSampler am);
 void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
                rwmInitFunc initRWM);
 void freeChain(chainState *aChain);
