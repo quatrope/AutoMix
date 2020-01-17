@@ -59,47 +59,46 @@ int main(int argc, char *argv[]) {
   sdrni(&seed);
   int nburn = max(10000, (int)(nsweep / 10));
 
-  // Initialize the Proposal (jumping) Distribution
+  // Initialize the AutoMix sampler
   int nmodels = get_nmodels();
   int *model_dims = (int *)malloc(nmodels * sizeof(int));
   load_model_dims(nmodels, model_dims);
-  proposalDist jd;
-  initProposalDist(&jd, nmodels, model_dims);
+  amSampler am;
+  initAMSampler(&am, nmodels, model_dims, logposterior, get_rwm_init);
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
-    int ok = read_mixture_params(fname, jd);
+    int ok = read_mixture_params(fname, am.jd);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
   } else {
     condProbStats cpstats;
-    initCondProbStats(&cpstats, jd, nsweep2);
-    estimate_conditional_probs(jd, dof, nsweep2, &cpstats, mode, logposterior,
-                               get_rwm_init);
-    report_cond_prob_estimation(fname, mode, jd, cpstats);
-    freeCondProbStats(cpstats, jd);
+    initCondProbStats(&cpstats, am.jd, nsweep2);
+    estimate_conditional_probs(am.jd, dof, nsweep2, &cpstats, mode,
+                               logposterior, get_rwm_init);
+    report_cond_prob_estimation(fname, mode, am.jd, cpstats);
+    freeCondProbStats(cpstats, am.jd);
   }
 
   // Initialization of the MC Markov Chain parameters
   chainState ch;
-  initChain(&ch, jd, adapt, logposterior, get_rwm_init);
+  initChain(&ch, am.jd, adapt, logposterior, get_rwm_init);
   // Struct to hold run statistic variables
   runStats st;
-  initRunStats(&st, nsweep, jd);
+  initRunStats(&st, nsweep, am.jd);
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_samples(&ch, nburn, jd, dof, &st, logposterior);
+  burn_samples(&ch, nburn, am.jd, dof, &st, logposterior);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&ch, nsweep, jd, dof, &st, logposterior);
+  rjmcmc_samples(&ch, nsweep, am.jd, dof, &st, logposterior);
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, jd, st);
+  write_stats_to_file(fname, ch, seed, mode, nsweep2, nsweep, am.jd, st);
 
   freeChain(&ch);
-  freeRunStats(st, jd);
-  freeProposalDist(jd);
+  freeRunStats(st, am.jd);
 
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);

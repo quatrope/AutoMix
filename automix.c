@@ -149,6 +149,7 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   am->student_T_dof = 0;
   am->am_mixfit = FIGUEREIDO_MIX_FIT;
   am->seed = 0;
+  sdrni(&(am->seed));
   return EXIT_SUCCESS;
 }
 
