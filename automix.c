@@ -11,6 +11,15 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
+void rwm_within_model(int k1, int *model_dims, int nsweep2,
+                      condProbStats *cpstats, double *sig_k, int dof,
+                      double **samples, targetFunc logpost,
+                      rwmInitFunc initRWM);
+void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
+                              int nsamples, condProbStats *cpstats);
+void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
+void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
+                          runStats *st, targetFunc logpost);
 void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
                     runStats *st, targetFunc logpost) {
   clock_t starttime = clock();

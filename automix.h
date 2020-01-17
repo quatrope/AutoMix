@@ -31,12 +31,22 @@ Users should reference the sampler as instructed on the AutoMix website
 introduces the AutoMix sampler. However, this will hopefully change to
 be a published paper in the not too distant future.  */
 
+#ifndef __AutoMix__AutoMix_h__
+#define __AutoMix__AutoMix_h__
+
 #define AUTOMIX_MAJOR_VERSION 1
 #define AUTOMIX_MINOR_VERSION 3
 #define AUTOMIX_REVISION 0
 #define AUTOMIX_VERSION "1.3"
-#define AUTOMIX_VERSION_CHECK(maj, min)                                        \
-  ((maj == AUTOMIX_MAJOR_VERSION) && (min <= AUTOMIX_MINOR_VERSION))
+
+#include <time.h>
+
+typedef double (*targetFunc)(int model_k, int mdim, double *x);
+typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
+// C does not have a bool type but int is just as good
+typedef int bool;
+
+typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } AUTOMIX_MIX_FIT;
 
 // Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
@@ -46,15 +56,11 @@ be a published paper in the not too distant future.  */
 #define NUM_MIX_COMPS_MAX 30
 #define NUM_FITMIX_MAX 5000
 
-#include <time.h>
-
 typedef double (*targetFunc)(int model_k, int mdim, double *x);
 typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
-
 // C does not have a bool type but int is just as good
 typedef int bool;
-#ifndef AUTOMIX_DATA_STRUCTS
-#define AUTOMIX_DATA_STRUCTS
+
 // Struct to hold the MCMC chain state
 typedef struct {
   bool isInitialized;
@@ -126,11 +132,9 @@ typedef struct {
   // Auto RJ acceptance and tries
   unsigned long nacctd;
   unsigned long ntrytd;
-
   double ***theta_summary;
   int *theta_summary_len;
   int *theta_summary_size;
-
   // nsokal is every how many samples are kept in array xr
   int nsokal;
   // nkeep is how many samples are kept in array xr
@@ -149,8 +153,24 @@ typedef struct {
   double timesecs_rjmcmc;
   double timesecs_burn;
 } runStats;
-#endif
 
+typedef struct {
+  // int NMODELS_MAX;
+  // int NUM_MIX_COMPS_MAX;
+  // int NUM_FITMIX_MAX;
+  chainState ch;
+  proposalDist jd;
+  condProbStats cpstats;
+  runStats st;
+  bool doAdapt;
+  bool doPerm;
+  targetFunc logpost;
+  rwmInitFunc initRWM;
+  int student_T_dof;
+  AUTOMIX_MIX_FIT am_mixfit;
+} amSampler;
+
+/*** Constructors and Destructors ***/
 void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
                rwmInitFunc initRWM);
 void freeChain(chainState *aChain);
@@ -161,27 +181,14 @@ void freeRunStats(runStats st, proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
 void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 
+/*** Public Functions ***/
 int read_mixture_params(char *fname, proposalDist jd);
-
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
                                 condProbStats *cpstats, int mode,
                                 targetFunc logpost, rwmInitFunc initRWM);
-
-void rwm_within_model(int k1, int *model_dims, int nsweep2,
-                      condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost,
-                      rwmInitFunc initRWM);
-
-void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, condProbStats *cpstats);
-
-void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
-
-void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st, targetFunc logpost);
-
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                   runStats *st, targetFunc logpost);
-
 void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
                     runStats *st, targetFunc logpost);
+
+#endif /* defined(__AutoMix__AutoMix_h__) */
