@@ -11,25 +11,28 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
-void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, targetFunc logpost) {
+void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
+                    runStats *st, targetFunc logpost) {
   clock_t starttime = clock();
   // Start here main sample
   int xr_i = 0;
   printf("Start of main sample:");
   ch->isBurning = 0;
-  for (int sweep = 1; sweep <= nsweep; sweep++) {
+  for (unsigned long sweep_init = ch->sweep_i;
+       ch->sweep_i < sweep_init + nsweep; ch->sweep_i++) {
+    // for (int sweep = 1; sweep <= nsweep; sweep++) {
+    unsigned long sweep = ch->sweep_i - sweep_init;
     // Every 10 sweeps to block RWM
-    ch->doBlockRWM = (sweep + nburn % 10 == 0);
-    ch->gamma_sweep = pow(1.0 / (sweep + nburn + 1), (2.0 / 3.0));
+    ch->doBlockRWM = (ch->sweep_i % 10 == 0);
+    ch->gamma_sweep = pow(1.0 / (ch->sweep_i + 1), (2.0 / 3.0));
 
     reversible_jump_move(ch, jd, dof, st, logpost);
 
     (st->ksummary[ch->current_model_k])++;
-    st->k_which_summary[sweep - 1] = ch->current_model_k + 1;
-    st->logp_summary[sweep - 1][0] = ch->log_posterior;
+    st->k_which_summary[sweep] = ch->current_model_k + 1;
+    st->logp_summary[sweep][0] = ch->log_posterior;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
-      st->pk_summary[sweep - 1][k1] = ch->pk[k1];
+      st->pk_summary[sweep][k1] = ch->pk[k1];
     }
     int sample_i = st->theta_summary_len[ch->current_model_k];
     int size = st->theta_summary_size[ch->current_model_k];
@@ -52,7 +55,7 @@ void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
     }
     // Print about 10 times
     if (sweep % (nsweep / 10) == 0) {
-      printf("\nNo. of iterations remaining: %d", nsweep - sweep);
+      printf("\nNo. of iterations remaining: %lu", nsweep - sweep);
     }
     fflush(NULL);
   }
@@ -71,10 +74,13 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
   clock_t starttime = clock();
   printf("\nBurning in");
   ch->isBurning = 1;
-  for (int sweep = 1; sweep <= nburn; sweep++) {
+  for (unsigned long sweep_init = ch->sweep_i; ch->sweep_i < sweep_init + nburn;
+       ch->sweep_i++) {
+    // for (int sweep = 1; sweep <= nburn; sweep++) {
+    unsigned long sweep = ch->sweep_i - sweep_init;
     // Every 10 sweeps to block RWM
-    ch->doBlockRWM = (sweep % 10 == 0);
-    ch->gamma_sweep = pow(1.0 / (sweep + 1), (2.0 / 3.0));
+    ch->doBlockRWM = (ch->sweep_i % 10 == 0);
+    ch->gamma_sweep = pow(1.0 / (ch->sweep_i + 1), (2.0 / 3.0));
 
     reversible_jump_move(ch, jd, dof, st, logpost);
     if ((10 * sweep) % nburn == 0) {
@@ -302,6 +308,7 @@ void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
   ch->reinit = 0;
   ch->pkllim = 1.0 / 10.0;
   ch->doAdapt = adapt;
+  ch->sweep_i = 1;
   ch->isInitialized = 1;
 }
 

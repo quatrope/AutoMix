@@ -71,6 +71,7 @@ typedef struct {
   bool doAdapt;
   bool doPerm;
   bool isBurning;
+  unsigned long sweep_i;
   double gamma_sweep;
   rwmInitFunc initRWM;
 } chainState;
@@ -184,5 +185,5 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                   runStats *st, targetFunc logpost);
 
-void rjmcmc_samples(chainState *ch, int nsweep, int nburn, proposalDist jd,
-                    int dof, runStats *st, targetFunc logpost);
+void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
+                    runStats *st, targetFunc logpost);
