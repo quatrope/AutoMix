@@ -100,10 +100,11 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
   st->timesecs_burn = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
-void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
-                                condProbStats *cpstats, int mode,
-                                targetFunc logpost, rwmInitFunc initRWM) {
+void estimate_conditional_probs(amSampler *am, int nsweep2,
+                                condProbStats *cpstats, targetFunc logpost,
+                                rwmInitFunc initRWM) {
   clock_t starttime = clock();
+  proposalDist jd = am->jd;
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
@@ -119,15 +120,15 @@ void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
     rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
-                     dof, samples, logpost, initRWM);
+                     am->student_T_dof, samples, logpost, initRWM);
     printf("\nMixture Fitting: Model %d", model_k + 1);
-    if (mode == 0) {
+    if (am->am_mixfit == FIGUEREIDO_MIX_FIT) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
       // distributions pi(theta_k|k). See theis, p 144.
       fit_mixture_from_samples(model_k, jd, samples, nsamples, cpstats);
     }
-    if (mode == 2) {
+    if (am->am_mixfit == AUTORJ_MIX_FIT) {
       //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
       fit_autorj(model_k, jd, samples, nsamples);
     }
