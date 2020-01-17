@@ -103,7 +103,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 void estimate_conditional_probs(amSampler *am, int nsweep2) {
   clock_t starttime = clock();
   proposalDist jd = am->jd;
-  condProbStats* cpstats = &(am->cpstats);
+  condProbStats *cpstats = &(am->cpstats);
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
