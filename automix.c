@@ -20,10 +20,11 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, targetFunc logpost);
-void rjmcmc_samples(amSampler *am, int nsweep, runStats *st) {
+void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
+  runStats *st = &(am->st);
   // Start here main sample
   int xr_i = 0;
   printf("Start of main sample:");
@@ -78,10 +79,11 @@ void rjmcmc_samples(amSampler *am, int nsweep, runStats *st) {
   st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
-void burn_samples(amSampler *am, int nburn, runStats *st) {
+void burn_samples(amSampler *am, int nburn) {
   clock_t starttime = clock();
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
+  runStats *st = &(am->st);
   printf("\nBurning in");
   ch->isBurning = 1;
   for (unsigned long sweep_init = ch->sweep_i; ch->sweep_i < sweep_init + nburn;

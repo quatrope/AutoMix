@@ -83,19 +83,18 @@ int main(int argc, char *argv[]) {
   // Initialization of the MC Markov Chain parameters
   initChain(&(am.ch), am.jd, adapt, logposterior, get_rwm_init);
   // Struct to hold run statistic variables
-  runStats st;
-  initRunStats(&st, nsweep, am.jd);
+  initRunStats(&(am.st), nsweep, am.jd);
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_samples(&am, nburn, &st);
+  burn_samples(&am, nburn);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&am, nsweep, &st);
+  rjmcmc_samples(&am, nsweep);
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, am, mode, nsweep2, nsweep, st);
+  write_stats_to_file(fname, am, mode, nsweep2, nsweep);
 
   freeChain(&(am.ch));
-  freeRunStats(st, am.jd);
+  freeRunStats(am.st, am.jd);
 
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);

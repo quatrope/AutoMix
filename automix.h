@@ -188,7 +188,7 @@ void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 /*** Public Functions ***/
 int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2);
-void burn_samples(amSampler *am, int nburn, runStats *st);
-void rjmcmc_samples(amSampler *am, int nsweep, runStats *st);
+void burn_samples(amSampler *am, int nburn);
+void rjmcmc_samples(amSampler *am, int nsweep);
 
 #endif /* defined(__AutoMix__AutoMix_h__) */
