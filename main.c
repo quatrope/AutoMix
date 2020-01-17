@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
   // -----Start of main loop ----------------
   // Burn some samples first
-  burn_samples(&(am.ch), nburn, am.jd, dof, &st, logposterior);
+  burn_samples(&am, nburn, &st);
   // Collect nsweep RJMCMC samples
   rjmcmc_samples(&(am.ch), nsweep, am.jd, dof, &st, logposterior);
   // --- Section 10 - Write statistics to files ---------

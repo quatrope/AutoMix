@@ -77,9 +77,10 @@ void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
   st->timesecs_rjmcmc = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
 
-void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
-                  runStats *st, targetFunc logpost) {
+void burn_samples(amSampler *am, int nburn, runStats *st) {
   clock_t starttime = clock();
+  chainState *ch = &(am->ch);
+  proposalDist jd = am->jd;
   printf("\nBurning in");
   ch->isBurning = 1;
   for (unsigned long sweep_init = ch->sweep_i; ch->sweep_i < sweep_init + nburn;
@@ -89,7 +90,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(ch, jd, dof, st, logpost);
+    reversible_jump_move(ch, jd, am->student_T_dof, st, am->logposterior);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
