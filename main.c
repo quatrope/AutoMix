@@ -95,6 +95,7 @@ int main(int argc, char *argv[]) {
 
   freeChain(&(am.ch));
   freeRunStats(am.st, am.jd);
+  freeAMSampler(am);
 
   clock_t endtime = clock();
   double timesecs = (endtime - starttime) / ((double)CLOCKS_PER_SEC);

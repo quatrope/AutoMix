@@ -20,6 +20,9 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, targetFunc logpost);
+int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
+void freeProposalDist(proposalDist jd);
+
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
   chainState *ch = &(am->ch);
@@ -157,7 +160,10 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   return EXIT_SUCCESS;
 }
 
-void freeAMSampler(amSampler am) { return; }
+void freeAMSampler(amSampler am) {
+  freeProposalDist(am.jd);
+  return;
+}
 
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
 

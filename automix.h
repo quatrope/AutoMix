@@ -41,25 +41,21 @@ be a published paper in the not too distant future.  */
 
 #include <time.h>
 
-typedef double (*targetFunc)(int model_k, int mdim, double *x);
-typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
-// C does not have a bool type but int is just as good
-typedef int bool;
-
-typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } AUTOMIX_MIX_FIT;
-
 // Global constants (please feel free to change as required)
 // NMODELS_MAX = maximum number of models
-#define NMODELS_MAX 15
+#define NMODELS_MAX 15 // used in initProposalDist
 // Lkmaxmax = initial number of mixture components fitted in stage 2 of
 // AutoMix algorithm
-#define NUM_MIX_COMPS_MAX 30
-#define NUM_FITMIX_MAX 5000
+#define NUM_MIX_COMPS_MAX                                                      \
+  30 // used in initJD, freeJD and fit_mixture_from_samples
+#define NUM_FITMIX_MAX                                                         \
+  5000 // used in initCondProbStats and fit_mixture_from_samples
 
 typedef double (*targetFunc)(int model_k, int mdim, double *x);
 typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
 // C does not have a bool type but int is just as good
 typedef int bool;
+typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } AUTOMIX_MIX_FIT;
 
 // Struct to hold the MCMC chain state
 typedef struct {
@@ -178,8 +174,6 @@ void freeAMSampler(amSampler am);
 void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
                rwmInitFunc initRWM);
 void freeChain(chainState *aChain);
-int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
-void freeProposalDist(proposalDist jd);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
