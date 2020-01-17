@@ -24,7 +24,6 @@ void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
     unsigned long sweep = ch->sweep_i - sweep_init;
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
-    ch->gamma_sweep = pow(1.0 / (ch->sweep_i + 1), (2.0 / 3.0));
 
     reversible_jump_move(ch, jd, dof, st, logpost);
 
@@ -80,7 +79,6 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
     unsigned long sweep = ch->sweep_i - sweep_init;
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
-    ch->gamma_sweep = pow(1.0 / (ch->sweep_i + 1), (2.0 / 3.0));
 
     reversible_jump_move(ch, jd, dof, st, logpost);
     if ((10 * sweep) % nburn == 0) {
@@ -1106,7 +1104,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     kn = ch->current_model_k;
     logratio = 0.0;
   } else {
-    gamma = ch->gamma_sweep;
+    gamma = pow(1.0 / (ch->sweep_i + 1), (2.0 / 3.0));
     double u = sdrand();
     double thresh = 0.0;
     for (int k1 = 0; k1 < jd.nmodels; k1++) {

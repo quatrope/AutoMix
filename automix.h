@@ -72,7 +72,6 @@ typedef struct {
   bool doPerm;
   bool isBurning;
   unsigned long sweep_i;
-  double gamma_sweep;
   rwmInitFunc initRWM;
 } chainState;
 
