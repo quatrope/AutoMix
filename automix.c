@@ -20,9 +20,10 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
                           runStats *st, targetFunc logpost);
-void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
-                    runStats *st, targetFunc logpost) {
+void rjmcmc_samples(amSampler *am, int nsweep, runStats *st) {
   clock_t starttime = clock();
+  chainState *ch = &(am->ch);
+  proposalDist jd = am->jd;
   // Start here main sample
   int xr_i = 0;
   printf("Start of main sample:");
@@ -34,7 +35,7 @@ void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(ch, jd, dof, st, logpost);
+    reversible_jump_move(ch, am->jd, am->student_T_dof, st, am->logposterior);
 
     (st->ksummary[ch->current_model_k])++;
     st->k_which_summary[sweep] = ch->current_model_k + 1;

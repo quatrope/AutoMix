@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
   // Burn some samples first
   burn_samples(&am, nburn, &st);
   // Collect nsweep RJMCMC samples
-  rjmcmc_samples(&(am.ch), nsweep, am.jd, dof, &st, logposterior);
+  rjmcmc_samples(&am, nsweep, &st);
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, am.ch, seed, mode, nsweep2, nsweep, am.jd, st);
 
