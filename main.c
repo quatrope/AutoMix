@@ -76,8 +76,7 @@ int main(int argc, char *argv[]) {
   } else {
     condProbStats cpstats;
     initCondProbStats(&cpstats, am.jd, nsweep2);
-    estimate_conditional_probs(&am, nsweep2, &cpstats, logposterior,
-                               get_rwm_init);
+    estimate_conditional_probs(&am, nsweep2, &cpstats);
     report_cond_prob_estimation(fname, am, cpstats);
     freeCondProbStats(cpstats, am.jd);
   }

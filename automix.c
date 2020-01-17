@@ -101,8 +101,7 @@ void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
 }
 
 void estimate_conditional_probs(amSampler *am, int nsweep2,
-                                condProbStats *cpstats, targetFunc logpost,
-                                rwmInitFunc initRWM) {
+                                condProbStats *cpstats) {
   clock_t starttime = clock();
   proposalDist jd = am->jd;
   // Section 5.2 - Within-model runs if mixture parameters unavailable
@@ -120,7 +119,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2,
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
     rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
-                     am->student_T_dof, samples, logpost, initRWM);
+                     am->student_T_dof, samples, am->logposterior, am->initRWM);
     printf("\nMixture Fitting: Model %d", model_k + 1);
     if (am->am_mixfit == FIGUEREIDO_MIX_FIT) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)

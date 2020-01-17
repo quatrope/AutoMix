@@ -188,8 +188,7 @@ void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 /*** Public Functions ***/
 int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2,
-                                condProbStats *cpstats, targetFunc logpost,
-                                rwmInitFunc initRWM);
+                                condProbStats *cpstats);
 void burn_samples(chainState *ch, int nburn, proposalDist jd, int dof,
                   runStats *st, targetFunc logpost);
 void rjmcmc_samples(chainState *ch, int nsweep, proposalDist jd, int dof,
