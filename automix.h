@@ -186,7 +186,7 @@ int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
 void freeCondProbStats(condProbStats cpstats, proposalDist jd);
 
 /*** Public Functions ***/
-int read_mixture_params(char *fname, proposalDist jd);
+int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(proposalDist jd, int dof, int nsweep2,
                                 condProbStats *cpstats, int mode,
                                 targetFunc logpost, rwmInitFunc initRWM);

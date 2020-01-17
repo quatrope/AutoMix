@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
-    int ok = read_mixture_params(fname, am.jd);
+    int ok = read_mixture_params(fname, &am);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
