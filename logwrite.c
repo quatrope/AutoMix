@@ -16,14 +16,13 @@ void write_adapt_to_file(char *fname, proposalDist jd, condProbStats cpstats);
 void write_mix_to_file(char *fname, proposalDist jd);
 void write_theta_to_file(char *fname, runStats st, proposalDist jd);
 
-void report_cond_prob_estimation(char *fname, amSampler am,
-                                 condProbStats cpstats) {
+void report_cond_prob_estimation(char *fname, amSampler am) {
   // Write adaptation statistics to file
-  write_adapt_to_file(fname, am.jd, cpstats);
+  write_adapt_to_file(fname, am.jd, am.cpstats);
   // Write mixture parameters to file
   write_mix_to_file(fname, am.jd);
   // Write cf statistics to file
-  write_cf_to_file(fname, am, cpstats);
+  write_cf_to_file(fname, am, am.cpstats);
 }
 
 void write_cf_to_file(char *fname, amSampler am, condProbStats cpstats) {

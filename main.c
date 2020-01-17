@@ -74,11 +74,10 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   } else {
-    condProbStats cpstats;
-    initCondProbStats(&cpstats, am.jd, nsweep2);
-    estimate_conditional_probs(&am, nsweep2, &cpstats);
-    report_cond_prob_estimation(fname, am, cpstats);
-    freeCondProbStats(cpstats, am.jd);
+    initCondProbStats(&(am.cpstats), am.jd, nsweep2);
+    estimate_conditional_probs(&am, nsweep2);
+    report_cond_prob_estimation(fname, am);
+    freeCondProbStats(am.cpstats, am.jd);
   }
 
   // Initialization of the MC Markov Chain parameters
