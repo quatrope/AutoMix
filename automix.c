@@ -24,9 +24,13 @@ int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
 void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
+void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
+               targetFunc logposterior);
+void freeChain(chainState *ch);
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
+  initChain(&(am->ch), am->jd, am->initRWM, am->logposterior);
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
   runStats *st = &(am->st);
@@ -87,6 +91,7 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
 
 void burn_samples(amSampler *am, int nburn) {
   clock_t starttime = clock();
+  initChain(&(am->ch), am->jd, am->initRWM, am->logposterior);
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
   runStats *st = &(am->st);
@@ -153,6 +158,7 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logposterior, rwmInitFunc initRWM) {
   initProposalDist(&(am->jd), nmodels, model_dims);
   (&(am->cpstats))->isInitialized = 0;
+  (&(am->ch))->isInitialized = 0;
   am->logposterior = logposterior;
   am->initRWM = initRWM;
   // Set default values
@@ -167,6 +173,7 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
 
 void freeAMSampler(amSampler *am) {
   freeCondProbStats(&(am->cpstats), am->jd);
+  freeChain(&(am->ch));
   freeProposalDist(am->jd);
   return;
 }
@@ -336,6 +343,9 @@ void freeRunStats(runStats st, proposalDist jd) {
 
 void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
                targetFunc logposterior) {
+  if (ch->isInitialized) {
+    return;
+  }
   ch->current_model_k = (int)floor(jd.nmodels * sdrand());
   ch->mdim = jd.model_dims[ch->current_model_k];
   int mdim_max = jd.model_dims[0];
@@ -358,6 +368,9 @@ void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
 }
 
 void freeChain(chainState *ch) {
+  if (!ch->isInitialized) {
+    return;
+  }
   if (ch->theta != NULL) {
     free(ch->theta);
   }

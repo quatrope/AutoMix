@@ -59,7 +59,6 @@ typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } AUTOMIX_MIX_FIT;
 
 // Struct to hold the MCMC chain state
 typedef struct {
-  bool isInitialized;
   double *theta;
   double *pk;
   double log_posterior;
@@ -72,6 +71,7 @@ typedef struct {
   bool doBlockRWM;
   bool isBurning;
   unsigned long sweep_i;
+  bool isInitialized;
 } chainState;
 
 typedef struct {
@@ -169,9 +169,6 @@ typedef struct {
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logpost, rwmInitFunc initRWM);
 void freeAMSampler(amSampler *am);
-void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
-               targetFunc logposterior);
-void freeChain(chainState *aChain);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 

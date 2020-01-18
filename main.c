@@ -78,8 +78,6 @@ int main(int argc, char *argv[]) {
     report_cond_prob_estimation(fname, am);
   }
 
-  // Initialization of the MC Markov Chain parameters
-  initChain(&(am.ch), am.jd, get_rwm_init, logposterior);
   // Struct to hold run statistic variables
   initRunStats(&(am.st), nsweep, am.jd);
 
@@ -91,7 +89,6 @@ int main(int argc, char *argv[]) {
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, am, mode, nsweep2, nsweep);
 
-  freeChain(&(am.ch));
   freeRunStats(am.st, am.jd);
   freeAMSampler(&am);
 
