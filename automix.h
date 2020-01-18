@@ -70,11 +70,8 @@ typedef struct {
   int reinit;
   double pkllim;
   bool doBlockRWM;
-  bool doAdapt;
-  bool doPerm;
   bool isBurning;
   unsigned long sweep_i;
-  rwmInitFunc initRWM;
 } chainState;
 
 typedef struct {
@@ -172,8 +169,8 @@ typedef struct {
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logpost, rwmInitFunc initRWM);
 void freeAMSampler(amSampler *am);
-void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
-               rwmInitFunc initRWM);
+void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
+               targetFunc logposterior);
 void freeChain(chainState *aChain);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);

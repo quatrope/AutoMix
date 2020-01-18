@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Initialization of the MC Markov Chain parameters
-  initChain(&(am.ch), am.jd, adapt, logposterior, get_rwm_init);
+  initChain(&(am.ch), am.jd, get_rwm_init, logposterior);
   // Struct to hold run statistic variables
   initRunStats(&(am.st), nsweep, am.jd);
 

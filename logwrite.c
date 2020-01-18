@@ -5,8 +5,9 @@
 #include <string.h>
 
 void write_ac_to_file(char *fname, int m, double *xr);
-void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
-                       int nsweep2, int nsweep, proposalDist jd, runStats st);
+void write_log_to_file(char *fname, amSampler am, unsigned long seed, int mode,
+                       chainState ch, int nsweep2, int nsweep, proposalDist jd,
+                       runStats st);
 void write_pk_to_file(char *fname, int nsweep, int nmodels,
                       double **pk_summary);
 void write_k_to_file(char *fname, int nsweep, int *k_which_summary);
@@ -134,7 +135,8 @@ void write_stats_to_file(char *fname, amSampler am, int mode, int nsweep2,
   write_k_to_file(fname, nsweep, st.k_which_summary);
   write_lp_to_file(fname, nsweep, st.logp_summary);
   sokal(st.nkeep, st.xr, &(st.var), &(st.tau), &(st.m));
-  write_log_to_file(fname, am.seed, mode, am.ch, nsweep2, nsweep, am.jd, st);
+  write_log_to_file(fname, am, am.seed, mode, am.ch, nsweep2, nsweep, am.jd,
+                    st);
   write_ac_to_file(fname, st.m, st.xr);
   write_theta_to_file(fname, st, am.jd);
 }
@@ -183,8 +185,9 @@ void write_mix_to_file(char *fname, proposalDist jd) {
   fclose(fp_mix);
 }
 
-void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
-                       int nsweep2, int nsweep, proposalDist jd, runStats st) {
+void write_log_to_file(char *fname, amSampler am, unsigned long seed, int mode,
+                       chainState ch, int nsweep2, int nsweep, proposalDist jd,
+                       runStats st) {
 
   // Print user options to log file
   unsigned long fname_len = strlen(fname);
@@ -194,8 +197,8 @@ void write_log_to_file(char *fname, unsigned long seed, int mode, chainState ch,
   free(datafname);
   fprintf(fp_log, "seed: %ld\n", seed);
   fprintf(fp_log, "m: %d\n", mode);
-  fprintf(fp_log, "a: %d\n", ch.doAdapt);
-  fprintf(fp_log, "p: %d\n", ch.doPerm);
+  fprintf(fp_log, "a: %d\n", am.doAdapt);
+  fprintf(fp_log, "p: %d\n", am.doPerm);
   fprintf(fp_log, "n: %d\n", nsweep2);
   fprintf(fp_log, "N: %d\n", nsweep);
   if (mode != 1) {

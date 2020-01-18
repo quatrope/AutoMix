@@ -18,8 +18,8 @@ void rwm_within_model(int k1, int *model_dims, int nsweep2,
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, condProbStats *cpstats);
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
-void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st, targetFunc logpost);
+void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
+                          int dof, runStats *st, targetFunc logpost);
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
@@ -41,7 +41,8 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(ch, am->jd, am->student_T_dof, st, am->logposterior);
+    reversible_jump_move(am, ch, am->jd, am->student_T_dof, st,
+                         am->logposterior);
 
     (st->ksummary[ch->current_model_k])++;
     st->k_which_summary[sweep] = ch->current_model_k + 1;
@@ -98,7 +99,7 @@ void burn_samples(amSampler *am, int nburn) {
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(ch, jd, am->student_T_dof, st, am->logposterior);
+    reversible_jump_move(am, ch, jd, am->student_T_dof, st, am->logposterior);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -333,8 +334,8 @@ void freeRunStats(runStats st, proposalDist jd) {
   }
 }
 
-void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
-               rwmInitFunc initRWM) {
+void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
+               targetFunc logposterior) {
   ch->current_model_k = (int)floor(jd.nmodels * sdrand());
   ch->mdim = jd.model_dims[ch->current_model_k];
   int mdim_max = jd.model_dims[0];
@@ -343,17 +344,15 @@ void initChain(chainState *ch, proposalDist jd, int adapt, targetFunc logpost,
   }
   ch->theta = (double *)malloc(mdim_max * sizeof(double));
   ch->pk = (double *)malloc(jd.nmodels * sizeof(double));
-  ch->initRWM = initRWM;
-  ch->initRWM(ch->current_model_k, ch->mdim, ch->theta);
+  initRWM(ch->current_model_k, ch->mdim, ch->theta);
   ch->current_Lkk = jd.nMixComps[ch->current_model_k];
-  ch->log_posterior = logpost(ch->current_model_k, ch->mdim, ch->theta);
+  ch->log_posterior = logposterior(ch->current_model_k, ch->mdim, ch->theta);
   for (int i = 0; i < jd.nmodels; i++) {
     ch->pk[i] = 1.0 / jd.nmodels;
   }
   ch->nreinit = 1;
   ch->reinit = 0;
   ch->pkllim = 1.0 / 10.0;
-  ch->doAdapt = adapt;
   ch->sweep_i = 1;
   ch->isInitialized = 1;
 }
@@ -1044,8 +1043,8 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples) {
   chol(mdim, B_k[0]);
 }
 
-void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
-                          runStats *st, targetFunc logpost) {
+void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
+                          int dof, runStats *st, targetFunc logpost) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -1192,15 +1191,15 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
         logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
       }
     }
-    if (ch->doPerm) {
+    if (am->doPerm) {
       perm(work, mdim_kn);
     }
   } else if (ch->mdim == mdim_kn) {
-    if (ch->doPerm) {
+    if (am->doPerm) {
       perm(work, ch->mdim);
     }
   } else {
-    if (ch->doPerm) {
+    if (am->doPerm) {
       perm(work, ch->mdim);
     }
     if (dof > 0) {
@@ -1266,7 +1265,7 @@ void reversible_jump_move(chainState *ch, proposalDist jd, int dof,
     (st->nacctd)++;
   }
 
-  if (ch->doAdapt && !ch->isBurning) {
+  if (am->doAdapt && !ch->isBurning) {
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       double propk;
       if (k1 == ch->current_model_k) {
