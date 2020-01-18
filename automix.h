@@ -55,7 +55,9 @@ typedef double (*targetFunc)(int model_k, int mdim, double *x);
 typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
 // C does not have a bool type but int is just as good
 typedef int bool;
-typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } AUTOMIX_MIX_FIT;
+// Enum to specify whether using Figuereido or AutoRJ in conditional
+// probs estimation.
+typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } automix_mix_fit;
 
 // Struct to hold the MCMC chain state
 typedef struct {
@@ -96,7 +98,6 @@ typedef struct {
   // vector of adapted RWM scale parameters for each model
   double **sig;
   bool isInitialized;
-  bool isAllocated;
 } proposalDist;
 
 typedef struct {
@@ -108,10 +109,6 @@ typedef struct {
   double **fitmix_costfnnew;
   double **fitmix_lpn;
   int **fitmix_Lkk;
-  // Booleans to specify whether using Figuereido or AutoRJ in conditional
-  // probs estimation.
-  bool useAutoMixFit;
-  bool useAutoRJFit;
   double timesecs_condprobs;
   bool isInitialized;
 } condProbStats;
@@ -162,7 +159,7 @@ typedef struct {
   targetFunc logposterior;
   rwmInitFunc initRWM;
   int student_T_dof;
-  AUTOMIX_MIX_FIT am_mixfit;
+  automix_mix_fit am_mixfit;
   unsigned long seed;
 } amSampler;
 

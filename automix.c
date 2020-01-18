@@ -11,15 +11,7 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
-void rwm_within_model(int k1, int *model_dims, int nsweep2,
-                      condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost,
-                      rwmInitFunc initRWM);
-void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, condProbStats *cpstats);
-void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
-void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
-                          int dof, runStats *st, targetFunc logpost);
+// Constructors and Destructors
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
 void freeProposalDist(proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
@@ -29,6 +21,17 @@ void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
 void freeChain(chainState *ch);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
+
+// Helper functions
+void rwm_within_model(int k1, int *model_dims, int nsweep2,
+                      condProbStats *cpstats, double *sig_k, int dof,
+                      double **samples, targetFunc logpost,
+                      rwmInitFunc initRWM);
+void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
+                              int nsamples, condProbStats *cpstats);
+void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
+void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
+                          int dof, runStats *st, targetFunc logpost);
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
@@ -159,12 +162,14 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
 
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logposterior, rwmInitFunc initRWM) {
+  // Proposal Distribution must be initialized immediately
   initProposalDist(&(am->jd), nmodels, model_dims);
+  am->logposterior = logposterior;
+  am->initRWM = initRWM;
+  // Set all structs as un-initialized
   (&(am->cpstats))->isInitialized = 0;
   (&(am->ch))->isInitialized = 0;
   (&(am->st))->isInitialized = 0;
-  am->logposterior = logposterior;
-  am->initRWM = initRWM;
   // Set default values
   am->doAdapt = 1;
   am->doPerm = 1;
@@ -183,7 +188,6 @@ void freeAMSampler(amSampler *am) {
 }
 
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
-
   if (cpstats->isInitialized) {
     return EXIT_SUCCESS;
   }

@@ -1,6 +1,4 @@
 // Driver main function for the AutoMix RJMCMC sampler
-#define VERSION "1.3"
-
 #include "automix.h"
 #include "logwrite.h"
 #include "user.h"
@@ -13,9 +11,9 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 
 void usage(char *invocation);
-int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
-                       int *nsweep2, unsigned long *seed, int *doperm,
-                       int *adapt, int *mode, int *dof);
+void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
+                        int *nsweep2, unsigned long *seed, int *doperm,
+                        int *adapt, int *mode, int *dof);
 // wrapper function to fit with AutoMix
 double logposterior(int model_k, int mdim, double *x) {
   double lpost = 0;
@@ -51,11 +49,8 @@ int main(int argc, char *argv[]) {
   char *fname = fname_default;
 
   // Override defaults if user supplies command line options
-  int parsing = parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed,
-                                   &doperm, &adapt, &mode, &dof);
-  if (parsing == EXIT_FAILURE) {
-    return EXIT_FAILURE;
-  }
+  parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed, &doperm,
+                     &adapt, &mode, &dof);
   sdrni(&seed);
   int nburn = max(10000, (int)(nsweep / 10));
 
@@ -102,13 +97,12 @@ void usage(char *invocation) {
   } else {
     name += 1;
   }
-  printf("%s version %s\n", name, VERSION);
-  printf("Usage: %s [-m int] [-N int] [-n int] [-a bool] \
-           [-p bool] [-s int] [-t int] [-f string] [-h, --help]\n",
+  printf("%s\n", name);
+  printf("Usage: %s [-m int] [-N int] [-n int] [-a bool] [-p bool] [-s int] "
+         "[-t int] [-f string] [-h, --help]\n",
          name);
-  printf(
-      "-m int: Specify mode. 0 if mixture fitting, 1 if user supplied mixture params, \
-           2 if AutoRJ.\n");
+  printf("-m int: Specify mode. 0 if mixture fitting, 1 if user supplied "
+         "mixture params, 2 if AutoRJ.\n");
   printf("-N int: Number of reversible jump sweeps in stage 3.\n");
   printf("-n int: max(n, 10000 * mdim, 100000) sweeps in within-model RWM in "
          "stage 1.\n");
@@ -117,17 +111,17 @@ void usage(char *invocation) {
          "otherwise.\n");
   printf("-s int: random no. seed. 0 uses clock seed.\n");
   printf(
-      "-t int: 0 if Normal random variables used in RWM and RJ moves, otherwise \
-           specify integer degrees of freedom of student t variables.\n");
+      "-t int: 0 if Normal random variables used in RWM and RJ moves, "
+      "otherwise specify integer degrees of freedom of student t variables.\n");
   printf("-f string: filename base.\n");
   printf("-h, --help: Print this help and exit.");
   printf(
       "\n(c) Original code by David Hastie. Modifications by Martin Beroiz.\n");
 }
 
-int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
-                       int *nsweep2, unsigned long *seed, int *doperm,
-                       int *adapt, int *mode, int *dof) {
+void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
+                        int *nsweep2, unsigned long *seed, int *doperm,
+                        int *adapt, int *mode, int *dof) {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-f")) {
       *fname = argv[++i];
@@ -150,7 +144,7 @@ int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
       if (*mode > 2 || *mode < 0) {
         printf("Error: Invalid mode entered. Mode must be {0, 1, 2}.\n");
         usage(argv[0]);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
       }
       continue;
     } else if (!strcmp(argv[i], "-a")) {
@@ -161,15 +155,15 @@ int parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
       continue;
     } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
       usage(argv[0]);
-      return EXIT_SUCCESS;
+      exit(EXIT_SUCCESS);
     } else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--version")) {
-      printf("Version %s\n", VERSION);
-      return EXIT_SUCCESS;
+      printf("AutoMix Version %s\n", AUTOMIX_VERSION);
+      exit(EXIT_SUCCESS);
     } else {
       printf("Unrecognized argument: %s\n", argv[i]);
       usage(argv[0]);
-      return EXIT_FAILURE;
+      exit(EXIT_FAILURE);
     }
   }
-  return EXIT_SUCCESS;
+  return;
 }
