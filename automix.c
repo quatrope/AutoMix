@@ -30,8 +30,9 @@ void rwm_within_model(int k1, int *model_dims, int nsweep2,
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, condProbStats *cpstats);
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
-void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
-                          int dof, runStats *st, targetFunc logpost);
+void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
+                          proposalDist jd, int dof, runStats *st,
+                          targetFunc logpost);
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
@@ -51,8 +52,8 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(am, ch, am->jd, am->student_T_dof, st,
-                         am->logposterior);
+    reversible_jump_move(am->doPerm, am->doAdapt, ch, am->jd, am->student_T_dof,
+                         st, am->logposterior);
 
     (st->ksummary[ch->current_model_k])++;
     st->k_which_summary[sweep] = ch->current_model_k + 1;
@@ -110,7 +111,8 @@ void burn_samples(amSampler *am, int nburn) {
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
-    reversible_jump_move(am, ch, jd, am->student_T_dof, st, am->logposterior);
+    reversible_jump_move(am->doPerm, am->doAdapt, ch, jd, am->student_T_dof, st,
+                         am->logposterior);
     if ((10 * sweep) % nburn == 0) {
       printf(" .");
       fflush(NULL);
@@ -1070,8 +1072,9 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples) {
   chol(mdim, B_k[0]);
 }
 
-void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
-                          int dof, runStats *st, targetFunc logpost) {
+void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
+                          proposalDist jd, int dof, runStats *st,
+                          targetFunc logpost) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);
@@ -1218,15 +1221,15 @@ void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
         logratio += 0.5 * pow(work[j1], 2.0) + logrtpi;
       }
     }
-    if (am->doPerm) {
+    if (doPerm) {
       perm(work, mdim_kn);
     }
   } else if (ch->mdim == mdim_kn) {
-    if (am->doPerm) {
+    if (doPerm) {
       perm(work, ch->mdim);
     }
   } else {
-    if (am->doPerm) {
+    if (doPerm) {
       perm(work, ch->mdim);
     }
     if (dof > 0) {
@@ -1292,7 +1295,7 @@ void reversible_jump_move(amSampler *am, chainState *ch, proposalDist jd,
     (st->nacctd)++;
   }
 
-  if (am->doAdapt && !ch->isBurning) {
+  if (doAdapt && !ch->isBurning) {
     for (int k1 = 0; k1 < jd.nmodels; k1++) {
       double propk;
       if (k1 == ch->current_model_k) {
