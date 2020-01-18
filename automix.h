@@ -146,6 +146,7 @@ typedef struct {
   double **logp_summary;
   double timesecs_rjmcmc;
   double timesecs_burn;
+  bool isInitialized;
 } runStats;
 
 typedef struct {
@@ -165,14 +166,10 @@ typedef struct {
   unsigned long seed;
 } amSampler;
 
-/*** Constructors and Destructors ***/
+/*** Public Functions ***/
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logpost, rwmInitFunc initRWM);
 void freeAMSampler(amSampler *am);
-void initRunStats(runStats *st, int nsweep, proposalDist jd);
-void freeRunStats(runStats st, proposalDist jd);
-
-/*** Public Functions ***/
 int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2);
 void burn_samples(amSampler *am, int nburn);

@@ -27,10 +27,13 @@ void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
 void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
                targetFunc logposterior);
 void freeChain(chainState *ch);
+void initRunStats(runStats *st, int nsweep, proposalDist jd);
+void freeRunStats(runStats st, proposalDist jd);
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
   initChain(&(am->ch), am->jd, am->initRWM, am->logposterior);
+  initRunStats(&(am->st), nsweep, am->jd);
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
   runStats *st = &(am->st);
@@ -159,6 +162,7 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   initProposalDist(&(am->jd), nmodels, model_dims);
   (&(am->cpstats))->isInitialized = 0;
   (&(am->ch))->isInitialized = 0;
+  (&(am->st))->isInitialized = 0;
   am->logposterior = logposterior;
   am->initRWM = initRWM;
   // Set default values
@@ -282,6 +286,9 @@ void freeCondProbStats(condProbStats *cpstats, proposalDist jd) {
 }
 
 void initRunStats(runStats *st, int nsweep, proposalDist jd) {
+  if (st->isInitialized) {
+    return;
+  }
   st->naccrwmb = 0;
   st->ntryrwmb = 0;
   st->naccrwms = 0;
@@ -318,6 +325,9 @@ void initRunStats(runStats *st, int nsweep, proposalDist jd) {
 }
 
 void freeRunStats(runStats st, proposalDist jd) {
+  if (!st.isInitialized) {
+    return;
+  }
   if (st.xr != NULL) {
     free(st.xr);
   }

@@ -78,9 +78,6 @@ int main(int argc, char *argv[]) {
     report_cond_prob_estimation(fname, am);
   }
 
-  // Struct to hold run statistic variables
-  initRunStats(&(am.st), nsweep, am.jd);
-
   // -----Start of main loop ----------------
   // Burn some samples first
   burn_samples(&am, nburn);
@@ -89,7 +86,6 @@ int main(int argc, char *argv[]) {
   // --- Section 10 - Write statistics to files ---------
   write_stats_to_file(fname, am, mode, nsweep2, nsweep);
 
-  freeRunStats(am.st, am.jd);
   freeAMSampler(&am);
 
   clock_t endtime = clock();
