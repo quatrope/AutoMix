@@ -12,9 +12,11 @@
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
 // Constructors and Destructors
-int initProposalDist(proposalDist *jd, int nmodels, int *model_dims);
+int initProposalDist(proposalDist *jd, int nmodels, int *model_dims,
+                     int NUM_MIX_COMPS_MAX);
 void freeProposalDist(proposalDist jd);
-int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2);
+int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2,
+                      int NUM_FITMIX_MAX);
 void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
 void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
                targetFunc logposterior);
@@ -28,7 +30,8 @@ void rwm_within_model(int k1, int *model_dims, int nsweep2,
                       double **samples, targetFunc logpost,
                       rwmInitFunc initRWM);
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, condProbStats *cpstats);
+                              int nsamples, condProbStats *cpstats,
+                              int NUM_MIX_COMPS_MAX, int NUM_FITMIX_MAX);
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
                           proposalDist jd, int dof, runStats *st,
@@ -127,7 +130,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
   clock_t starttime = clock();
   proposalDist jd = am->jd;
   condProbStats *cpstats = &(am->cpstats);
-  initCondProbStats(cpstats, jd, nsweep2);
+  initCondProbStats(cpstats, jd, nsweep2, am->NUM_FITMIX_MAX);
   // Section 5.2 - Within-model runs if mixture parameters unavailable
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int mdim = jd.model_dims[model_k];
@@ -149,7 +152,8 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
       // distributions pi(theta_k|k). See theis, p 144.
-      fit_mixture_from_samples(model_k, jd, samples, nsamples, cpstats);
+      fit_mixture_from_samples(model_k, jd, samples, nsamples, cpstats,
+                               am->NUM_MIX_COMPS_MAX, am->NUM_FITMIX_MAX);
     }
     if (am->am_mixfit == AUTORJ_MIX_FIT) {
       //--- Section 5.2.3 - Fit AutoRJ single mu vector and B matrix --
@@ -165,7 +169,14 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logposterior, rwmInitFunc initRWM) {
   // Proposal Distribution must be initialized immediately
-  initProposalDist(&(am->jd), nmodels, model_dims);
+  if (nmodels < 0) {
+    printf("Error: negative number of models.\n");
+    return EXIT_FAILURE;
+  }
+  am->NMODELS_MAX = 15;
+  am->NUM_MIX_COMPS_MAX = 30;
+  am->NUM_FITMIX_MAX = 5000;
+  initProposalDist(&(am->jd), nmodels, model_dims, am->NUM_MIX_COMPS_MAX);
   am->logposterior = logposterior;
   am->initRWM = initRWM;
   // Set all structs as un-initialized
@@ -189,7 +200,8 @@ void freeAMSampler(amSampler *am) {
   return;
 }
 
-int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2) {
+int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2,
+                      int NUM_FITMIX_MAX) {
   if (cpstats->isInitialized) {
     return EXIT_SUCCESS;
   }
@@ -396,17 +408,10 @@ void freeChain(chainState *ch) {
   ch->isInitialized = 0;
 }
 
-int initProposalDist(proposalDist *jd, int nmodels, int *model_dims) {
+int initProposalDist(proposalDist *jd, int nmodels, int *model_dims,
+                     int NUM_MIX_COMPS_MAX) {
   jd->nmodels = nmodels;
-  if (jd->nmodels > NMODELS_MAX) {
-    printf("\nError:kmax too large \n");
-    return EXIT_FAILURE;
-  } else if (jd->nmodels < 0) {
-    printf("\nError:negative kmax \n");
-    return EXIT_FAILURE;
-  }
-  // nmodels is the number of models
-  int Lkmaxmax = NUM_MIX_COMPS_MAX;
+  jd->NUM_MIX_COMPS_MAX = NUM_MIX_COMPS_MAX;
   jd->model_dims = (int *)malloc(jd->nmodels * sizeof(int));
   if (jd->model_dims == NULL) {
     return EXIT_FAILURE;
@@ -432,19 +437,19 @@ int initProposalDist(proposalDist *jd, int nmodels, int *model_dims) {
   }
   for (int k = 0; k < jd->nmodels; k++) {
     int mdim = jd->model_dims[k];
-    jd->lambda[k] = (double *)malloc(Lkmaxmax * sizeof(double));
+    jd->lambda[k] = (double *)malloc(NUM_MIX_COMPS_MAX * sizeof(double));
     if (jd->lambda[k] == NULL) {
       return EXIT_FAILURE;
     }
-    jd->mu[k] = (double **)malloc(Lkmaxmax * sizeof(double *));
+    jd->mu[k] = (double **)malloc(NUM_MIX_COMPS_MAX * sizeof(double *));
     if (jd->mu[k] == NULL) {
       return EXIT_FAILURE;
     }
-    jd->B[k] = (double ***)malloc(Lkmaxmax * sizeof(double **));
+    jd->B[k] = (double ***)malloc(NUM_MIX_COMPS_MAX * sizeof(double **));
     if (jd->B[k] == NULL) {
       return EXIT_FAILURE;
     }
-    for (int i = 0; i < Lkmaxmax; i++) {
+    for (int i = 0; i < NUM_MIX_COMPS_MAX; i++) {
       jd->mu[k][i] = (double *)malloc(mdim * sizeof(double));
       if (jd->mu[k][i] == NULL) {
         return EXIT_FAILURE;
@@ -472,10 +477,9 @@ int initProposalDist(proposalDist *jd, int nmodels, int *model_dims) {
 }
 
 void freeProposalDist(proposalDist jd) {
-  int Lkmaxmax = NUM_MIX_COMPS_MAX;
   for (int k = 0; k < jd.nmodels; k++) {
     int mdim = jd.model_dims[k];
-    for (int i = 0; i < Lkmaxmax; i++) {
+    for (int i = 0; i < jd.NUM_MIX_COMPS_MAX; i++) {
       for (int j = 0; j < mdim; j++) {
         if (jd.B[k][i][j] != NULL) {
           free(jd.B[k][i][j]);
@@ -695,7 +699,8 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
 }
 
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
-                              int nsamples, condProbStats *cpstats) {
+                              int nsamples, condProbStats *cpstats,
+                              int NUM_MIX_COMPS_MAX, int NUM_FITMIX_MAX) {
   // --- Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)-
   // Mixture fitting done component wise EM algorithm described in
   // Figueiredo and Jain, 2002 (see thesis for full reference)

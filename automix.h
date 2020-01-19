@@ -41,16 +41,6 @@ be a published paper in the not too distant future.  */
 
 #include <time.h>
 
-// Global constants (please feel free to change as required)
-// NMODELS_MAX = maximum number of models
-#define NMODELS_MAX 15 // used in initProposalDist
-// Lkmaxmax = initial number of mixture components fitted in stage 2 of
-// AutoMix algorithm
-#define NUM_MIX_COMPS_MAX                                                      \
-  30 // used in initJD, freeJD and fit_mixture_from_samples
-#define NUM_FITMIX_MAX                                                         \
-  5000 // used in initCondProbStats and fit_mixture_from_samples
-
 typedef double (*targetFunc)(int model_k, int mdim, double *x);
 typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
 // C does not have a bool type but int is just as good
@@ -97,6 +87,7 @@ typedef struct {
   double ****B;
   // vector of adapted RWM scale parameters for each model
   double **sig;
+  int NUM_MIX_COMPS_MAX;
   bool isInitialized;
 } proposalDist;
 
@@ -147,9 +138,11 @@ typedef struct {
 } runStats;
 
 typedef struct {
-  // int NMODELS_MAX;
-  // int NUM_MIX_COMPS_MAX;
-  // int NUM_FITMIX_MAX;
+  // Maximum number of models
+  int NMODELS_MAX;
+  // Max number of components in proposal distribution
+  int NUM_MIX_COMPS_MAX;
+  int NUM_FITMIX_MAX;
   chainState ch;
   proposalDist jd;
   condProbStats cpstats;
