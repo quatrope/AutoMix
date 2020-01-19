@@ -10,7 +10,7 @@ AutoMix
 
 The AutoMix package is a C program for Unix-like systems, implementing the automatic reversible jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis included in `docs/thesis`.
 
-.. note::
+.. warning::
 
     Potential users should carefully understand the limitations of using the AutoMix sampler.
     The reliability of results from this sampler depends on many factors, including the scaling of the parameters and the degree of multimodality of the within-model conditionals of the target distribution.
@@ -23,7 +23,7 @@ Examples of such files for problems considered within the aforementioned thesis 
 More details of the functions are provided below.
 
 The output of the sampler is in the form of several text files summarizing the MCMC sampler.
-We discuss these files below.
+We discuss these files in section :ref:`output`.
 Subsequent analysis may be performed on the output with the use of statistical packages.
 We recommend `R <http://www.stats.bris.ac.uk/R/>`_ as a good free choice of such a package.
 

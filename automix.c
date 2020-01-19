@@ -281,7 +281,7 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   (&(am->st))->isInitialized = 0;
   // Set default values
   am->doAdapt = 1;
-  am->doPerm = 1;
+  am->doPerm = 0;
   am->student_T_dof = 0;
   am->am_mixfit = FIGUEREIDO_MIX_FIT;
   am->seed = 0;
