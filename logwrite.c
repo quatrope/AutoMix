@@ -128,8 +128,8 @@ void write_theta_to_file(char *fname, runStats st, proposalDist jd) {
   free(datafname);
 }
 
-void write_stats_to_file(char *fname, amSampler am, int mode, int nsweep2,
-                         int nsweep) {
+void report_rjmcmc_run(char *fname, amSampler am, int mode, int nsweep2,
+                       int nsweep) {
   runStats st = am.st;
   write_pk_to_file(fname, nsweep, (am.jd).nmodels, st.pk_summary);
   write_k_to_file(fname, nsweep, st.k_which_summary);

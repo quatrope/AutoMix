@@ -11,6 +11,12 @@
 #define max(A, B) ((A) > (B) ? (A) : (B))
 #define min(A, B) ((A) < (B) ? (A) : (B))
 
+/************************************************************************
+ *                                                                      *
+ *                   PRIVATE FUNCTION PROTOTYPES                        *
+ *                                                                      *
+ ************************************************************************/
+
 // Constructors and Destructors
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims,
                      int NUM_MIX_COMPS_MAX);
@@ -36,6 +42,12 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
                           proposalDist jd, int dof, runStats *st,
                           targetFunc logpost);
+
+/***********************************************************************
+ *                                                                      *
+ *                   PRIVATE FUNCTION IMPLEMENTATION                    *
+ *                                                                      *
+ ************************************************************************/
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
@@ -164,6 +176,90 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
   }
   clock_t endtime = clock();
   cpstats->timesecs_condprobs = (endtime - starttime) / (double)CLOCKS_PER_SEC;
+}
+
+int read_mixture_params(char *fname, amSampler *am) {
+  // Check user has supplied mixture parameters if trying to use mode 1.
+  // If not, abort and exit.
+  proposalDist *jd = &(am->jd);
+  char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
+  sprintf(datafname, "%s_mix.data", fname);
+  FILE *fpmix = fopen(datafname, "r");
+  free(datafname);
+  if (fpmix == NULL) {
+    printf("\nProblem opening mixture file:");
+    return EXIT_FAILURE;
+  }
+  int k1;
+  if (fscanf(fpmix, "%d", &k1) == EOF) {
+    printf("\nEnd of file encountered before parameters read:");
+    return EXIT_FAILURE;
+  }
+  if (k1 != jd->nmodels) {
+    printf("\nFile nmodels contradicts getkmax function:");
+    return EXIT_FAILURE;
+  }
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim;
+    if (fscanf(fpmix, "%d", &mdim) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      return EXIT_FAILURE;
+    }
+    if (mdim != jd->model_dims[k]) {
+      printf("\nFile kmax contradicts getnk function:");
+      return EXIT_FAILURE;
+    }
+  }
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim = jd->model_dims[k];
+    for (int l = 0; l < mdim; l++) {
+      if (fscanf(fpmix, "%lf", &(jd->sig[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        return EXIT_FAILURE;
+      }
+    }
+    if (fscanf(fpmix, "%d", &(jd->nMixComps[k])) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      return EXIT_FAILURE;
+    }
+    int Lkk = jd->nMixComps[k];
+    for (int l = 0; l < Lkk; l++) {
+      if (fscanf(fpmix, "%lf", &(jd->lambda[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        return EXIT_FAILURE;
+      }
+      for (int i = 0; i < mdim; i++) {
+        if (fscanf(fpmix, "%lf", &(jd->mu[k][l][i])) == EOF) {
+          printf("\nEnd of file encountered before parameters read:");
+          return EXIT_FAILURE;
+        }
+      }
+      for (int i = 0; i < mdim; i++) {
+        for (int j = 0; j <= i; j++) {
+          if (fscanf(fpmix, "%lf", &(jd->B[k][l][i][j])) == EOF) {
+            printf("\nEnd of file encountered before parameters read:");
+            return EXIT_FAILURE;
+          }
+        }
+      }
+    }
+    double sumlambda = 0.0;
+    for (int l = 0; l < Lkk; l++) {
+      sumlambda += jd->lambda[k][l];
+    }
+    double sumlambda_tol = 1E-5;
+    if (fabs(sumlambda - 1.0) > sumlambda_tol) {
+      printf("\nComponents weights read do not sum to one for k=%d:", k);
+      return EXIT_FAILURE;
+    }
+    if (sumlambda != 1.0) {
+      for (int l = 0; l < Lkk; l++) {
+        jd->lambda[k][l] /= sumlambda;
+      }
+    }
+  }
+  fclose(fpmix);
+  return EXIT_SUCCESS;
 }
 
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
@@ -517,90 +613,6 @@ void freeProposalDist(proposalDist jd) {
   if (jd.nMixComps != NULL) {
     free(jd.nMixComps);
   }
-}
-
-int read_mixture_params(char *fname, amSampler *am) {
-  // Check user has supplied mixture parameters if trying to use mode 1.
-  // If not, abort and exit.
-  proposalDist *jd = &(am->jd);
-  char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
-  sprintf(datafname, "%s_mix.data", fname);
-  FILE *fpmix = fopen(datafname, "r");
-  free(datafname);
-  if (fpmix == NULL) {
-    printf("\nProblem opening mixture file:");
-    return EXIT_FAILURE;
-  }
-  int k1;
-  if (fscanf(fpmix, "%d", &k1) == EOF) {
-    printf("\nEnd of file encountered before parameters read:");
-    return EXIT_FAILURE;
-  }
-  if (k1 != jd->nmodels) {
-    printf("\nFile nmodels contradicts getkmax function:");
-    return EXIT_FAILURE;
-  }
-  for (int k = 0; k < jd->nmodels; k++) {
-    int mdim;
-    if (fscanf(fpmix, "%d", &mdim) == EOF) {
-      printf("\nEnd of file encountered before parameters read:");
-      return EXIT_FAILURE;
-    }
-    if (mdim != jd->model_dims[k]) {
-      printf("\nFile kmax contradicts getnk function:");
-      return EXIT_FAILURE;
-    }
-  }
-  for (int k = 0; k < jd->nmodels; k++) {
-    int mdim = jd->model_dims[k];
-    for (int l = 0; l < mdim; l++) {
-      if (fscanf(fpmix, "%lf", &(jd->sig[k][l])) == EOF) {
-        printf("\nEnd of file encountered before parameters read:");
-        return EXIT_FAILURE;
-      }
-    }
-    if (fscanf(fpmix, "%d", &(jd->nMixComps[k])) == EOF) {
-      printf("\nEnd of file encountered before parameters read:");
-      return EXIT_FAILURE;
-    }
-    int Lkk = jd->nMixComps[k];
-    for (int l = 0; l < Lkk; l++) {
-      if (fscanf(fpmix, "%lf", &(jd->lambda[k][l])) == EOF) {
-        printf("\nEnd of file encountered before parameters read:");
-        return EXIT_FAILURE;
-      }
-      for (int i = 0; i < mdim; i++) {
-        if (fscanf(fpmix, "%lf", &(jd->mu[k][l][i])) == EOF) {
-          printf("\nEnd of file encountered before parameters read:");
-          return EXIT_FAILURE;
-        }
-      }
-      for (int i = 0; i < mdim; i++) {
-        for (int j = 0; j <= i; j++) {
-          if (fscanf(fpmix, "%lf", &(jd->B[k][l][i][j])) == EOF) {
-            printf("\nEnd of file encountered before parameters read:");
-            return EXIT_FAILURE;
-          }
-        }
-      }
-    }
-    double sumlambda = 0.0;
-    for (int l = 0; l < Lkk; l++) {
-      sumlambda += jd->lambda[k][l];
-    }
-    double sumlambda_tol = 1E-5;
-    if (fabs(sumlambda - 1.0) > sumlambda_tol) {
-      printf("\nComponents weights read do not sum to one for k=%d:", k);
-      return EXIT_FAILURE;
-    }
-    if (sumlambda != 1.0) {
-      for (int l = 0; l < Lkk; l++) {
-        jd->lambda[k][l] /= sumlambda;
-      }
-    }
-  }
-  fclose(fpmix);
-  return EXIT_SUCCESS;
 }
 
 void rwm_within_model(int model_k, int *model_dims, int nsweep2,

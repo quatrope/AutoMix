@@ -8,8 +8,6 @@
 #include <string.h>
 #include <time.h>
 
-#define max(A, B) ((A) > (B) ? (A) : (B))
-
 void usage(char *invocation);
 void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
                         int *nsweep2, unsigned long *seed, int *doperm,
@@ -52,7 +50,10 @@ int main(int argc, char *argv[]) {
   parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed, &doperm,
                      &adapt, &mode, &dof);
   sdrni(&seed);
-  int nburn = max(10000, (int)(nsweep / 10));
+  int nburn = nsweep / 10;
+  if (nburn < 10000) {
+    nburn = 10000;
+  }
 
   // Initialize the AutoMix sampler
   int nmodels = get_nmodels();
@@ -79,7 +80,7 @@ int main(int argc, char *argv[]) {
   // Collect nsweep RJMCMC samples
   rjmcmc_samples(&am, nsweep);
   // --- Section 10 - Write statistics to files ---------
-  write_stats_to_file(fname, am, mode, nsweep2, nsweep);
+  report_rjmcmc_run(fname, am, mode, nsweep2, nsweep);
 
   freeAMSampler(&am);
 
@@ -131,7 +132,9 @@ void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
       continue;
     } else if (!strcmp(argv[i], "-n")) {
       *nsweep2 = atoi(argv[++i]);
-      *nsweep2 = max(*nsweep2, 1E5);
+      if (*nsweep2 < 100000) {
+        *nsweep2 = 100000;
+      }
       continue;
     } else if (!strcmp(argv[i], "-s")) {
       *seed = atoi(argv[++i]);
