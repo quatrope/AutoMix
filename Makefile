@@ -49,7 +49,7 @@ am%: user%.o $(EXMP_DIR)/main.c libautomix.so
 
 # Rule for all object files
 %.o: $(LIB_DIR)/%.c $(LIB_DIR)/%.h
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -fPIC -c $<
 
 ### User supplied functions
 

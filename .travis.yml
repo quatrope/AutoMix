@@ -5,7 +5,8 @@ compiler:
   - gcc
 
 script:
-  - make
+  - make examples
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
   - ./amtoy1
   - test -f output_mix.data
   - ./amtoy1 -m 1 -N 1000
@@ -14,12 +15,12 @@ script:
   - ./amtoy2 -m 1 -f myout -N 1000
   - make clean
   - rm output_*.data myout*.data
-  - make DEBUG=1
+  - make examples DEBUG=1
   - ./amtoy1 -N 1000
   - test -f output_mix.data
   - make clean
-  - clang-format main.c | diff - main.c
-  - clang-format automix.c | diff - automix.c
-  - clang-format automix.h | diff - automix.h
-  - clang-format logwrite.c | diff - logwrite.c
-  - clang-format logwrite.h | diff - logwrite.h
+  - clang-format src/user_examples/main.c | diff - src/user_examples/main.c
+  - clang-format src/libautomix/automix.c | diff - src/libautomix/automix.c
+  - clang-format src/libautomix/automix.h | diff - src/libautomix/automix.h
+  - clang-format src/libautomix/logwrite.c | diff - src/libautomix/logwrite.c
+  - clang-format src/libautomix/logwrite.h | diff - src/libautomix/logwrite.h
