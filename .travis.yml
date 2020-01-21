@@ -5,7 +5,7 @@ compiler:
   - gcc
 
 script:
-  - make examples
+  - make amtoy1 amtoy2
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
   - ./amtoy1
   - test -f output_mix.data
@@ -14,7 +14,7 @@ script:
   - test -f myout_mix.data
   - ./amtoy2 -m 1 -f myout -N 1000
   - make clean; rm output_*.data myout*.data; rm libautomix.so
-  - make examples DEBUG=1
+  - make amtoy1 amtoy2 DEBUG=1
   - ./amtoy1 -N 1000
   - test -f output_mix.data
   - clang-format src/user_examples/main.c | diff - src/user_examples/main.c
@@ -22,3 +22,6 @@ script:
   - clang-format src/libautomix/automix.h | diff - src/libautomix/automix.h
   - clang-format src/libautomix/logwrite.c | diff - src/libautomix/logwrite.c
   - clang-format src/libautomix/logwrite.h | diff - src/libautomix/logwrite.h
+  - make clean
+  - make test
+  - ./test

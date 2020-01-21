@@ -101,8 +101,8 @@ int test_normal_sampler() {
   double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
   double true_mean = 0.5;
   double true_sigma = 1.0;
-  double tol = 1E-2;
-  int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < 0.5;
+  double tol = 0.5;
+  int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
   printf("Test Normal Sampler:......");
   if (!pass) {
     printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
