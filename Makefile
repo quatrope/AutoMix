@@ -63,6 +63,9 @@ userddi.o: $(EXMP_DIR)/userddi.c $(EXMP_DIR)/user.h $(EXMP_DIR)/ddidata.h
 
 ###### Type "make clean" to remove all executables and object files ####
 
+test: tests/main.c libautomix.so
+	$(CC) $< -L./ -lautomix -lm -I./src/libautomix -o $@
+
 clean:
 	- rm *.o
 	- rm -r *.dSYM
