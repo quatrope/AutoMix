@@ -19,45 +19,46 @@
 ifdef DEBUG
 CFLAGS=-g
 else
-CFLAGS=-O3
+CFLAGS=-O3 -Wall
 endif
 
 # Libraries
 LIBS=-lm
+LIBOBJS=automix.o logwrite.o utils.o
+SRC_DIR=src
+LIB_DIR=$(SRC_DIR)/libautomix
+EXMP_DIR=$(SRC_DIR)/user_examples
+INC_DIRS=$(EXMP_DIR) $(LIB_DIR)
+INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-OBJS = automix.o logwrite.o utils.o
+all: libautomix.so
 
-# Compiler flags:
-#       -g      -- Enable debugging through gdb
-#       -O3     -- Optimise progs 
-#       -Wall   -- Turn on all warnings
-#       -lm     -- Use the maths library
-#       -c      -- Compile flag for dependencies
+examples: amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
 
-###### Type "make all" to make all files in the folder #####
+libautomix.so: $(LIBOBJS)
+	$(CC) -shared -o libautomix.so $(LIBOBJS) $(LIBS)
 
-all: amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
-
-###### Normal (already debugged) progs ############
+###### EXAMPLE PROGRAMS ############
 
 # Toy example 1
-am%: user%.o main.c $(OBJS)
-	$(CC) $(CFLAGS) -o $@ main.c $< $(OBJS) $(LIBS)
+# cc src/user_examples/main.c usertoy1.o -L./ -lautomix -o amtoy1 -lm -I./src/user_examples -I./src/libautomix
+am%: user%.o $(EXMP_DIR)/main.c libautomix.so
+	$(CC) $(CFLAGS) -o $@ $< $(EXMP_DIR)/main.c -L./ -lautomix $(LIBS) $(INC_FLAGS)
 
 ### AutoMix dependencies
 
 # Rule for all object files
-%.o: %.c %.h
+%.o: $(LIB_DIR)/%.c $(LIB_DIR)/%.h
 	$(CC) $(CFLAGS) -c $<
 
 ### User supplied functions
 
 # Rule for all user* object files
-user%.o: user%.c user.h
+user%.o: $(EXMP_DIR)/user%.c $(EXMP_DIR)/user.h
 	$(CC) $(CFLAGS) -c $<
 
 # Rule for ddi (includes ddidata.h)
-userddi.o: userddi.c user.h ddidata.h
+userddi.o: $(EXMP_DIR)/userddi.c $(EXMP_DIR)/user.h $(EXMP_DIR)/ddidata.h
 	$(CC) $(CFLAGS) -c $<
 
 ###### Type "make clean" to remove all executables and object files ####
