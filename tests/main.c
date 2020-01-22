@@ -9,18 +9,22 @@
 double logp_truncnormal_sampler(int model_k, int mdim, double *xp);
 double logp_normal_sampler(int model_k, int mdim, double *xp);
 double logp_beta_sampler(int model_k, int mdim, double *xp);
-double logp_normal_params(double sigma, double x0);
+double logp_normal_params(int model_k, int mdim, double *params);
 double logp_beta_params(double alpha, double beta);
 double logp_gamma_params(double alpha, double beta);
-int test_setUp(int models, int *model_dims, targetFunc logposterior,
-               rwmInitFunc initRWM);
-int test_tearDown(char *filename, int nmodels);
-int test_normal_sampler();
-int test_truncnormal_sampler();
-int test_beta_sampler();
 void init_normal_sampler(int model_k, int mdim, double *xp);
 void init_truncnormal_sampler(int model_k, int mdim, double *xp);
 void init_beta_sampler(int model_k, int mdim, double *xp);
+void init_normal_params(int model_k, int mdim, double *xp);
+
+int test_setUp(int models, int *model_dims, targetFunc logposterior,
+               rwmInitFunc initRWM);
+int test_tearDown(char *filename, int nmodels);
+
+int test_normal_sampler();
+int test_truncnormal_sampler();
+int test_beta_sampler();
+int test_normal_params();
 
 int nsamples = 10;
 double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
@@ -30,6 +34,7 @@ double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
 int main(int argc, char *argv[]) {
   int pass = EXIT_SUCCESS;
   int model_dim;
+  int model_dims[2];
 
   printf("Test Normal Sampler: . . .\n");
   model_dim = 1;
@@ -47,6 +52,12 @@ int main(int argc, char *argv[]) {
   model_dim = 1;
   test_setUp(1, &model_dim, logp_beta_sampler, init_beta_sampler);
   pass |= test_beta_sampler();
+  test_tearDown("test", 1);
+
+  printf("Test Normal Param Estimation: . . .\n");
+  model_dim = 2;
+  test_setUp(1, &model_dim, logp_normal_params, init_normal_params);
+  pass |= test_normal_params();
   test_tearDown("test", 1);
 
   return pass;
@@ -103,7 +114,7 @@ int test_normal_sampler() {
   printf("Test Normal Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
-    return EXIT_FAILURE;
+    return 1;
   }
   int ndraws = 100000;
   double mean = 0.0;
@@ -133,7 +144,7 @@ int test_truncnormal_sampler() {
   printf("Test Truncated Normal Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
-    return EXIT_FAILURE;
+    return 1;
   }
   int ndraws = 100000;
   double mean = 0.0;
@@ -169,7 +180,7 @@ int test_beta_sampler() {
   printf("Test Beta Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
-    return EXIT_FAILURE;
+    return 1;
   }
   int ndraws = 100000;
   double mean = 0.0;
@@ -191,10 +202,40 @@ int test_beta_sampler() {
   double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
   double true_mean = 0.5;
   double true_sigma = 0.5;
-  double tol = 0.5;
+  double tol = 0.3;
   int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
   if (!pass) {
     printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
+  } else {
+    printf("OK\n");
+  }
+  return !pass;
+}
+
+int test_normal_params() {
+  printf("Test Normal Parameters:......");
+  FILE *fp = fopen("test_theta1.data", "r");
+  if (fp == NULL) {
+    return 1;
+  }
+  int ndraws = 100000;
+  double x0_mean = 0.0;
+  double sig_mean = 0.0;
+  for (int i = 0; i < ndraws; i++) {
+    double dx, ds;
+    fscanf(fp, "%lf %lf", &dx, &ds);
+    x0_mean += dx;
+    sig_mean += ds;
+  }
+  fclose(fp);
+  x0_mean /= ndraws;
+  sig_mean /= ndraws;
+  double true_x0 = 0.2;
+  double true_sig = 0.5;
+  double tol = 0.2;
+  int pass = fabs(x0_mean - true_x0) < tol && fabs(sig_mean - true_sig) < tol;
+  if (!pass) {
+    printf("Test didn't pass.\nx0=%lf, sigma = %lf\n", x0_mean, sig_mean);
   } else {
     printf("OK\n");
   }
@@ -248,7 +289,9 @@ double logp_beta_sampler(int model_k, int mdim, double *xp) {
  *                                               *
  ************************************************/
 
-double logp_normal_params(double sigma, double x0) {
+double logp_normal_params(int model_k, int mdim, double *params) {
+  double sigma = params[0];
+  double x0 = params[1];
   double prod = 0;
   for (int i = 0; i < nsamples; i++) {
     double x = data_samples[i];
@@ -291,3 +334,7 @@ double logp_gamma_params(double alpha, double beta) {
 void init_normal_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
 void init_truncnormal_sampler(int model_k, int mdim, double *xp) { *xp = 1.0; }
 void init_beta_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
+void init_normal_params(int model_k, int mdim, double *xp) {
+  xp[0] = 0.5;
+  xp[1] = 0.5;
+}
