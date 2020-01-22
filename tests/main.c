@@ -23,9 +23,8 @@ int test_setUp(int models, int *model_dims, targetFunc logposterior,
                rwmInitFunc initRWM);
 int test_tearDown(char *filename, int nmodels);
 
-int test_normal_sampler();
-int test_truncnormal_sampler();
-int test_beta_sampler();
+int test_sampler(double true_mean, double true_sigma, double lower,
+                 double upper);
 int test_dist_params(double true_param1, double true_param2);
 
 int nsamples = 10;
@@ -41,19 +40,19 @@ int main(int argc, char *argv[]) {
   printf("Test Normal Sampler: . . .\n");
   model_dim = 1;
   test_setUp(1, &model_dim, logp_normal_sampler, init_normal_sampler);
-  pass |= test_normal_sampler();
+  pass |= test_sampler(0.5, 1.0, -DBL_MAX, DBL_MAX);
   test_tearDown("test", 1);
 
   printf("Test Truncated Normal Sampler: . . .\n");
   model_dim = 1;
-  test_setUp(1, &model_dim, logp_truncnormal_sampler,
-  init_truncnormal_sampler); pass |= test_truncnormal_sampler();
+  test_setUp(1, &model_dim, logp_truncnormal_sampler, init_truncnormal_sampler);
+  pass |= test_sampler(1.3, 1.5, 0.0, 10.0);
   test_tearDown("test", 1);
 
   printf("Test Beta Sampler: . . .\n");
   model_dim = 1;
   test_setUp(1, &model_dim, logp_beta_sampler, init_beta_sampler);
-  pass |= test_beta_sampler();
+  pass |= test_sampler(0.5, 0.5, 0.0, 1.0);
   test_tearDown("test", 1);
 
   printf("Test Normal Param Estimation: . . .\n");
@@ -124,8 +123,9 @@ int test_tearDown(char *filename, int nmodels) {
  *                                               *
  ************************************************/
 
-int test_normal_sampler() {
-  printf("Test Normal Sampler:......");
+int test_sampler(double true_mean, double true_sigma, double lower,
+                 double upper) {
+  printf("Test Distribution Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
     return 1;
@@ -138,88 +138,19 @@ int test_normal_sampler() {
     fscanf(fp, "%lf", &datum);
     mean += datum;
     sumsq += datum * datum;
-  }
-  fclose(fp);
-  mean /= ndraws;
-  double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
-  double true_mean = 0.5;
-  double true_sigma = 1.0;
-  double tol = 0.5;
-  int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
-  if (!pass) {
-    printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
-  } else {
-    printf("OK\n");
-  }
-  return !pass;
-}
-
-int test_truncnormal_sampler() {
-  printf("Test Truncated Normal Sampler:......");
-  FILE *fp = fopen("test_theta1.data", "r");
-  if (fp == NULL) {
-    return 1;
-  }
-  int ndraws = 100000;
-  double mean = 0.0;
-  double sumsq = 0.0;
-  for (int i = 0; i < ndraws; i++) {
-    double datum;
-    fscanf(fp, "%lf", &datum);
-    mean += datum;
-    sumsq += datum * datum;
-    if (datum > 10.0 || datum < 0.0) {
+    if (datum > upper || datum < lower) {
       int pass = 0; // didn't pass the test.
-      printf("Test didn't pass.\nValue outside range encountered: %lf\n",
-             datum);
+      printf("FAIL\nValue outside range encountered: %lf\n", datum);
       return !pass;
     }
   }
   fclose(fp);
   mean /= ndraws;
   double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
-  double true_mean = 1.3;  // This is only approximate
-  double true_sigma = 1.5; // This is only approximate
   double tol = 0.5;
   int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
   if (!pass) {
-    printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
-  } else {
-    printf("OK\n");
-  }
-  return !pass;
-}
-
-int test_beta_sampler() {
-  printf("Test Beta Sampler:......");
-  FILE *fp = fopen("test_theta1.data", "r");
-  if (fp == NULL) {
-    return 1;
-  }
-  int ndraws = 100000;
-  double mean = 0.0;
-  double sumsq = 0.0;
-  for (int i = 0; i < ndraws; i++) {
-    double datum;
-    fscanf(fp, "%lf", &datum);
-    mean += datum;
-    sumsq += datum * datum;
-    if (datum > 1.0 || datum < 0.0) {
-      int pass = 0; // didn't pass the test.
-      printf("Test didn't pass.\nValue outside range encountered: %lf\n",
-             datum);
-      return !pass;
-    }
-  }
-  fclose(fp);
-  mean /= ndraws;
-  double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
-  double true_mean = 0.5;
-  double true_sigma = 0.5;
-  double tol = 0.3;
-  int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
-  if (!pass) {
-    printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
+    printf("FAIL\nmean=%lf, sigma = %lf\n", mean, sigma);
   } else {
     printf("OK\n");
   }
@@ -249,7 +180,7 @@ int test_dist_params(double true_param1, double true_param2) {
   int pass =
       fabs(p1_mean - true_param1) < tol && fabs(p2_mean - true_param2) < tol;
   if (!pass) {
-    printf("Test didn't pass.\nparam1=%lf, param2 = %lf\n", p1_mean, p2_mean);
+    printf("FAIL\nparam1=%lf, param2 = %lf\n", p1_mean, p2_mean);
   } else {
     printf("OK\n");
   }
