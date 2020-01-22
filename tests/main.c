@@ -10,12 +10,14 @@ double logp_truncnormal_sampler(int model_k, int mdim, double *xp);
 double logp_normal_sampler(int model_k, int mdim, double *xp);
 double logp_beta_sampler(int model_k, int mdim, double *xp);
 double logp_normal_params(int model_k, int mdim, double *params);
-double logp_beta_params(double alpha, double beta);
-double logp_gamma_params(double alpha, double beta);
+double logp_beta_params(int model_k, int mdim, double *params);
+double logp_gamma_params(int model_k, int mdim, double *params);
 void init_normal_sampler(int model_k, int mdim, double *xp);
 void init_truncnormal_sampler(int model_k, int mdim, double *xp);
 void init_beta_sampler(int model_k, int mdim, double *xp);
 void init_normal_params(int model_k, int mdim, double *xp);
+void init_beta_params(int model_k, int mdim, double *xp);
+void init_gamma_params(int model_k, int mdim, double *xp);
 
 int test_setUp(int models, int *model_dims, targetFunc logposterior,
                rwmInitFunc initRWM);
@@ -24,7 +26,7 @@ int test_tearDown(char *filename, int nmodels);
 int test_normal_sampler();
 int test_truncnormal_sampler();
 int test_beta_sampler();
-int test_normal_params();
+int test_dist_params(double true_param1, double true_param2);
 
 int nsamples = 10;
 double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
@@ -44,8 +46,8 @@ int main(int argc, char *argv[]) {
 
   printf("Test Truncated Normal Sampler: . . .\n");
   model_dim = 1;
-  test_setUp(1, &model_dim, logp_truncnormal_sampler, init_truncnormal_sampler);
-  pass |= test_truncnormal_sampler();
+  test_setUp(1, &model_dim, logp_truncnormal_sampler,
+  init_truncnormal_sampler); pass |= test_truncnormal_sampler();
   test_tearDown("test", 1);
 
   printf("Test Beta Sampler: . . .\n");
@@ -57,7 +59,19 @@ int main(int argc, char *argv[]) {
   printf("Test Normal Param Estimation: . . .\n");
   model_dim = 2;
   test_setUp(1, &model_dim, logp_normal_params, init_normal_params);
-  pass |= test_normal_params();
+  pass |= test_dist_params(0.2, 0.5);
+  test_tearDown("test", 1);
+
+  printf("Test Beta Param Estimation: . . .\n");
+  model_dim = 2;
+  test_setUp(1, &model_dim, logp_beta_params, init_normal_params);
+  pass |= test_dist_params(4.5, 5.0);
+  test_tearDown("test", 1);
+
+  printf("Test Gamma Param Estimation: . . .\n");
+  model_dim = 2;
+  test_setUp(1, &model_dim, logp_gamma_params, init_normal_params);
+  pass |= test_dist_params(7.0, 14.5);
   test_tearDown("test", 1);
 
   return pass;
@@ -212,30 +226,30 @@ int test_beta_sampler() {
   return !pass;
 }
 
-int test_normal_params() {
-  printf("Test Normal Parameters:......");
+int test_dist_params(double true_param1, double true_param2) {
+  printf("Test Distribution Parameters:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
     return 1;
   }
   int ndraws = 100000;
-  double x0_mean = 0.0;
-  double sig_mean = 0.0;
+  double p1_mean = 0.0;
+  double p2_mean = 0.0;
   for (int i = 0; i < ndraws; i++) {
-    double dx, ds;
-    fscanf(fp, "%lf %lf", &dx, &ds);
-    x0_mean += dx;
-    sig_mean += ds;
+    double p1, p2;
+    fscanf(fp, "%lf %lf", &p1, &p2);
+    p1_mean += p1;
+    p2_mean += p2;
   }
   fclose(fp);
-  x0_mean /= ndraws;
-  sig_mean /= ndraws;
-  double true_x0 = 0.2;
-  double true_sig = 0.5;
+  p1_mean /= ndraws;
+  p2_mean /= ndraws;
+
   double tol = 0.2;
-  int pass = fabs(x0_mean - true_x0) < tol && fabs(sig_mean - true_sig) < tol;
+  int pass =
+      fabs(p1_mean - true_param1) < tol && fabs(p2_mean - true_param2) < tol;
   if (!pass) {
-    printf("Test didn't pass.\nx0=%lf, sigma = %lf\n", x0_mean, sig_mean);
+    printf("Test didn't pass.\nparam1=%lf, param2 = %lf\n", p1_mean, p2_mean);
   } else {
     printf("OK\n");
   }
@@ -301,7 +315,9 @@ double logp_normal_params(int model_k, int mdim, double *params) {
   return prod;
 }
 
-double logp_beta_params(double alpha, double beta) {
+double logp_beta_params(int model_k, int mdim, double *params) {
+  double alpha = params[0];
+  double beta = params[1];
   if (alpha <= 0.0 || beta <= 0.0) {
     return -DBL_MAX;
   }
@@ -315,7 +331,9 @@ double logp_beta_params(double alpha, double beta) {
   return prod;
 }
 
-double logp_gamma_params(double alpha, double beta) {
+double logp_gamma_params(int model_k, int mdim, double *params) {
+  double alpha = params[0];
+  double beta = params[1];
   double prod = 0.0;
   for (int i = 0; i < nsamples; ++i) {
     double x = data_samples[i];
@@ -337,4 +355,12 @@ void init_beta_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
 void init_normal_params(int model_k, int mdim, double *xp) {
   xp[0] = 0.5;
   xp[1] = 0.5;
+}
+void init_beta_params(int model_k, int mdim, double *xp) {
+  xp[0] = 2.0;
+  xp[1] = 2.0;
+}
+void init_gamma_params(int model_k, int mdim, double *xp) {
+  xp[0] = 9.0;
+  xp[1] = 2.0;
 }
