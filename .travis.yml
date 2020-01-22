@@ -22,6 +22,7 @@ script:
   - clang-format src/libautomix/automix.h | diff - src/libautomix/automix.h
   - clang-format src/libautomix/logwrite.c | diff - src/libautomix/logwrite.c
   - clang-format src/libautomix/logwrite.h | diff - src/libautomix/logwrite.h
+  - clang-format tests/main.c | diff - tests/main.c
   - make clean
   - make test
   - ./test

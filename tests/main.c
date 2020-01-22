@@ -1,10 +1,10 @@
 #include "automix.h"
+#include "float.h"
 #include "logwrite.h"
 #include "utils.h"
-#include "float.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 double logp_truncnormal_sampler(int model_k, int mdim, double *xp);
 double logp_normal_sampler(int model_k, int mdim, double *xp);
@@ -17,8 +17,10 @@ int test_setUp(int models, int *model_dims, targetFunc logposterior,
 int test_tearDown(char *filename, int nmodels);
 int test_normal_sampler();
 int test_truncnormal_sampler();
+int test_beta_sampler();
 void init_normal_sampler(int model_k, int mdim, double *xp);
 void init_truncnormal_sampler(int model_k, int mdim, double *xp);
+void init_beta_sampler(int model_k, int mdim, double *xp);
 
 int nsamples = 10;
 double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
@@ -39,6 +41,12 @@ int main(int argc, char *argv[]) {
   model_dim = 1;
   test_setUp(1, &model_dim, logp_truncnormal_sampler, init_truncnormal_sampler);
   pass |= test_truncnormal_sampler();
+  test_tearDown("test", 1);
+
+  printf("Test Beta Sampler: . . .\n");
+  model_dim = 1;
+  test_setUp(1, &model_dim, logp_beta_sampler, init_beta_sampler);
+  pass |= test_beta_sampler();
   test_tearDown("test", 1);
 
   return pass;
@@ -92,9 +100,10 @@ int test_tearDown(char *filename, int nmodels) {
  ************************************************/
 
 int test_normal_sampler() {
+  printf("Test Normal Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
-      return EXIT_FAILURE;
+    return EXIT_FAILURE;
   }
   int ndraws = 100000;
   double mean = 0.0;
@@ -112,7 +121,6 @@ int test_normal_sampler() {
   double true_sigma = 1.0;
   double tol = 0.5;
   int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
-  printf("Test Normal Sampler:......");
   if (!pass) {
     printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
   } else {
@@ -122,9 +130,10 @@ int test_normal_sampler() {
 }
 
 int test_truncnormal_sampler() {
+  printf("Test Truncated Normal Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
-      return EXIT_FAILURE;
+    return EXIT_FAILURE;
   }
   int ndraws = 100000;
   double mean = 0.0;
@@ -134,21 +143,56 @@ int test_truncnormal_sampler() {
     fscanf(fp, "%lf", &datum);
     mean += datum;
     sumsq += datum * datum;
-    if (datum > 10.0 || datum < 0.0)
-    {
+    if (datum > 10.0 || datum < 0.0) {
       int pass = 0; // didn't pass the test.
-      printf("Test didn't pass.\nValue outside range encountered: %lf\n", datum);
+      printf("Test didn't pass.\nValue outside range encountered: %lf\n",
+             datum);
       return !pass;
     }
   }
   fclose(fp);
   mean /= ndraws;
   double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
-  double true_mean = 1.3; // This is only approximate
+  double true_mean = 1.3;  // This is only approximate
   double true_sigma = 1.5; // This is only approximate
   double tol = 0.5;
   int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
-  printf("Test Truncated Normal Sampler:......");
+  if (!pass) {
+    printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
+  } else {
+    printf("OK\n");
+  }
+  return !pass;
+}
+
+int test_beta_sampler() {
+  printf("Test Beta Sampler:......");
+  FILE *fp = fopen("test_theta1.data", "r");
+  if (fp == NULL) {
+    return EXIT_FAILURE;
+  }
+  int ndraws = 100000;
+  double mean = 0.0;
+  double sumsq = 0.0;
+  for (int i = 0; i < ndraws; i++) {
+    double datum;
+    fscanf(fp, "%lf", &datum);
+    mean += datum;
+    sumsq += datum * datum;
+    if (datum > 1.0 || datum < 0.0) {
+      int pass = 0; // didn't pass the test.
+      printf("Test didn't pass.\nValue outside range encountered: %lf\n",
+             datum);
+      return !pass;
+    }
+  }
+  fclose(fp);
+  mean /= ndraws;
+  double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
+  double true_mean = 0.5;
+  double true_sigma = 0.5;
+  double tol = 0.5;
+  int pass = fabs(mean - true_mean) < tol && fabs(sigma - true_sigma) < tol;
   if (!pass) {
     printf("Test didn't pass.\nmean=%lf, sigma = %lf\n", mean, sigma);
   } else {
@@ -246,3 +290,4 @@ double logp_gamma_params(double alpha, double beta) {
 
 void init_normal_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
 void init_truncnormal_sampler(int model_k, int mdim, double *xp) { *xp = 1.0; }
+void init_beta_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
