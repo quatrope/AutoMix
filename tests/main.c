@@ -12,12 +12,18 @@ double logp_beta_sampler(int model_k, int mdim, double *xp);
 double logp_normal_params(int model_k, int mdim, double *params);
 double logp_beta_params(int model_k, int mdim, double *params);
 double logp_gamma_params(int model_k, int mdim, double *params);
+double logp_gamma_beta(int model_k, int mdim, double *params);
+double logp_normal_beta(int model_k, int mdim, double *params);
+double logp_normal_gamma(int model_k, int mdim, double *params);
 void init_normal_sampler(int model_k, int mdim, double *xp);
 void init_truncnormal_sampler(int model_k, int mdim, double *xp);
 void init_beta_sampler(int model_k, int mdim, double *xp);
 void init_normal_params(int model_k, int mdim, double *xp);
 void init_beta_params(int model_k, int mdim, double *xp);
 void init_gamma_params(int model_k, int mdim, double *xp);
+void init_gamma_beta(int model_k, int mdim, double *xp);
+void init_normal_gamma(int model_k, int mdim, double *xp);
+void init_normal_beta(int model_k, int mdim, double *xp);
 
 int test_setUp(int models, int *model_dims, targetFunc logposterior,
                rwmInitFunc initRWM);
@@ -26,6 +32,8 @@ int test_tearDown(char *filename, int nmodels);
 int test_sampler(double true_mean, double true_sigma, double lower,
                  double upper);
 int test_dist_params(double true_param1, double true_param2);
+int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
+                    double true_k2_p2, double true_k1_frac);
 
 int nsamples = 10;
 double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
@@ -72,6 +80,27 @@ int main(int argc, char *argv[]) {
   test_setUp(1, &model_dim, logp_gamma_params, init_normal_params);
   pass |= test_dist_params(7.0, 14.5);
   test_tearDown("test", 1);
+
+  printf("Test Gamma-Beta Model Selection: . . .\n");
+  model_dims[0] = 2;
+  model_dims[1] = 2;
+  test_setUp(2, model_dims, logp_gamma_beta, init_gamma_beta);
+  pass |= test_two_models(7.0, 14.5, 4.7, 4.8, 0.37);
+  test_tearDown("test", 2);
+
+  printf("Test Normal-Beta Model Selection: . . .\n");
+  model_dims[0] = 2;
+  model_dims[1] = 2;
+  test_setUp(2, model_dims, logp_normal_beta, init_normal_beta);
+  pass |= test_two_models(0.2, 0.5, 4.7, 4.8, 0.95);
+  test_tearDown("test", 2);
+
+  printf("Test Normal-Gamma Model Selection: . . .\n");
+  model_dims[0] = 2;
+  model_dims[1] = 2;
+  test_setUp(2, model_dims, logp_normal_gamma, init_normal_gamma);
+  pass |= test_two_models(0.2, 0.5, 7.1, 14.5, 0.97);
+  test_tearDown("test", 2);
 
   return pass;
 }
@@ -187,6 +216,53 @@ int test_dist_params(double true_param1, double true_param2) {
   return !pass;
 }
 
+int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
+                    double true_k2_p2, double true_k1_frac) {
+  printf("Test Model Selection:......");
+  char fname[50];
+  int k_count[2];
+  double p1_mean[2], p2_mean[2];
+  for (int i = 0; i < 2; ++i) {
+    sprintf(fname, "test_theta%d.data", i + 1);
+    FILE *fp = fopen(fname, "r");
+    if (fp == NULL) {
+      return 1;
+    }
+    double p1, p2;
+    k_count[i] = 0;
+    p1_mean[i] = 0.0;
+    p2_mean[i] = 0.0;
+    while (fscanf(fp, "%lf %lf", &p1, &p2) != EOF) {
+      p1_mean[i] += p1;
+      p2_mean[i] += p2;
+      (k_count[i])++;
+    }
+    fclose(fp);
+    p1_mean[i] /= k_count[i];
+    p2_mean[i] /= k_count[i];
+  }
+  double tol = 0.2;
+  int pass1 = fabs(p1_mean[0] - true_k1_p1) < tol &&
+              fabs(p2_mean[0] - true_k1_p2) < tol;
+  if (!pass1) {
+    printf("FAIL\nModel 1: (p1=%lf, p2=%lf)\n", p1_mean[0], p2_mean[0]);
+  }
+  int pass2 = fabs(p1_mean[1] - true_k2_p1) < tol &&
+              fabs(p2_mean[1] - true_k2_p2) < tol;
+  if (!pass2) {
+    printf("FAIL\nModel 2: (p1=%lf, p2=%lf)\n", p1_mean[1], p2_mean[1]);
+  }
+  double k1_frac = (double)k_count[0] / (k_count[0] + k_count[1]);
+  int pass3 = fabs(k1_frac - true_k1_frac) < tol;
+  if (!pass3) {
+    printf("FAIL\nModel 1 probability: %lf\n", k1_frac);
+  }
+  if (pass1 && pass2 && pass3) {
+    printf("OK\n");
+  }
+  return !(pass1 && pass2 && pass3);
+}
+
 /************************************************
  *                                               *
  *         Distributions to sample from          *
@@ -276,6 +352,39 @@ double logp_gamma_params(int model_k, int mdim, double *params) {
 
 /************************************************
  *                                               *
+ *              Two-model RJMCMC                 *
+ *                                               *
+ ************************************************/
+
+double logp_gamma_beta(int model_k, int mdim, double *params) {
+  if (model_k == 0) {
+    return logp_gamma_params(0, 2, params);
+  } else if (model_k == 1) {
+    return logp_beta_params(0, 2, params);
+  }
+  return 0.0;
+}
+
+double logp_normal_beta(int model_k, int mdim, double *params) {
+  if (model_k == 0) {
+    return logp_normal_params(0, 2, params);
+  } else if (model_k == 1) {
+    return logp_beta_params(0, 2, params);
+  }
+  return 0.0;
+}
+
+double logp_normal_gamma(int model_k, int mdim, double *params) {
+  if (model_k == 0) {
+    return logp_normal_params(0, 2, params);
+  } else if (model_k == 1) {
+    return logp_gamma_params(0, 2, params);
+  }
+  return 0.0;
+}
+
+/************************************************
+ *                                               *
  *           Initial values for RWM              *
  *                                               *
  ************************************************/
@@ -294,4 +403,28 @@ void init_beta_params(int model_k, int mdim, double *xp) {
 void init_gamma_params(int model_k, int mdim, double *xp) {
   xp[0] = 9.0;
   xp[1] = 2.0;
+}
+void init_gamma_beta(int model_k, int mdim, double *xp) {
+  if (model_k == 0) {
+    init_gamma_params(0, 2, xp);
+    return;
+  } else if (model_k == 1) {
+    init_beta_params(1, 2, xp);
+  }
+}
+void init_normal_beta(int model_k, int mdim, double *xp) {
+  if (model_k == 0) {
+    init_normal_params(0, 2, xp);
+    return;
+  } else if (model_k == 1) {
+    init_beta_params(1, 2, xp);
+  }
+}
+void init_normal_gamma(int model_k, int mdim, double *xp) {
+  if (model_k == 0) {
+    init_normal_params(0, 2, xp);
+    return;
+  } else if (model_k == 1) {
+    init_gamma_params(1, 2, xp);
+  }
 }

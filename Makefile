@@ -68,5 +68,5 @@ test: tests/main.c libautomix.so
 
 clean:
 	- rm *.o
-	- rm -r *.dSYM
-	- rm am*
+	- rm amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
+	- rm test
