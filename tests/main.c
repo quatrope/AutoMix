@@ -24,7 +24,7 @@ void init_normal_gamma(int model_k, int mdim, double *xp);
 void init_normal_beta(int model_k, int mdim, double *xp);
 
 int test_setUp(amSampler *am, int models, int *model_dims,
-               targetFunc logposterior, double** initRWM);
+               targetFunc logposterior, double **initRWM);
 int test_sampler(amSampler *am, double true_mean, double true_sigma,
                  double lower, double upper);
 int test_dist_params(amSampler *am, double true_param1, double true_param2);
@@ -41,10 +41,10 @@ int main(int argc, char *argv[]) {
   int model_dim;
   int model_dims[2];
   amSampler am;
-  double** initRWM;
-  initRWM = (double**)malloc(2 * sizeof(double*));
-  initRWM[0] = (double*)malloc(2 * sizeof(double));
-  initRWM[1] = (double*)malloc(2 * sizeof(double));
+  double **initRWM;
+  initRWM = (double **)malloc(2 * sizeof(double *));
+  initRWM[0] = (double *)malloc(2 * sizeof(double));
+  initRWM[1] = (double *)malloc(2 * sizeof(double));
 
   printf("Test Normal Sampler: . . .");
   model_dim = 1;
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
   test_setUp(&am, 1, &model_dim, logp_beta_sampler, initRWM);
   pass |= test_sampler(&am, 0.5, 0.5, 0.0, 1.0);
   freeAMSampler(&am);
-  
+
   printf("Test Normal Param Estimation: . . .");
   model_dim = 2;
   initRWM[0][0] = 0.5;
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
   test_setUp(&am, 1, &model_dim, logp_gamma_params, initRWM);
   pass |= test_dist_params(&am, 7.0, 14.5);
   freeAMSampler(&am);
-  
+
   printf("Test Gamma-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
@@ -126,13 +126,13 @@ int main(int argc, char *argv[]) {
 
   free(initRWM[0]);
   free(initRWM[1]);
-  free(initRWM);  
+  free(initRWM);
 
   return pass;
 }
 
 int test_setUp(amSampler *amp, int nmodels, int *model_dims,
-               targetFunc logposterior, double** initRWM) {
+               targetFunc logposterior, double **initRWM) {
   initAMSampler(amp, nmodels, model_dims, logposterior, initRWM);
   int ncond_prob_sweeps = 100000; // 1E5
   estimate_conditional_probs(amp, ncond_prob_sweeps);

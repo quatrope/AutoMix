@@ -8,33 +8,55 @@
 AutoMix
 =======
 
-The AutoMix package is a C program for Unix-like systems, implementing the automatic reversible jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis included in `docs/thesis`.
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   tutorial
+   compilation
+   running
+   user
+   output
+   license
+
+The AutoMix package is a C program for Unix-like systems, implementing the automatic Reversible Jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis (included in `docs/thesis`).
+
+While the original AutoMix is highly useful, the fact that it can only be used as an executable can limit its applicability.
+**LibAutoMix makes the core algorithms of Source Extractor available as a library of stand-alone functions and data structures.**
+The code is completely derived from the original AutoMix code base and aims to produce results compatible with it whenever possible.
+LibAutoMix is a C library with no dependencies outside the standard library.
+
+What is Reversible Jump MCMC?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Reversible Jump Markov Chain Monte Carlo (RJMCMC) extends the standard MCMC sampler to include a
+discrete random variable `k` that represents the index of a *model*.
+So, instead of sampling from the usual parameter space of a given distribution,
+RJMCMC will also sample across different models (distributions).
+
+The final samples of a RJMCMC reflect the probabilities of the parameters of each model,
+but also the relative probabilities of the models themselves.
+
+Main advantages of AutoMix:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  * Reversible Jump MCMC allows sampling from several distributions (models) simultaneously.
+  * The different models may have different number of free parameters (dimension).
+  * The relative frequency of sampling for different models is proportional to the probability of the model.
+    That means that AutoMix can be used as a model selection sampler.
+  * AutoMix requires minimum input from the user.
+  * AutoMix automatically adapts proposal distributions with a multi-modal Normal mixture.
 
 .. warning::
 
     Potential users should carefully understand the limitations of using the AutoMix sampler.
     The reliability of results from this sampler depends on many factors, including the scaling of the parameters and the degree of multimodality of the within-model conditionals of the target distribution.
 
-Usage
------
+Where to go from here?
+^^^^^^^^^^^^^^^^^^^^^^
 
-To run the sampler for a particular problem the program must be compiled with a user-provided file containing four C functions that define the problem in question.
-Examples of such files for problems considered within the aforementioned thesis are bundled with the archived AutoMix software.
-More details of the functions are provided below.
+For a quick tour of the library, check out the :ref:`tutorial`.
 
-The output of the sampler is in the form of several text files summarizing the MCMC sampler.
-We discuss these files in section :ref:`output`.
-Subsequent analysis may be performed on the output with the use of statistical packages.
-We recommend `R <http://www.stats.bris.ac.uk/R/>`_ as a good free choice of such a package.
+To compile and run example programs that use the AutoMix library, see :ref:`compile`.
 
-Contents:
-^^^^^^^^^
-
-.. toctree::
-   :maxdepth: 2
-
-   compilation
-   running
-   user
-   output
-   license
+For a description of the output files with statistics information, see :ref:`output`.

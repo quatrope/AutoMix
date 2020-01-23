@@ -71,6 +71,9 @@ userddi.o: $(EXMP_DIR)/userddi.c $(EXMP_DIR)/user.h $(EXMP_DIR)/ddidata.h
 logwrite.o: $(EXMP_DIR)/logwrite.c $(EXMP_DIR)/logwrite.h
 	$(CC) $(CFLAGS) -c $< -I$(LIB_DIR)
 
+tutorial: $(EXMP_DIR)/tutorial.c libautomix.so
+	$(CC) $(CFLAGS) -o $@ $< -L./ -lautomix $(LIBS) $(INC_FLAGS)
+
 ###### Type "make clean" to remove all executables and object files ####
 
 test: tests/main.c logwrite.o libautomix.so
@@ -86,3 +89,4 @@ clean:
 	- rm *.o
 	- rm amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
 	- rm test
+	- rm tutorial
