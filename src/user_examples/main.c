@@ -65,20 +65,25 @@ int main(int argc, char *argv[]) {
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {
     // Read AutoMix parameters from file if mode = 1
+    printf("Reading parameters from mix file.\n");
     int ok = read_mixture_params(fname, &am);
     if (ok == EXIT_FAILURE) {
       return EXIT_FAILURE;
     }
   } else {
+    printf("Using %d samples for RWM Mixture Fitting Model.\n", nsweep2);
     estimate_conditional_probs(&am, nsweep2);
     report_cond_prob_estimation(fname, am);
   }
 
   // -----Start of main loop ----------------
   // Burn some samples first
+  printf("Burning in %d samples.\n", nburn);
   burn_samples(&am, nburn);
   // Collect nsweep RJMCMC samples
+  printf("Start of main sample: ");
   rjmcmc_samples(&am, nsweep);
+  printf("%d samples generated.\n", nsweep);
   // --- Section 10 - Write statistics to files ---------
   report_rjmcmc_run(fname, am, mode, nsweep2, nsweep);
 

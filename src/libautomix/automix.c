@@ -58,7 +58,6 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
   runStats *st = &(am->st);
   // Start here main sample
   int xr_i = 0;
-  printf("Start of main sample:");
   ch->isBurning = 0;
   for (unsigned long sweep_init = ch->sweep_i;
        ch->sweep_i < sweep_init + nsweep; ch->sweep_i++) {
@@ -95,13 +94,7 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
     if (sweep > st->keep && ((sweep - st->keep) % st->nsokal == 0)) {
       st->xr[xr_i++] = ch->current_model_k;
     }
-    // Print about 10 times
-    if (sweep % (nsweep / 10) == 0) {
-      printf("\nNo. of iterations remaining: %lu", nsweep - sweep);
-    }
-    fflush(NULL);
   }
-  printf("\n");
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     int finalsize = st->theta_summary_len[model_k];
     st->theta_summary[model_k] =
@@ -117,23 +110,15 @@ void burn_samples(amSampler *am, int nburn) {
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
   runStats *st = &(am->st);
-  printf("\nBurning in");
   ch->isBurning = 1;
   for (unsigned long sweep_init = ch->sweep_i; ch->sweep_i < sweep_init + nburn;
        ch->sweep_i++) {
-    // for (int sweep = 1; sweep <= nburn; sweep++) {
-    unsigned long sweep = ch->sweep_i - sweep_init;
     // Every 10 sweeps to block RWM
     ch->doBlockRWM = (ch->sweep_i % 10 == 0);
 
     reversible_jump_move(am->doPerm, am->doAdapt, ch, jd, am->student_T_dof, st,
                          am->logposterior);
-    if ((10 * sweep) % nburn == 0) {
-      printf(" .");
-      fflush(NULL);
-    }
   }
-  printf("\n");
   clock_t endtime = clock();
   st->timesecs_burn = (endtime - starttime) / (double)CLOCKS_PER_SEC;
 }
@@ -159,7 +144,6 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
     rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
                      am->student_T_dof, samples, am->logposterior, am->initRWM);
-    printf("\nMixture Fitting: Model %d", model_k + 1);
     if (am->am_mixfit == FIGUEREIDO_MIX_FIT) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
@@ -632,8 +616,6 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
   double *Znkk = (double *)malloc(mdim * sizeof(double));
 
   int sig_k_rwm_n = 0; // This is used to load stats arrays
-  printf("\nRWM for Model %d", model_k + 1);
-  fflush(NULL);
   initRWM(model_k, mdim, rwm);
   for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
@@ -647,10 +629,6 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
   int remain = nsweepr;
   for (int sweep = 1; sweep <= nsweepr; sweep++) {
     remain--;
-    if ((sweep >= nburn) && ((10 * (sweep - nburn)) % (nsweepr - nburn) == 0)) {
-      printf("\nNo. of iterations remaining: %d", remain);
-      fflush(NULL);
-    }
     double u = sdrand();
     if (sweep > nburn && u < 0.1) {
       rt(Znkk, mdim, dof);
@@ -868,10 +846,6 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
         l1++;
 
       } else {
-        if (Lkk % 5 == 0) {
-          printf("\n");
-        }
-        printf("%d(%d-n) ", Lkk, count);
         natann = 1;
         if (l1 < (Lkk - 1)) {
           for (int l2 = l1; l2 < (Lkk - 1); l2++) {
@@ -949,10 +923,6 @@ void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
       if (Lkk == 1) {
         stop = 1;
       } else {
-        if (Lkk % 5 == 0) {
-          printf("\n");
-        }
-        printf("%d(%d-f) ", Lkk, count);
         forceann = 2;
         double minlambda = lambda_k[0];
         int ldel = 0;
