@@ -32,7 +32,6 @@ double det(int n, double **B_k_l);
  */
 void sdrni(unsigned long *seed);
 double sdrand(void);
-
 // Returns random sample from a Gamma distribution
 double rgamma(double s);
 
@@ -49,7 +48,7 @@ void freeProposalDist(proposalDist jd);
 int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2,
                       int NUM_FITMIX_MAX);
 void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
-void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
+void initChain(chainState *ch, proposalDist jd, double **initRWM,
                targetFunc logposterior);
 void freeChain(chainState *ch);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
@@ -58,8 +57,7 @@ void freeRunStats(runStats st, proposalDist jd);
 // Helper functions
 void rwm_within_model(int k1, int *model_dims, int nsweep2,
                       condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost,
-                      rwmInitFunc initRWM);
+                      double **samples, targetFunc logpost, double *initRWM);
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, condProbStats *cpstats,
                               int NUM_MIX_COMPS_MAX, int NUM_FITMIX_MAX);
@@ -168,7 +166,8 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
     rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
-                     am->student_T_dof, samples, am->logposterior, am->initRWM);
+                     am->student_T_dof, samples, am->logposterior,
+                     (am->initRWM)[model_k]);
     if (am->am_mixfit == FIGUEREIDO_MIX_FIT) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
@@ -272,7 +271,7 @@ int read_mixture_params(char *fname, amSampler *am) {
 }
 
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                  targetFunc logposterior, rwmInitFunc initRWM) {
+                  targetFunc logposterior, double **initRWM) {
   // Proposal Distribution must be initialized immediately
   if (nmodels < 0) {
     printf("Error: negative number of models.\n");
@@ -281,9 +280,27 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   am->NMODELS_MAX = 15;
   am->NUM_MIX_COMPS_MAX = 30;
   am->NUM_FITMIX_MAX = 5000;
+  am->seed = 0;
+  sdrni(&(am->seed));
   initProposalDist(&(am->jd), nmodels, model_dims, am->NUM_MIX_COMPS_MAX);
   am->logposterior = logposterior;
-  am->initRWM = initRWM;
+  am->initRWM = (double **)malloc(nmodels * sizeof(double *));
+  for (int i = 0; i < nmodels; i++) {
+    (am->initRWM)[i] = (double *)malloc(model_dims[i] * sizeof(double));
+  }
+  if (initRWM == NULL) {
+    for (int m_k = 0; m_k < nmodels; m_k++) {
+      for (int i = 0; i < model_dims[m_k]; i++) {
+        (am->initRWM)[m_k][i] = sdrand();
+      }
+    }
+  } else {
+    for (int m_k = 0; m_k < nmodels; m_k++) {
+      for (int i = 0; i < model_dims[m_k]; i++) {
+        (am->initRWM)[m_k][i] = initRWM[m_k][i];
+      }
+    }
+  }
   // Set all structs as un-initialized
   (&(am->cpstats))->isInitialized = 0;
   (&(am->ch))->isInitialized = 0;
@@ -293,12 +310,15 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
   am->doPerm = 0;
   am->student_T_dof = 0;
   am->am_mixfit = FIGUEREIDO_MIX_FIT;
-  am->seed = 0;
-  sdrni(&(am->seed));
   return EXIT_SUCCESS;
 }
 
 void freeAMSampler(amSampler *am) {
+  int nmodels = am->jd.nmodels;
+  for (int i = 0; i < nmodels; i++) {
+    free(am->initRWM[i]);
+  }
+  free(am->initRWM);
   freeCondProbStats(&(am->cpstats), am->jd);
   freeChain(&(am->ch));
   freeProposalDist(am->jd);
@@ -474,7 +494,7 @@ void freeRunStats(runStats st, proposalDist jd) {
   }
 }
 
-void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
+void initChain(chainState *ch, proposalDist jd, double **initRWM,
                targetFunc logposterior) {
   if (ch->isInitialized) {
     return;
@@ -487,7 +507,9 @@ void initChain(chainState *ch, proposalDist jd, rwmInitFunc initRWM,
   }
   ch->theta = (double *)malloc(mdim_max * sizeof(double));
   ch->pk = (double *)malloc(jd.nmodels * sizeof(double));
-  initRWM(ch->current_model_k, ch->mdim, ch->theta);
+  for (int i = 0; i < ch->mdim; i++) {
+    ch->theta[i] = initRWM[ch->current_model_k][i];
+  }
   ch->current_Lkk = jd.nMixComps[ch->current_model_k];
   ch->log_posterior = logposterior(ch->current_model_k, ch->mdim, ch->theta);
   for (int i = 0; i < jd.nmodels; i++) {
@@ -626,8 +648,7 @@ void freeProposalDist(proposalDist jd) {
 
 void rwm_within_model(int model_k, int *model_dims, int nsweep2,
                       condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost,
-                      rwmInitFunc initRWM) {
+                      double **samples, targetFunc logpost, double *initRWM) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
   int mdim = model_dims[model_k];
   int nsweepr = max(nsweep2, 10000 * mdim);
@@ -641,7 +662,9 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
   double *Znkk = (double *)malloc(mdim * sizeof(double));
 
   int sig_k_rwm_n = 0; // This is used to load stats arrays
-  initRWM(model_k, mdim, rwm);
+  for (int i = 0; i < mdim; i++) {
+    rwm[i] = initRWM[i];
+  }
   for (int j1 = 0; j1 < mdim; j1++) {
     rwmn[j1] = rwm[j1];
     sig_k[j1] = 10.0;

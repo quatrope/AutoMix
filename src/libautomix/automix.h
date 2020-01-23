@@ -42,7 +42,6 @@ be a published paper in the not too distant future.  */
 #include <time.h>
 
 typedef double (*targetFunc)(int model_k, int mdim, double *x);
-typedef void (*rwmInitFunc)(int model_k, int mdim, double *x);
 // C does not have a bool type but int is just as good
 typedef int bool;
 // Enum to specify whether using Figuereido or AutoRJ in conditional
@@ -150,7 +149,7 @@ typedef struct {
   bool doAdapt;
   bool doPerm;
   targetFunc logposterior;
-  rwmInitFunc initRWM;
+  double **initRWM;
   int student_T_dof;
   automix_mix_fit am_mixfit;
   unsigned long seed;
@@ -158,7 +157,7 @@ typedef struct {
 
 /*** Public Functions ***/
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                  targetFunc logpost, rwmInitFunc initRWM);
+                  targetFunc logpost, double **initRWM);
 void freeAMSampler(amSampler *am);
 int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2);

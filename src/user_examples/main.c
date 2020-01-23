@@ -18,6 +18,7 @@ double logposterior(int model_k, int mdim, double *x) {
   logpost(model_k, mdim, x, &lpost, &likelihood);
   return lpost;
 }
+extern void sdrni(unsigned long *seed);
 
 int main(int argc, char *argv[]) {
 
@@ -52,13 +53,25 @@ int main(int argc, char *argv[]) {
   if (nburn < 10000) {
     nburn = 10000;
   }
+  sdrni(&seed);
 
   // Initialize the AutoMix sampler
   int nmodels = get_nmodels();
   int *model_dims = (int *)malloc(nmodels * sizeof(int));
   load_model_dims(nmodels, model_dims);
   amSampler am;
-  initAMSampler(&am, nmodels, model_dims, logposterior, get_rwm_init);
+  double **initRWM = (double **)malloc(nmodels * sizeof(double *));
+  for (int i = 0; i < nmodels; i++) {
+    initRWM[i] = (double *)malloc(model_dims[i] * sizeof(double));
+  }
+  for (int i = 0; i < nmodels; i++) {
+    get_rwm_init(i, model_dims[i], initRWM[i]);
+  }
+  initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
+  for (int i = 0; i < nmodels; i++) {
+    free(initRWM[i]);
+  }
+  free(initRWM);
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
   if (mode == 1) {

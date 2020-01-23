@@ -24,7 +24,7 @@ void init_normal_gamma(int model_k, int mdim, double *xp);
 void init_normal_beta(int model_k, int mdim, double *xp);
 
 int test_setUp(amSampler *am, int models, int *model_dims,
-               targetFunc logposterior, rwmInitFunc initRWM);
+               targetFunc logposterior, double** initRWM);
 int test_sampler(amSampler *am, double true_mean, double true_sigma,
                  double lower, double upper);
 int test_dist_params(amSampler *am, double true_param1, double true_param2);
@@ -41,70 +41,98 @@ int main(int argc, char *argv[]) {
   int model_dim;
   int model_dims[2];
   amSampler am;
+  double** initRWM;
+  initRWM = (double**)malloc(2 * sizeof(double*));
+  initRWM[0] = (double*)malloc(2 * sizeof(double));
+  initRWM[1] = (double*)malloc(2 * sizeof(double));
 
   printf("Test Normal Sampler: . . .");
   model_dim = 1;
-  test_setUp(&am, 1, &model_dim, logp_normal_sampler, init_normal_sampler);
+  initRWM[0][0] = 0.5;
+  test_setUp(&am, 1, &model_dim, logp_normal_sampler, initRWM);
   pass |= test_sampler(&am, 0.5, 1.0, -DBL_MAX, DBL_MAX);
   freeAMSampler(&am);
 
   printf("Test Truncated Normal Sampler: . . .");
   model_dim = 1;
-  test_setUp(&am, 1, &model_dim, logp_truncnormal_sampler,
-             init_truncnormal_sampler);
+  initRWM[0][0] = 1.0;
+  test_setUp(&am, 1, &model_dim, logp_truncnormal_sampler, initRWM);
   pass |= test_sampler(&am, 1.3, 1.5, 0.0, 10.0);
   freeAMSampler(&am);
 
   printf("Test Beta Sampler: . . .");
   model_dim = 1;
-  test_setUp(&am, 1, &model_dim, logp_beta_sampler, init_beta_sampler);
+  initRWM[0][0] = 0.5;
+  test_setUp(&am, 1, &model_dim, logp_beta_sampler, initRWM);
   pass |= test_sampler(&am, 0.5, 0.5, 0.0, 1.0);
   freeAMSampler(&am);
-
+  
   printf("Test Normal Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(&am, 1, &model_dim, logp_normal_params, init_normal_params);
+  initRWM[0][0] = 0.5;
+  initRWM[0][1] = 0.5;
+  test_setUp(&am, 1, &model_dim, logp_normal_params, initRWM);
   pass |= test_dist_params(&am, 0.2, 0.5);
   freeAMSampler(&am);
 
   printf("Test Beta Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(&am, 1, &model_dim, logp_beta_params, init_normal_params);
+  initRWM[0][0] = 2.0;
+  initRWM[0][1] = 2.0;
+  test_setUp(&am, 1, &model_dim, logp_beta_params, initRWM);
   pass |= test_dist_params(&am, 4.5, 5.0);
   freeAMSampler(&am);
 
   printf("Test Gamma Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(&am, 1, &model_dim, logp_gamma_params, init_normal_params);
+  initRWM[0][0] = 9.0;
+  initRWM[0][1] = 2.0;
+  test_setUp(&am, 1, &model_dim, logp_gamma_params, initRWM);
   pass |= test_dist_params(&am, 7.0, 14.5);
   freeAMSampler(&am);
-
+  
   printf("Test Gamma-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(&am, 2, model_dims, logp_gamma_beta, init_gamma_beta);
+  initRWM[0][0] = 9.0;
+  initRWM[0][1] = 2.0;
+  initRWM[1][0] = 2.0;
+  initRWM[1][1] = 2.0;
+  test_setUp(&am, 2, model_dims, logp_gamma_beta, initRWM);
   pass |= test_two_models(&am, 7.0, 14.5, 4.7, 4.8, 0.37);
   freeAMSampler(&am);
 
   printf("Test Normal-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(&am, 2, model_dims, logp_normal_beta, init_normal_beta);
+  initRWM[0][0] = 0.5;
+  initRWM[0][1] = 0.5;
+  initRWM[1][0] = 2.0;
+  initRWM[1][1] = 2.0;
+  test_setUp(&am, 2, model_dims, logp_normal_beta, initRWM);
   pass |= test_two_models(&am, 0.2, 0.5, 4.7, 4.8, 0.95);
   freeAMSampler(&am);
 
   printf("Test Normal-Gamma Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(&am, 2, model_dims, logp_normal_gamma, init_normal_gamma);
+  initRWM[0][0] = 0.5;
+  initRWM[0][1] = 0.5;
+  initRWM[1][0] = 9.0;
+  initRWM[1][1] = 2.0;
+  test_setUp(&am, 2, model_dims, logp_normal_gamma, initRWM);
   pass |= test_two_models(&am, 0.2, 0.5, 7.1, 14.5, 0.97);
   freeAMSampler(&am);
+
+  free(initRWM[0]);
+  free(initRWM[1]);
+  free(initRWM);  
 
   return pass;
 }
 
 int test_setUp(amSampler *amp, int nmodels, int *model_dims,
-               targetFunc logposterior, rwmInitFunc initRWM) {
+               targetFunc logposterior, double** initRWM) {
   initAMSampler(amp, nmodels, model_dims, logposterior, initRWM);
   int ncond_prob_sweeps = 100000; // 1E5
   estimate_conditional_probs(amp, ncond_prob_sweeps);
@@ -327,50 +355,4 @@ double logp_normal_gamma(int model_k, int mdim, double *params) {
     return logp_gamma_params(0, 2, params);
   }
   return 0.0;
-}
-
-/************************************************
- *                                               *
- *           Initial values for RWM              *
- *                                               *
- ************************************************/
-
-void init_normal_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
-void init_truncnormal_sampler(int model_k, int mdim, double *xp) { *xp = 1.0; }
-void init_beta_sampler(int model_k, int mdim, double *xp) { *xp = 0.5; }
-void init_normal_params(int model_k, int mdim, double *xp) {
-  xp[0] = 0.5;
-  xp[1] = 0.5;
-}
-void init_beta_params(int model_k, int mdim, double *xp) {
-  xp[0] = 2.0;
-  xp[1] = 2.0;
-}
-void init_gamma_params(int model_k, int mdim, double *xp) {
-  xp[0] = 9.0;
-  xp[1] = 2.0;
-}
-void init_gamma_beta(int model_k, int mdim, double *xp) {
-  if (model_k == 0) {
-    init_gamma_params(0, 2, xp);
-    return;
-  } else if (model_k == 1) {
-    init_beta_params(1, 2, xp);
-  }
-}
-void init_normal_beta(int model_k, int mdim, double *xp) {
-  if (model_k == 0) {
-    init_normal_params(0, 2, xp);
-    return;
-  } else if (model_k == 1) {
-    init_beta_params(1, 2, xp);
-  }
-}
-void init_normal_gamma(int model_k, int mdim, double *xp) {
-  if (model_k == 0) {
-    init_normal_params(0, 2, xp);
-    return;
-  } else if (model_k == 1) {
-    init_gamma_params(1, 2, xp);
-  }
 }
