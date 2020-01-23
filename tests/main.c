@@ -1,6 +1,5 @@
 #include "automix.h"
 #include "float.h"
-#include "logwrite.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,15 +23,13 @@ void init_gamma_beta(int model_k, int mdim, double *xp);
 void init_normal_gamma(int model_k, int mdim, double *xp);
 void init_normal_beta(int model_k, int mdim, double *xp);
 
-int test_setUp(int models, int *model_dims, targetFunc logposterior,
-               rwmInitFunc initRWM);
-int test_tearDown(char *filename, int nmodels);
-
-int test_sampler(double true_mean, double true_sigma, double lower,
-                 double upper);
-int test_dist_params(double true_param1, double true_param2);
-int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
-                    double true_k2_p2, double true_k1_frac);
+int test_setUp(amSampler *am, int models, int *model_dims,
+               targetFunc logposterior, rwmInitFunc initRWM);
+int test_sampler(amSampler *am, double true_mean, double true_sigma,
+                 double lower, double upper);
+int test_dist_params(amSampler *am, double true_param1, double true_param2);
+int test_two_models(amSampler *am, double true_k1_p1, double true_k1_p2,
+                    double true_k2_p1, double true_k2_p2, double true_k1_frac);
 
 int nsamples = 10;
 double data_samples[] = {0.50613293, 0.70961096, 0.28166951, 0.12532996,
@@ -43,105 +40,78 @@ int main(int argc, char *argv[]) {
   int pass = EXIT_SUCCESS;
   int model_dim;
   int model_dims[2];
+  amSampler am;
 
   printf("Test Normal Sampler: . . .");
   model_dim = 1;
-  test_setUp(1, &model_dim, logp_normal_sampler, init_normal_sampler);
-  pass |= test_sampler(0.5, 1.0, -DBL_MAX, DBL_MAX);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_normal_sampler, init_normal_sampler);
+  pass |= test_sampler(&am, 0.5, 1.0, -DBL_MAX, DBL_MAX);
+  freeAMSampler(&am);
 
   printf("Test Truncated Normal Sampler: . . .");
   model_dim = 1;
-  test_setUp(1, &model_dim, logp_truncnormal_sampler, init_truncnormal_sampler);
-  pass |= test_sampler(1.3, 1.5, 0.0, 10.0);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_truncnormal_sampler,
+             init_truncnormal_sampler);
+  pass |= test_sampler(&am, 1.3, 1.5, 0.0, 10.0);
+  freeAMSampler(&am);
 
   printf("Test Beta Sampler: . . .");
   model_dim = 1;
-  test_setUp(1, &model_dim, logp_beta_sampler, init_beta_sampler);
-  pass |= test_sampler(0.5, 0.5, 0.0, 1.0);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_beta_sampler, init_beta_sampler);
+  pass |= test_sampler(&am, 0.5, 0.5, 0.0, 1.0);
+  freeAMSampler(&am);
 
   printf("Test Normal Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(1, &model_dim, logp_normal_params, init_normal_params);
-  pass |= test_dist_params(0.2, 0.5);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_normal_params, init_normal_params);
+  pass |= test_dist_params(&am, 0.2, 0.5);
+  freeAMSampler(&am);
 
   printf("Test Beta Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(1, &model_dim, logp_beta_params, init_normal_params);
-  pass |= test_dist_params(4.5, 5.0);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_beta_params, init_normal_params);
+  pass |= test_dist_params(&am, 4.5, 5.0);
+  freeAMSampler(&am);
 
   printf("Test Gamma Param Estimation: . . .");
   model_dim = 2;
-  test_setUp(1, &model_dim, logp_gamma_params, init_normal_params);
-  pass |= test_dist_params(7.0, 14.5);
-  test_tearDown("test", 1);
+  test_setUp(&am, 1, &model_dim, logp_gamma_params, init_normal_params);
+  pass |= test_dist_params(&am, 7.0, 14.5);
+  freeAMSampler(&am);
 
   printf("Test Gamma-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(2, model_dims, logp_gamma_beta, init_gamma_beta);
-  pass |= test_two_models(7.0, 14.5, 4.7, 4.8, 0.37);
-  test_tearDown("test", 2);
+  test_setUp(&am, 2, model_dims, logp_gamma_beta, init_gamma_beta);
+  pass |= test_two_models(&am, 7.0, 14.5, 4.7, 4.8, 0.37);
+  freeAMSampler(&am);
 
   printf("Test Normal-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(2, model_dims, logp_normal_beta, init_normal_beta);
-  pass |= test_two_models(0.2, 0.5, 4.7, 4.8, 0.95);
-  test_tearDown("test", 2);
+  test_setUp(&am, 2, model_dims, logp_normal_beta, init_normal_beta);
+  pass |= test_two_models(&am, 0.2, 0.5, 4.7, 4.8, 0.95);
+  freeAMSampler(&am);
 
   printf("Test Normal-Gamma Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
-  test_setUp(2, model_dims, logp_normal_gamma, init_normal_gamma);
-  pass |= test_two_models(0.2, 0.5, 7.1, 14.5, 0.97);
-  test_tearDown("test", 2);
+  test_setUp(&am, 2, model_dims, logp_normal_gamma, init_normal_gamma);
+  pass |= test_two_models(&am, 0.2, 0.5, 7.1, 14.5, 0.97);
+  freeAMSampler(&am);
 
   return pass;
 }
 
-int test_setUp(int nmodels, int *model_dims, targetFunc logposterior,
-               rwmInitFunc initRWM) {
-  amSampler am;
-  initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
+int test_setUp(amSampler *amp, int nmodels, int *model_dims,
+               targetFunc logposterior, rwmInitFunc initRWM) {
+  initAMSampler(amp, nmodels, model_dims, logposterior, initRWM);
   int ncond_prob_sweeps = 100000; // 1E5
-  estimate_conditional_probs(&am, ncond_prob_sweeps);
-  report_cond_prob_estimation("test", am);
+  estimate_conditional_probs(amp, ncond_prob_sweeps);
   int nburn_sweeps = 10000; // 1E4
-  burn_samples(&am, nburn_sweeps);
+  burn_samples(amp, nburn_sweeps);
   int nsweeps = 100000; // 1E5
-  rjmcmc_samples(&am, nsweeps);
-  report_rjmcmc_run("test", am, 0, ncond_prob_sweeps, nsweeps);
-  freeAMSampler(&am);
-  return EXIT_SUCCESS;
-}
-
-int test_tearDown(char *filename, int nmodels) {
-  char fname_buffer[50];
-  sprintf(fname_buffer, "%s_ac.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_cf.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_log.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_mix.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_adapt.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_k.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_lp.data", filename);
-  remove(fname_buffer);
-  sprintf(fname_buffer, "%s_pk.data", filename);
-  remove(fname_buffer);
-  for (int i = 0; i < nmodels; ++i) {
-    sprintf(fname_buffer, "%s_theta%d.data", filename, i + 1);
-    remove(fname_buffer);
-  }
+  rjmcmc_samples(amp, nsweeps);
   return EXIT_SUCCESS;
 }
 
@@ -151,27 +121,22 @@ int test_tearDown(char *filename, int nmodels) {
  *                                               *
  ************************************************/
 
-int test_sampler(double true_mean, double true_sigma, double lower,
-                 double upper) {
-  FILE *fp = fopen("test_theta1.data", "r");
-  if (fp == NULL) {
-    return 1;
-  }
+int test_sampler(amSampler *am, double true_mean, double true_sigma,
+                 double lower, double upper) {
   int ndraws = 100000;
   double mean = 0.0;
   double sumsq = 0.0;
+  double **s_samples = (am->st).theta_summary[0];
   for (int i = 0; i < ndraws; i++) {
-    double datum;
-    fscanf(fp, "%lf", &datum);
+    double datum = *(s_samples[i]);
     mean += datum;
     sumsq += datum * datum;
-    if (datum > upper || datum < lower) {
+    if (datum >= upper || datum <= lower) {
       int pass = 0; // didn't pass the test.
       printf("FAIL\nValue outside range encountered: %lf\n", datum);
       return !pass;
     }
   }
-  fclose(fp);
   mean /= ndraws;
   double sigma = sqrt((sumsq - mean * mean) / (ndraws - 1));
   double tol = 0.5;
@@ -184,21 +149,15 @@ int test_sampler(double true_mean, double true_sigma, double lower,
   return !pass;
 }
 
-int test_dist_params(double true_param1, double true_param2) {
-  FILE *fp = fopen("test_theta1.data", "r");
-  if (fp == NULL) {
-    return 1;
-  }
+int test_dist_params(amSampler *am, double true_param1, double true_param2) {
   int ndraws = 100000;
   double p1_mean = 0.0;
   double p2_mean = 0.0;
+  double **s_samples = (am->st).theta_summary[0];
   for (int i = 0; i < ndraws; i++) {
-    double p1, p2;
-    fscanf(fp, "%lf %lf", &p1, &p2);
-    p1_mean += p1;
-    p2_mean += p2;
+    p1_mean += s_samples[i][0];
+    p2_mean += s_samples[i][1];
   }
-  fclose(fp);
   p1_mean /= ndraws;
   p2_mean /= ndraws;
 
@@ -213,29 +172,20 @@ int test_dist_params(double true_param1, double true_param2) {
   return !pass;
 }
 
-int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
-                    double true_k2_p2, double true_k1_frac) {
-  char fname[50];
-  int k_count[2];
+int test_two_models(amSampler *am, double true_k1_p1, double true_k1_p2,
+                    double true_k2_p1, double true_k2_p2, double true_k1_frac) {
+  int *k_count = (am->st).ksummary;
   double p1_mean[2], p2_mean[2];
-  for (int i = 0; i < 2; ++i) {
-    sprintf(fname, "test_theta%d.data", i + 1);
-    FILE *fp = fopen(fname, "r");
-    if (fp == NULL) {
-      return 1;
+  for (int model_k = 0; model_k < 2; ++model_k) {
+    double **s_samples = (am->st).theta_summary[model_k];
+    int ndraws = (am->st).theta_summary_len[model_k];
+    p1_mean[model_k] = 0.0;
+    for (int i = 0; i < ndraws; ++i) {
+      p1_mean[model_k] += s_samples[i][0];
+      p2_mean[model_k] += s_samples[i][1];
     }
-    double p1, p2;
-    k_count[i] = 0;
-    p1_mean[i] = 0.0;
-    p2_mean[i] = 0.0;
-    while (fscanf(fp, "%lf %lf", &p1, &p2) != EOF) {
-      p1_mean[i] += p1;
-      p2_mean[i] += p2;
-      (k_count[i])++;
-    }
-    fclose(fp);
-    p1_mean[i] /= k_count[i];
-    p2_mean[i] /= k_count[i];
+    p1_mean[model_k] /= k_count[model_k];
+    p2_mean[model_k] /= k_count[model_k];
   }
   double tol = 0.5;
   int pass1 = fabs(p1_mean[0] - true_k1_p1) < tol &&
