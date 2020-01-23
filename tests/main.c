@@ -1,7 +1,6 @@
 #include "automix.h"
 #include "float.h"
 #include "logwrite.h"
-#include "utils.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,57 +44,57 @@ int main(int argc, char *argv[]) {
   int model_dim;
   int model_dims[2];
 
-  printf("Test Normal Sampler: . . .\n");
+  printf("Test Normal Sampler: . . .");
   model_dim = 1;
   test_setUp(1, &model_dim, logp_normal_sampler, init_normal_sampler);
   pass |= test_sampler(0.5, 1.0, -DBL_MAX, DBL_MAX);
   test_tearDown("test", 1);
 
-  printf("Test Truncated Normal Sampler: . . .\n");
+  printf("Test Truncated Normal Sampler: . . .");
   model_dim = 1;
   test_setUp(1, &model_dim, logp_truncnormal_sampler, init_truncnormal_sampler);
   pass |= test_sampler(1.3, 1.5, 0.0, 10.0);
   test_tearDown("test", 1);
 
-  printf("Test Beta Sampler: . . .\n");
+  printf("Test Beta Sampler: . . .");
   model_dim = 1;
   test_setUp(1, &model_dim, logp_beta_sampler, init_beta_sampler);
   pass |= test_sampler(0.5, 0.5, 0.0, 1.0);
   test_tearDown("test", 1);
 
-  printf("Test Normal Param Estimation: . . .\n");
+  printf("Test Normal Param Estimation: . . .");
   model_dim = 2;
   test_setUp(1, &model_dim, logp_normal_params, init_normal_params);
   pass |= test_dist_params(0.2, 0.5);
   test_tearDown("test", 1);
 
-  printf("Test Beta Param Estimation: . . .\n");
+  printf("Test Beta Param Estimation: . . .");
   model_dim = 2;
   test_setUp(1, &model_dim, logp_beta_params, init_normal_params);
   pass |= test_dist_params(4.5, 5.0);
   test_tearDown("test", 1);
 
-  printf("Test Gamma Param Estimation: . . .\n");
+  printf("Test Gamma Param Estimation: . . .");
   model_dim = 2;
   test_setUp(1, &model_dim, logp_gamma_params, init_normal_params);
   pass |= test_dist_params(7.0, 14.5);
   test_tearDown("test", 1);
 
-  printf("Test Gamma-Beta Model Selection: . . .\n");
+  printf("Test Gamma-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
   test_setUp(2, model_dims, logp_gamma_beta, init_gamma_beta);
   pass |= test_two_models(7.0, 14.5, 4.7, 4.8, 0.37);
   test_tearDown("test", 2);
 
-  printf("Test Normal-Beta Model Selection: . . .\n");
+  printf("Test Normal-Beta Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
   test_setUp(2, model_dims, logp_normal_beta, init_normal_beta);
   pass |= test_two_models(0.2, 0.5, 4.7, 4.8, 0.95);
   test_tearDown("test", 2);
 
-  printf("Test Normal-Gamma Model Selection: . . .\n");
+  printf("Test Normal-Gamma Model Selection: . . .");
   model_dims[0] = 2;
   model_dims[1] = 2;
   test_setUp(2, model_dims, logp_normal_gamma, init_normal_gamma);
@@ -154,7 +153,6 @@ int test_tearDown(char *filename, int nmodels) {
 
 int test_sampler(double true_mean, double true_sigma, double lower,
                  double upper) {
-  printf("Test Distribution Sampler:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
     return 1;
@@ -187,7 +185,6 @@ int test_sampler(double true_mean, double true_sigma, double lower,
 }
 
 int test_dist_params(double true_param1, double true_param2) {
-  printf("Test Distribution Parameters:......");
   FILE *fp = fopen("test_theta1.data", "r");
   if (fp == NULL) {
     return 1;
@@ -205,7 +202,7 @@ int test_dist_params(double true_param1, double true_param2) {
   p1_mean /= ndraws;
   p2_mean /= ndraws;
 
-  double tol = 0.2;
+  double tol = 0.5;
   int pass =
       fabs(p1_mean - true_param1) < tol && fabs(p2_mean - true_param2) < tol;
   if (!pass) {
@@ -218,7 +215,6 @@ int test_dist_params(double true_param1, double true_param2) {
 
 int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
                     double true_k2_p2, double true_k1_frac) {
-  printf("Test Model Selection:......");
   char fname[50];
   int k_count[2];
   double p1_mean[2], p2_mean[2];
@@ -241,7 +237,7 @@ int test_two_models(double true_k1_p1, double true_k1_p2, double true_k2_p1,
     p1_mean[i] /= k_count[i];
     p2_mean[i] /= k_count[i];
   }
-  double tol = 0.2;
+  double tol = 0.5;
   int pass1 = fabs(p1_mean[0] - true_k1_p1) < tol &&
               fabs(p2_mean[0] - true_k1_p2) < tol;
   if (!pass1) {

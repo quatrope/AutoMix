@@ -165,4 +165,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2);
 void burn_samples(amSampler *am, int nburn);
 void rjmcmc_samples(amSampler *am, int nsweep);
 
+// Calculates the logarithm of the Gamma function at x
+double loggamma(double x);
+
 #endif /* defined(__AutoMix__AutoMix_h__) */

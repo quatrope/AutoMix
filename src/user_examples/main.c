@@ -2,7 +2,6 @@
 #include "automix.h"
 #include "logwrite.h"
 #include "user.h"
-#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +48,6 @@ int main(int argc, char *argv[]) {
   // Override defaults if user supplies command line options
   parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed, &doperm,
                      &adapt, &mode, &dof);
-  sdrni(&seed);
   int nburn = nsweep / 10;
   if (nburn < 10000) {
     nburn = 10000;

@@ -24,7 +24,7 @@ endif
 
 # Libraries
 LIBS=-lm
-LIBOBJS=automix.o logwrite.o utils.o
+LIBOBJS=automix.o logwrite.o
 SRC_DIR=src
 LIB_DIR=$(SRC_DIR)/libautomix
 EXMP_DIR=$(SRC_DIR)/user_examples
