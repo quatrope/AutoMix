@@ -22,6 +22,14 @@ else
 CFLAGS=-O3 -Wall
 endif
 
+ifdef PREFIX
+LIB_INST_DIR=$(PREFIX)/lib
+INC_INST_DIR=$(PREFIX)/include
+else
+LIB_INST_DIR=/usr/local/lib
+INC_INST_DIR=/usr/local/include
+endif
+
 # Libraries
 LIBS=-lm
 LIBOBJS=automix.o
@@ -67,6 +75,12 @@ logwrite.o: $(EXMP_DIR)/logwrite.c $(EXMP_DIR)/logwrite.h
 
 test: tests/main.c logwrite.o libautomix.so
 	$(CC) $< logwrite.o -L./ -lautomix -lm -I$(LIB_DIR) -I$(EXMP_DIR) -o $@
+
+install:
+	- mkdir $(LIB_INST_DIR)/
+	- mkdir $(INC_INST_DIR)/
+	cp libautomix.so $(LIB_INST_DIR)/
+	cp $(LIB_DIR)/automix.h $(INC_INST_DIR)/
 
 clean:
 	- rm *.o
