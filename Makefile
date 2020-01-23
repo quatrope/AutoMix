@@ -24,7 +24,7 @@ endif
 
 # Libraries
 LIBS=-lm
-LIBOBJS=automix.o logwrite.o
+LIBOBJS=automix.o
 SRC_DIR=src
 LIB_DIR=$(SRC_DIR)/libautomix
 EXMP_DIR=$(SRC_DIR)/user_examples
@@ -41,9 +41,8 @@ libautomix.so: $(LIBOBJS)
 ###### EXAMPLE PROGRAMS ############
 
 # Toy example 1
-# cc src/user_examples/main.c usertoy1.o -L./ -lautomix -o amtoy1 -lm -I./src/user_examples -I./src/libautomix
-am%: user%.o $(EXMP_DIR)/main.c libautomix.so
-	$(CC) $(CFLAGS) -o $@ $< $(EXMP_DIR)/main.c -L./ -lautomix $(LIBS) $(INC_FLAGS)
+am%: user%.o logwrite.o $(EXMP_DIR)/main.c libautomix.so
+	$(CC) $(CFLAGS) -o $@ $< $(EXMP_DIR)/main.c logwrite.o -L./ -lautomix $(LIBS) $(INC_FLAGS)
 
 ### AutoMix dependencies
 
@@ -61,10 +60,13 @@ user%.o: $(EXMP_DIR)/user%.c $(EXMP_DIR)/user.h
 userddi.o: $(EXMP_DIR)/userddi.c $(EXMP_DIR)/user.h $(EXMP_DIR)/ddidata.h
 	$(CC) $(CFLAGS) -c $<
 
+logwrite.o: $(EXMP_DIR)/logwrite.c $(EXMP_DIR)/logwrite.h
+	$(CC) $(CFLAGS) -c $< -I$(LIB_DIR)
+
 ###### Type "make clean" to remove all executables and object files ####
 
-test: tests/main.c libautomix.so
-	$(CC) $< -L./ -lautomix -lm -I./src/libautomix -o $@
+test: tests/main.c logwrite.o libautomix.so
+	$(CC) $< logwrite.o -L./ -lautomix -lm -I$(LIB_DIR) -I$(EXMP_DIR) -o $@
 
 clean:
 	- rm *.o
