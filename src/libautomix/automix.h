@@ -159,7 +159,6 @@ typedef struct {
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
                   targetFunc logpost, double **initRWM);
 void freeAMSampler(amSampler *am);
-int read_mixture_params(char *fname, amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2);
 void burn_samples(amSampler *am, int nburn);
 void rjmcmc_samples(amSampler *am, int nsweep);

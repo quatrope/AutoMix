@@ -24,6 +24,90 @@ void write_adapt_to_file(char *fname, proposalDist jd, condProbStats cpstats);
 void write_mix_to_file(char *fname, proposalDist jd);
 void write_theta_to_file(char *fname, runStats st, proposalDist jd);
 
+int read_mixture_params(char *fname, amSampler *am) {
+  // Check user has supplied mixture parameters if trying to use mode 1.
+  // If not, abort and exit.
+  proposalDist *jd = &(am->jd);
+  char *datafname = (char *)malloc((strlen(fname) + 20) * sizeof(*datafname));
+  sprintf(datafname, "%s_mix.data", fname);
+  FILE *fpmix = fopen(datafname, "r");
+  free(datafname);
+  if (fpmix == NULL) {
+    printf("\nProblem opening mixture file:");
+    return EXIT_FAILURE;
+  }
+  int k1;
+  if (fscanf(fpmix, "%d", &k1) == EOF) {
+    printf("\nEnd of file encountered before parameters read:");
+    return EXIT_FAILURE;
+  }
+  if (k1 != jd->nmodels) {
+    printf("\nFile nmodels contradicts getkmax function:");
+    return EXIT_FAILURE;
+  }
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim;
+    if (fscanf(fpmix, "%d", &mdim) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      return EXIT_FAILURE;
+    }
+    if (mdim != jd->model_dims[k]) {
+      printf("\nFile kmax contradicts getnk function:");
+      return EXIT_FAILURE;
+    }
+  }
+  for (int k = 0; k < jd->nmodels; k++) {
+    int mdim = jd->model_dims[k];
+    for (int l = 0; l < mdim; l++) {
+      if (fscanf(fpmix, "%lf", &(jd->sig[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        return EXIT_FAILURE;
+      }
+    }
+    if (fscanf(fpmix, "%d", &(jd->nMixComps[k])) == EOF) {
+      printf("\nEnd of file encountered before parameters read:");
+      return EXIT_FAILURE;
+    }
+    int Lkk = jd->nMixComps[k];
+    for (int l = 0; l < Lkk; l++) {
+      if (fscanf(fpmix, "%lf", &(jd->lambda[k][l])) == EOF) {
+        printf("\nEnd of file encountered before parameters read:");
+        return EXIT_FAILURE;
+      }
+      for (int i = 0; i < mdim; i++) {
+        if (fscanf(fpmix, "%lf", &(jd->mu[k][l][i])) == EOF) {
+          printf("\nEnd of file encountered before parameters read:");
+          return EXIT_FAILURE;
+        }
+      }
+      for (int i = 0; i < mdim; i++) {
+        for (int j = 0; j <= i; j++) {
+          if (fscanf(fpmix, "%lf", &(jd->B[k][l][i][j])) == EOF) {
+            printf("\nEnd of file encountered before parameters read:");
+            return EXIT_FAILURE;
+          }
+        }
+      }
+    }
+    double sumlambda = 0.0;
+    for (int l = 0; l < Lkk; l++) {
+      sumlambda += jd->lambda[k][l];
+    }
+    double sumlambda_tol = 1E-5;
+    if (fabs(sumlambda - 1.0) > sumlambda_tol) {
+      printf("\nComponents weights read do not sum to one for k=%d:", k);
+      return EXIT_FAILURE;
+    }
+    if (sumlambda != 1.0) {
+      for (int l = 0; l < Lkk; l++) {
+        jd->lambda[k][l] /= sumlambda;
+      }
+    }
+  }
+  fclose(fpmix);
+  return EXIT_SUCCESS;
+}
+
 void report_cond_prob_estimation(char *fname, amSampler am) {
   // Write adaptation statistics to file
   write_adapt_to_file(fname, am.jd, am.cpstats);
@@ -120,7 +204,7 @@ void write_theta_to_file(char *fname, runStats st, proposalDist jd) {
   char *datafname = (char *)malloc((fname_len + 50) * sizeof(*datafname));
   for (int model_k = 0; model_k < jd.nmodels; model_k++) {
     sprintf(datafname, "%s_theta%d.data", fname, model_k + 1);
-    FILE *fp_theta = fopen(datafname, "a");
+    FILE *fp_theta = fopen(datafname, "w");
     int sample_len = st.theta_summary_len[model_k];
     int mdim = jd.model_dims[model_k];
     for (int sample_i = 0; sample_i < sample_len; sample_i++) {

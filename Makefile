@@ -76,8 +76,8 @@ tutorial: $(EXMP_DIR)/tutorial.c libautomix.so
 
 ###### Type "make clean" to remove all executables and object files ####
 
-test: tests/main.c logwrite.o libautomix.so
-	$(CC) $< logwrite.o -L./ -lautomix -lm -I$(LIB_DIR) -I$(EXMP_DIR) -o $@
+test: tests/main.c libautomix.so
+	$(CC) $< -L./ -lautomix -lm -I$(LIB_DIR) -o $@
 
 install:
 	- mkdir $(LIB_INST_DIR)/
