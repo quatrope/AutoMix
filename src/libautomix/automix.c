@@ -34,6 +34,8 @@ void sdrni(unsigned long *seed);
 double sdrand(void);
 // Returns random sample from a Gamma distribution
 double rgamma(double s);
+// Calculates the logarithm of the Gamma function at x
+double loggamma(double x);
 
 /************************************************************************
  *                                                                      *

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// loggamma is in automix.c but not in the header
+extern double loggamma(double x);
+
 double logp_truncnormal_sampler(int model_k, int mdim, double *xp);
 double logp_normal_sampler(int model_k, int mdim, double *xp);
 double logp_beta_sampler(int model_k, int mdim, double *xp);
