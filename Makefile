@@ -46,6 +46,14 @@ examples: amtoy1 amtoy2 amcpt amcptrs amrb9 amddi
 libautomix.so: $(LIBOBJS)
 	$(CC) -shared -o libautomix.so $(LIBOBJS) $(LIBS)
 
+###### Type "make test" or "make tutorial" to compile the test or the tutorial program
+
+tutorial: $(EXMP_DIR)/tutorial.c libautomix.so
+	$(CC) $(CFLAGS) -o $@ $< -L./ -lautomix $(LIBS) $(INC_FLAGS)
+
+test: tests/main.c libautomix.so
+	$(CC) $< -L./ -lautomix -lm -I$(LIB_DIR) -o $@
+
 ###### EXAMPLE PROGRAMS ############
 
 # Toy example 1
@@ -71,13 +79,7 @@ userddi.o: $(EXMP_DIR)/userddi.c $(EXMP_DIR)/user.h $(EXMP_DIR)/ddidata.h
 logwrite.o: $(EXMP_DIR)/logwrite.c $(EXMP_DIR)/logwrite.h
 	$(CC) $(CFLAGS) -c $< -I$(LIB_DIR)
 
-tutorial: $(EXMP_DIR)/tutorial.c libautomix.so
-	$(CC) $(CFLAGS) -o $@ $< -L./ -lautomix $(LIBS) $(INC_FLAGS)
-
 ###### Type "make clean" to remove all executables and object files ####
-
-test: tests/main.c libautomix.so
-	$(CC) $< -L./ -lautomix -lm -I$(LIB_DIR) -o $@
 
 install:
 	- mkdir $(LIB_INST_DIR)/

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// loggamma is in automix.c but not in the header
+extern double loggamma(double x);
+
 int nsamples = 10;
 double data_samples[] = {0.2,  0.13, 0.35, 0.17, 0.89,
                          0.33, 0.78, 0.23, 0.54, 0.16};
@@ -12,30 +15,19 @@ double logposterior(int model_k, int mdim, double *theta);
 void get_rwm_init(int k, int mdim, double *rwm);
 
 int main() {
-
-  // Initialize the AutoMix sampler
   int nmodels = 3;
   int model_dims[] = {2, 2, 2};
+  double initRWM[] = {0.5, 0.5, 2.0, 2.0, 9.0, 2.0};
   amSampler am;
-  double **initRWM = (double **)malloc(3 * sizeof(double *));
-  double initRWM1[2] = {0.5, 0.5};
-  double initRWM2[2] = {2.0, 2.0};
-  double initRWM3[2] = {9.0, 2.0};
-  initRWM[0] = initRWM1;
-  initRWM[1] = initRWM2;
-  initRWM[2] = initRWM3;
   initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
-  free(initRWM);
-  int nsweeps_cpest = 100000; // 100,000
-  estimate_conditional_probs(&am, nsweeps_cpest);
-  int nburn = 10000; // 10,000
-  burn_samples(&am, nburn);
-  int nsweeps = 100000; // 100,000
+  estimate_conditional_probs(&am, 100000);
+  burn_samples(&am, 10000);
+  int nsweeps = 100000;
   rjmcmc_samples(&am, nsweeps);
 
-  printf("Probability of model 1: %lf\n", (double)am.st.ksummary[0] / nsweeps);
-  printf("Probability of model 2: %lf\n", (double)am.st.ksummary[1] / nsweeps);
-  printf("Probability of model 3: %lf\n", (double)am.st.ksummary[2] / nsweeps);
+  printf("p(M=1|E) = %lf\n", (double)am.st.ksummary[0] / nsweeps);
+  printf("p(M=2|E) = %lf\n", (double)am.st.ksummary[1] / nsweeps);
+  printf("p(M=3|E) = %lf\n", (double)am.st.ksummary[2] / nsweeps);
 
   freeAMSampler(&am);
   return EXIT_SUCCESS;

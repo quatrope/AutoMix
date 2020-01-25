@@ -157,7 +157,7 @@ typedef struct {
 
 /*** Public Functions ***/
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                  targetFunc logpost, double **initRWM);
+                  targetFunc logpost, double *initRWM);
 void freeAMSampler(amSampler *am);
 void estimate_conditional_probs(amSampler *am, int nsweep2);
 void burn_samples(amSampler *am, int nburn);

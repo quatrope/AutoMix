@@ -189,7 +189,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
 }
 
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                  targetFunc logposterior, double **initRWM) {
+                  targetFunc logposterior, double *initRWM) {
   // Proposal Distribution must be initialized immediately
   if (nmodels < 0) {
     printf("Error: negative number of models.\n");
@@ -213,9 +213,11 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
       }
     }
   } else {
+    int ind = 0;
     for (int m_k = 0; m_k < nmodels; m_k++) {
       for (int i = 0; i < model_dims[m_k]; i++) {
-        (am->initRWM)[m_k][i] = initRWM[m_k][i];
+        (am->initRWM)[m_k][i] = initRWM[ind];
+        ind++;
       }
     }
   }

@@ -59,18 +59,18 @@ int main(int argc, char *argv[]) {
   int nmodels = get_nmodels();
   int *model_dims = (int *)malloc(nmodels * sizeof(int));
   load_model_dims(nmodels, model_dims);
-  amSampler am;
-  double **initRWM = (double **)malloc(nmodels * sizeof(double *));
+  int mdim_len = 0;
   for (int i = 0; i < nmodels; i++) {
-    initRWM[i] = (double *)malloc(model_dims[i] * sizeof(double));
+    mdim_len += model_dims[i];
   }
+  amSampler am;
+  double *initRWM = (double *)malloc(mdim_len * sizeof(double *));
+  int offset = 0;
   for (int i = 0; i < nmodels; i++) {
-    get_rwm_init(i, model_dims[i], initRWM[i]);
+    get_rwm_init(i, model_dims[i], initRWM + offset);
+    offset += model_dims[i];
   }
   initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
-  for (int i = 0; i < nmodels; i++) {
-    free(initRWM[i]);
-  }
   free(initRWM);
 
   // --- Section 5.1 - Read in mixture parameters if mode 1 (m=1) ---
