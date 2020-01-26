@@ -198,6 +198,8 @@ BEGIN_IC:
 void logpost(int k, int mdim, double *theta, double *lp, double *llh1) {
 
   int i, j, j1, j2, posdef;
+  int model_dims[] = {16, 10};
+  mdim = model_dims[k];
   double llh, alpha[9], gamma[6], **V, **U, **Vmin1, **Umin1;
   double sigmasq = 0.0;
   double tausq = 0.0;

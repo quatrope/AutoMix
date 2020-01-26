@@ -41,7 +41,7 @@ be a published paper in the not too distant future.  */
 
 #include <time.h>
 
-typedef double (*targetFunc)(int model_k, int mdim, double *x);
+typedef double (*targetFunc)(int model_k, double *x);
 // C does not have a bool type but int is just as good
 typedef int bool;
 // Enum to specify whether using Figuereido or AutoRJ in conditional

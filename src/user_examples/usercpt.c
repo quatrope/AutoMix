@@ -48,6 +48,8 @@ void logpost(int k, int nkk, double *theta, double *lp, double *llh1) {
   int i, j, nsteps = (k + 1), nsofar, nj;
   double llh, logl, abcon, top;
   double h[nsteps + 1], s[nsteps + 2], ds[nsteps + 1];
+  int model_dims[] = {3, 5, 7, 9, 11, 13};
+  nkk = model_dims[k];
 
   /* Data kindly provided by PJG */
 

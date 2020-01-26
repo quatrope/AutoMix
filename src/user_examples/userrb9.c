@@ -65,6 +65,8 @@ void get_rwm_init(int k, int mdim, double *rwm) {
 void logpost(int k, int nkk, double *theta, double *lp, double *llh1) {
 
   int i, j, ql, qk, cumnobs;
+  int model_dims[] = {4, 4, 4, 4, 4, 4, 5, 5, 5, 5};
+  int nkk = model_dims[k];
   int nobs[4], nlambda[10], nkappa[10], pindic[4];
   double llh, lambda[4], kappa[4], dlgdummy1, dlgdummy2, kappamin1;
   int X[66] = {121, 169, 112, 199, 80,  121, 194, 140, 131, 199, 262,

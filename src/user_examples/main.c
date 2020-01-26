@@ -12,10 +12,10 @@ void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
                         int *nsweep2, unsigned long *seed, int *doperm,
                         int *adapt, int *mode, int *dof);
 // wrapper function to fit with AutoMix
-double logposterior(int model_k, int mdim, double *x) {
+double logposterior(int model_k, double *x) {
   double lpost = 0;
   double likelihood;
-  logpost(model_k, mdim, x, &lpost, &likelihood);
+  logpost(model_k, 0, x, &lpost, &likelihood);
   return lpost;
 }
 extern void sdrni(unsigned long *seed);

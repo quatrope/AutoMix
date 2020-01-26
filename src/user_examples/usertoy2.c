@@ -33,6 +33,8 @@ void get_rwm_init(int model_k, int mdim, double *rwm) {
 
 void logpost(int k, int nkk, double *theta, double *lp, double *llh) {
   int i;
+  int model_dims[] = {1, 2, 3, 4, 5};
+  nkk = model_dims[k];
   double work[nkk], mu1[nkk], mu2[nkk], sig1, sig2, w1, w2;
   double lptemp;
   double modw = 0.0;

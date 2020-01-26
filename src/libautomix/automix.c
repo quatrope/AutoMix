@@ -431,7 +431,7 @@ void initChain(chainState *ch, proposalDist jd, double **initRWM,
     ch->theta[i] = initRWM[ch->current_model_k][i];
   }
   ch->current_Lkk = jd.nMixComps[ch->current_model_k];
-  ch->log_posterior = logposterior(ch->current_model_k, ch->mdim, ch->theta);
+  ch->log_posterior = logposterior(ch->current_model_k, ch->theta);
   for (int i = 0; i < jd.nmodels; i++) {
     ch->pk[i] = 1.0 / jd.nmodels;
   }
@@ -591,7 +591,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
     nacc[j1] = 0;
     ntry[j1] = 0;
   }
-  double lp = logpost(model_k, mdim, rwm);
+  double lp = logpost(model_k, rwm);
 
   int i2 = 0;
   int remain = nsweepr;
@@ -603,7 +603,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
       for (int i = 0; i < mdim; i++) {
         rwmn[i] = rwm[i] + sig_k[i] * Znkk[i];
       }
-      double lpn = logpost(model_k, mdim, rwmn);
+      double lpn = logpost(model_k, rwmn);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - lp)))) {
         for (int i = 0; i < mdim; i++) {
           rwm[i] = rwmn[i];
@@ -619,7 +619,7 @@ void rwm_within_model(int model_k, int *model_dims, int nsweep2,
         double Z;
         rt(&Z, 1, dof);
         rwmn[i] = rwm[i] + sig_k[i] * Z;
-        double lpn = logpost(model_k, mdim, rwmn);
+        double lpn = logpost(model_k, rwmn);
         double accept = min(1, exp(max(-30.0, min(0.0, lpn - lp))));
         if (sdrand() < accept) {
           (nacc[i])++;
@@ -1054,7 +1054,7 @@ void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
     for (int i = 0; i < ch->mdim; i++) {
       thetan[i] = theta[i] + jd.sig[ch->current_model_k][i] * Znkk[i];
     }
-    double lpn = logpost(ch->current_model_k, ch->mdim, thetan);
+    double lpn = logpost(ch->current_model_k, thetan);
     if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
       (st->naccrwmb)++;
       memcpy(theta, thetan, ch->mdim * sizeof(*thetan));
@@ -1068,7 +1068,7 @@ void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
       double Z;
       rt(&Z, 1, dof);
       thetan[j1] = theta[j1] + jd.sig[ch->current_model_k][j1] * Z;
-      double lpn = logpost(ch->current_model_k, ch->mdim, thetan);
+      double lpn = logpost(ch->current_model_k, thetan);
       if (sdrand() < exp(max(-30.0, min(0.0, lpn - ch->log_posterior)))) {
         (st->naccrwms)++;
         theta[j1] = thetan[j1];
@@ -1230,7 +1230,7 @@ void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
   }
 
   // --Section 9.6 - Work out acceptance probability  and new state --
-  double lpn = logpost(kn, mdim_kn, thetan);
+  double lpn = logpost(kn, thetan);
 
   int mdim = jd.model_dims[ch->current_model_k];
   logratio += (lpn - ch->log_posterior);

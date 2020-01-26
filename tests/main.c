@@ -7,24 +7,24 @@
 // loggamma is in automix.c but not in the header
 extern double loggamma(double x);
 
-double logp_truncnormal_sampler(int model_k, int mdim, double *xp);
-double logp_normal_sampler(int model_k, int mdim, double *xp);
-double logp_beta_sampler(int model_k, int mdim, double *xp);
-double logp_normal_params(int model_k, int mdim, double *params);
-double logp_beta_params(int model_k, int mdim, double *params);
-double logp_gamma_params(int model_k, int mdim, double *params);
-double logp_gamma_beta(int model_k, int mdim, double *params);
-double logp_normal_beta(int model_k, int mdim, double *params);
-double logp_normal_gamma(int model_k, int mdim, double *params);
-void init_normal_sampler(int model_k, int mdim, double *xp);
-void init_truncnormal_sampler(int model_k, int mdim, double *xp);
-void init_beta_sampler(int model_k, int mdim, double *xp);
-void init_normal_params(int model_k, int mdim, double *xp);
-void init_beta_params(int model_k, int mdim, double *xp);
-void init_gamma_params(int model_k, int mdim, double *xp);
-void init_gamma_beta(int model_k, int mdim, double *xp);
-void init_normal_gamma(int model_k, int mdim, double *xp);
-void init_normal_beta(int model_k, int mdim, double *xp);
+double logp_truncnormal_sampler(int model_k, double *xp);
+double logp_normal_sampler(int model_k, double *xp);
+double logp_beta_sampler(int model_k, double *xp);
+double logp_normal_params(int model_k, double *params);
+double logp_beta_params(int model_k, double *params);
+double logp_gamma_params(int model_k, double *params);
+double logp_gamma_beta(int model_k, double *params);
+double logp_normal_beta(int model_k, double *params);
+double logp_normal_gamma(int model_k, double *params);
+void init_normal_sampler(int model_k, double *xp);
+void init_truncnormal_sampler(int model_k, double *xp);
+void init_beta_sampler(int model_k, double *xp);
+void init_normal_params(int model_k, double *xp);
+void init_beta_params(int model_k, double *xp);
+void init_gamma_params(int model_k, double *xp);
+void init_gamma_beta(int model_k, double *xp);
+void init_normal_gamma(int model_k, double *xp);
+void init_normal_beta(int model_k, double *xp);
 
 int test_setUp(amSampler *am, int models, int *model_dims,
                targetFunc logposterior, double *initRWM);
@@ -239,7 +239,7 @@ int test_two_models(amSampler *am, double true_k1_p1, double true_k1_p2,
  *                                               *
  ************************************************/
 
-double logp_truncnormal_sampler(int model_k, int mdim, double *xp) {
+double logp_truncnormal_sampler(int model_k, double *xp) {
   double x = *xp;
   double a = 0.0;
   double b = 10.0;
@@ -253,7 +253,7 @@ double logp_truncnormal_sampler(int model_k, int mdim, double *xp) {
   return prob;
 }
 
-double logp_normal_sampler(int model_k, int mdim, double *xp) {
+double logp_normal_sampler(int model_k, double *xp) {
   double x = *xp;
   double prob;
   double x0 = 0.5;
@@ -262,7 +262,7 @@ double logp_normal_sampler(int model_k, int mdim, double *xp) {
   return prob;
 }
 
-double logp_beta_sampler(int model_k, int mdim, double *xp) {
+double logp_beta_sampler(int model_k, double *xp) {
   double x = *xp;
   if (x <= 0.0 || x >= 1.0) {
     return -DBL_MAX;
@@ -280,7 +280,7 @@ double logp_beta_sampler(int model_k, int mdim, double *xp) {
  *                                               *
  ************************************************/
 
-double logp_normal_params(int model_k, int mdim, double *params) {
+double logp_normal_params(int model_k, double *params) {
   double sigma = params[0];
   double x0 = params[1];
   double prod = 0;
@@ -292,7 +292,7 @@ double logp_normal_params(int model_k, int mdim, double *params) {
   return prod;
 }
 
-double logp_beta_params(int model_k, int mdim, double *params) {
+double logp_beta_params(int model_k, double *params) {
   double alpha = params[0];
   double beta = params[1];
   if (alpha <= 0.0 || beta <= 0.0) {
@@ -308,7 +308,7 @@ double logp_beta_params(int model_k, int mdim, double *params) {
   return prod;
 }
 
-double logp_gamma_params(int model_k, int mdim, double *params) {
+double logp_gamma_params(int model_k, double *params) {
   double alpha = params[0];
   double beta = params[1];
   double prod = 0.0;
@@ -326,29 +326,29 @@ double logp_gamma_params(int model_k, int mdim, double *params) {
  *                                               *
  ************************************************/
 
-double logp_gamma_beta(int model_k, int mdim, double *params) {
+double logp_gamma_beta(int model_k, double *params) {
   if (model_k == 0) {
-    return logp_gamma_params(0, 2, params);
+    return logp_gamma_params(0, params);
   } else if (model_k == 1) {
-    return logp_beta_params(0, 2, params);
+    return logp_beta_params(1, params);
   }
   return 0.0;
 }
 
-double logp_normal_beta(int model_k, int mdim, double *params) {
+double logp_normal_beta(int model_k, double *params) {
   if (model_k == 0) {
-    return logp_normal_params(0, 2, params);
+    return logp_normal_params(0, params);
   } else if (model_k == 1) {
-    return logp_beta_params(0, 2, params);
+    return logp_beta_params(1, params);
   }
   return 0.0;
 }
 
-double logp_normal_gamma(int model_k, int mdim, double *params) {
+double logp_normal_gamma(int model_k, double *params) {
   if (model_k == 0) {
-    return logp_normal_params(0, 2, params);
+    return logp_normal_params(0, params);
   } else if (model_k == 1) {
-    return logp_gamma_params(0, 2, params);
+    return logp_gamma_params(1, params);
   }
   return 0.0;
 }

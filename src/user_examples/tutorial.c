@@ -11,7 +11,7 @@ int nsamples = 10;
 double data_samples[] = {0.2,  0.13, 0.35, 0.17, 0.89,
                          0.33, 0.78, 0.23, 0.54, 0.16};
 
-double logposterior(int model_k, int mdim, double *theta);
+double logposterior(int model_k, double *theta);
 void get_rwm_init(int k, int mdim, double *rwm);
 
 int main() {
@@ -70,7 +70,7 @@ double logp_gamma(double alpha, double beta) {
   return prod;
 }
 
-double logposterior(int model_k, int mdim, double *theta) {
+double logposterior(int model_k, double *theta) {
   if (model_k == 0) {
     return logp_normal(theta[0], theta[1]);
   } else if (model_k == 1) {
