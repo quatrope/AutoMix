@@ -77,7 +77,6 @@ A quick implementation of the log-PDFs could be:
 .. code-block:: c
 
   #include "float.h"
-  #include "utils.h"
   #include <math.h>
   
   int nsamples = 10;
@@ -117,17 +116,6 @@ A quick implementation of the log-PDFs could be:
     prod += nsamples * (alpha * log(beta) - loggamma(alpha));
     return prod;
   }
-  
-  double logposterior(int model, int model_dim, double *params) {
-    if (model == 1) {
-      return logp_normal(params[0], params[1]);
-    } else if (model == 2) {
-      return logp_beta(params[0], params[1]);
-    } else if (model == 3) {
-      return logp_gamma(params[0], params[1]);
-    }
-    return 0.0;
-  }
 
 Now that we have defined our problem and log-posteriors, we can set up AutoMix to generate samples from the posteriors of each model.
 
@@ -140,80 +128,109 @@ Below is an exanple of a minimal call to generate 1,000 samples from a given pro
 .. code-block:: c
 
   #include "automix.h"
-  double logposterior(int model, int mdim, double* theta);
-  void get_rwm_init(int model, int mdim, double *theta);
-
+  
   int main() {
-    AutoMixSampler am;
-    am.setTargetDistribution(logposterior);
-    am.setRWMInitFunction(get_rwm_init);
-    am.setNumberOfModels(3);
-    int model_dims[] = {4, 3, 2};
-    am.setModelDimensions(model_dims);
-    am.rjmcmc_samples(1000);
+    int nmodels = 3;
+    int model_dims[] = {2, 2, 2};
+    double initRWM[] = {0.5, 0.5, 2.0, 2.0, 9.0, 2.0};
+    amSampler am;
+    initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
+    estimate_conditional_probs(&am, 100000);
+    burn_samples(&am, 10000);
+    int nsweeps = 100000;
+    rjmcmc_samples(&am, nsweeps);
+    freeAMSampler(&am);
     return 0;
-  } 
+  }
 
-This is the most simple set-up for a call to AutoMixSampler.
+This is a simple set-up for a call to AutoMixSampler.
 Let's analyze it by parts.
 
-The first line includes the AutoMixSampler header file, where the AutoMixSampler class is defined::
-
-    #include "AutoMixSampler.h"
-
-Next we have the declaration of two functions provided by the user::
-
-    double logposterior(int model, int mdim, double* theta);
-    void get_rwm_init(int model, int mdim, double *theta);
-
-The first one is the **logarithm** of the `probability density function <https://en.wikipedia.org/wiki/Probability_density_function>`_ (PDF),
-(or the log-posterior distribution in the context of a Bayesian analysis) for each of the models in our problem.
-
-The second function simply gives initial values (could be random) in the parameter space of the model indicated by the `model` index.
-These values will be used to initialize the Random Walk Metropolis (RWM) part of the program.
-For our problem we can set:
+The first line includes the AutoMix header file, where the amSampler structure and automix functions are defined:
 
 .. code-block:: c
 
-  void get_rwm_init(int model, int mdim, double *x) {
-    if (model == 1) {
-      x[0] = 1.0; // sigma
-      x[1] = 0.5; // x0
-      x[2] = 0.0; // a
-      x[3] = 1.0; // b
-      return;
-    } else if (model == 2) {
-      x[0] = 1.0; // sigma
-      x[1] = 0.5; // x0
-      x[2] = 1.0; // b
-      return;
-    } else if (model == 3) {
-      x[0] = 2.0; // alpha
-      x[1] = 2.0; // beta
-      return;
-    }
-  }
+  #include "automix.h"
 
-The first line in the main function is the construction of an AutoMixSampler object::
+To initiate the amSampler struct, we need to set 4 things:
 
-      AutoMixSampler am;
+  * The number of models we will use (3 in our example):
 
-This is the default constructor with all the default vales. See :ref:`constructor` for more detail on the available constructors.
+    .. code-block:: c
 
-The next two lines, we let `am` know of the log-posterior and initial values for the RWM as explained above::
+      int nmodels = 3;
 
-      am.setTargetDistribution(logposterior);
-      am.setRWMInitFunction(get_rwm_init);
+  * The dimensions of each model:
 
-The next few lines we define a problem where we have two models, the first one with a parameter space of dimension 1 (one single free parameter), and the other model with two free parameters::
+    .. code-block:: c
 
-      am.setNumberOfModels(2);
-      int model_dims[] = {1, 2};
-      am.setModelDimensions(model_dims);
+      int model_dims[] = {2, 2, 2};
 
-The following line creates the 1,000 samples::
+  * A function that returns the **logarithm** of the `probability density function <https://en.wikipedia.org/wiki/Probability_density_function>`_ (PDF),
+    (or the log-posterior distribution in the context of a Bayesian analysis) for each of the models in our problem.
+    It must have the prototype:
 
-      am.rjmcmc_samples(1000);
+    .. code-block:: c
+
+      double logposterior(int model, double *params);
+
+    And an implementation:
+
+    .. code-block:: c
+
+      double logposterior(int model, double *params) {
+        if (model == 1) {
+          return logp_normal(params[0], params[1]);
+        } else if (model == 2) {
+          return logp_beta(params[0], params[1]);
+        } else if (model == 3) {
+          return logp_gamma(params[0], params[1]);
+        }
+        return 0.0;
+      }
+
+  * The initial value of the parameters for every model. This should be given as a 1d continuous array with an appropriate initial value
+    for each model. For example the Beta distribution is bounded to [0, 1] and any initial value has to be in that interval as well.
+    This is to avoid starting the chain in a forbidden region of the parameter space or very far from the average values of the parameters:
+
+    .. code-block:: c
+
+      double initRWM[] = {0.5, 0.5, 2.0, 2.0, 9.0, 2.0};
+
+    In our case we start our chain with values :math:`\sigma` = 0.5, :math:`x_0` = 0.5 for the Gaussian model;
+    :math:`\alpha` = 2.0, :math:`\beta` = 2.0 for the Beta model;
+    and :math:`\alpha` = 9.0, :math:`\beta` = 2.0 for the Gamma model.
+
+Once all of the above is defined for our problem we can init our amSampler:
+
+.. code-block:: c
+
+  amSampler am;
+  initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
+
+The next step is to estimate the conditional probabilities for our posterior model to
+create a Proposal Distribution with a multi-modal Normal mixture:
+
+.. code-block:: c
+
+  estimate_conditional_probs(&am, 100000);
+
+We just need to pass the automix sampler struct and the number of sweeps we want for the estimation.
+
+It is recommended to "burn" some initial samples to let the MCMC chain achieve convergence.
+We do this with the following line:
+
+.. code-block:: c
+
+  burn_samples(&am, 10000);
+
+Finally we can create however many RJMCMC samples as we want:
+
+.. code-block:: c
+
+  int nsweeps = 100000;
+  rjmcmc_samples(&am, nsweeps);
+
 
 Run Statistics
 --------------
@@ -223,37 +240,3 @@ Our previous main program lacked one fundamental problems: the lack of output.
 AutoMix saves the run statistics in different C data structures.
 
 The most important is `rjmcmcStats`.
-To ask AutoMix to save `rjmcmcStats` to file, use the helper logwrite functions::
-
-.. code-block:: c
-
-  #include "logwrite.h"
-  ...
-
-  int main() {
-  ...
-
-  am.rjmcmc_samples(1000);
-  report_rjmcmc_run("output", am.st);
-  return 0;
-  }
-
-
-Running Conditional Probability Estimation
-------------------------------------------
-
-Setting-up Optional Arguments
------------------------------
-
-Optional Burning of Samples
-
-.. _constructor:
-
-Constructor
------------
-
-Default.
-
-Reading from file
-
-Setting model and blah blah.

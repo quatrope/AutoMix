@@ -2,7 +2,6 @@
 #include "float.h"
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 // loggamma is in automix.c but not in the header
 extern double loggamma(double x);
@@ -30,7 +29,7 @@ int main() {
   printf("p(M=3|E) = %lf\n", (double)am.st.ksummary[2] / nsweeps);
 
   freeAMSampler(&am);
-  return EXIT_SUCCESS;
+  return 0;
 }
 
 double logp_normal(double sigma, double x0) {
