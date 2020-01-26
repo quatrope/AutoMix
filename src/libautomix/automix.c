@@ -57,9 +57,9 @@ void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
 
 // Helper functions
-void rwm_within_model(int k1, int *model_dims, int nsweep2,
-                      condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost, double *initRWM);
+void rwm_within_model(int k1, int mdim, int nsweep2, condProbStats *cpstats,
+                      double *sig_k, int dof, double **samples,
+                      targetFunc logpost, double *initRWM);
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, condProbStats *cpstats,
                               int NUM_MIX_COMPS_MAX, int NUM_FITMIX_MAX);
@@ -167,9 +167,9 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
     // Section 5.2.1 - Random Walk Metropolis (RWM) Within Model
     // Adapt within-model RWM samplers and to provide the next stage with
     // samples from pi(theta_k|k) for each value of k. (see thesis, p 144)
-    rwm_within_model(model_k, jd.model_dims, nsweep2, cpstats, jd.sig[model_k],
-                     am->student_T_dof, samples, am->logposterior,
-                     (am->initRWM)[model_k]);
+    rwm_within_model(model_k, jd.model_dims[model_k], nsweep2, cpstats,
+                     jd.sig[model_k], am->student_T_dof, samples,
+                     am->logposterior, (am->initRWM)[model_k]);
     if (am->am_mixfit == FIGUEREIDO_MIX_FIT) {
       // Section 5.2.2 - Fit Mixture to within-model sample, (stage 2)
       // Fit a Normal mixture distribution to the conditional target
@@ -566,11 +566,10 @@ void freeProposalDist(proposalDist jd) {
   }
 }
 
-void rwm_within_model(int model_k, int *model_dims, int nsweep2,
+void rwm_within_model(int model_k, int mdim, int nsweep2,
                       condProbStats *cpstats, double *sig_k, int dof,
                       double **samples, targetFunc logpost, double *initRWM) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
-  int mdim = model_dims[model_k];
   int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
   double alphastar = 0.25;
