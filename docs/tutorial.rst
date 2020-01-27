@@ -143,16 +143,16 @@ Below is an exanple of a minimal call to generate 1,000 samples from a given pro
     return 0;
   }
 
-This is a simple set-up for a call to AutoMixSampler.
+This is a simple set-up for an AutoMix program.
 Let's analyze it by parts.
 
-The first line includes the AutoMix header file, where the amSampler structure and automix functions are defined:
+The first line includes the AutoMix header file, where the :c:type:`amSampler` structure and automix functions are defined:
 
 .. code-block:: c
 
   #include "automix.h"
 
-To initiate the amSampler struct, we need to set 4 things:
+To initiate the :c:type:`amSampler` struct, we need to set 4 things:
 
   * The number of models we will use (3 in our example):
 
@@ -201,7 +201,7 @@ To initiate the amSampler struct, we need to set 4 things:
     :math:`\alpha` = 2.0, :math:`\beta` = 2.0 for the Beta model;
     and :math:`\alpha` = 9.0, :math:`\beta` = 2.0 for the Gamma model.
 
-Once all of the above is defined for our problem we can init our amSampler:
+Once all of the above is defined for our problem we can init our :c:type:`amSampler`:
 
 .. code-block:: c
 
@@ -235,8 +235,35 @@ Finally we can create however many RJMCMC samples as we want:
 Run Statistics
 --------------
 
-Our previous main program lacked one fundamental problems: the lack of output.
+Our previous main program has one fundamental problem: the lack of output.
 
 AutoMix saves the run statistics in different C data structures.
 
-The most important is `rjmcmcStats`.
+The most important is the struct :c:type:`runStats`.
+In :c:type:`amSampler` is the member :c:member:`st`. There, we will find several statistics, including the parameters sampled during the RJMCMC run.
+The two most important ones are :c:member:`st.k_summary` and :c:member:`st.theta_summary`.
+For a full description of all the parameters, see :ref:`api`.
+
+Just as an example, let's print out the relative probability of each model:
+
+.. code-block:: c
+
+  #include <stdio.h>
+
+  int main() {
+    ...
+    rjmcmc_samples(&am, nsweeps);
+
+    printf("p(M=1|E) = %lf\n", (double)am.st.ksummary[0] / nsweeps);
+    printf("p(M=2|E) = %lf\n", (double)am.st.ksummary[1] / nsweeps);
+    printf("p(M=3|E) = %lf\n", (double)am.st.ksummary[2] / nsweeps);
+
+    freeAMSampler(&am);
+    return 0;
+  }
+
+This should print something like the following on screen::
+
+  p(M=1|E) = 0.792750
+  p(M=2|E) = 0.023890
+  p(M=3|E) = 0.183360

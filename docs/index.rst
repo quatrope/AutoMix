@@ -14,9 +14,8 @@ AutoMix
 
    tutorial
    compilation
-   running
+   api
    user
-   output
    license
 
 The AutoMix package is a C program for Unix-like systems, implementing the automatic Reversible Jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis (included in `docs/thesis`).
@@ -47,7 +46,7 @@ Main advantages of AutoMix:
   * AutoMix requires minimum input from the user.
   * AutoMix automatically adapts proposal distributions with a multi-modal Normal mixture.
 
-.. warning::
+.. caution::
 
     Potential users should carefully understand the limitations of using the AutoMix sampler.
     The reliability of results from this sampler depends on many factors, including the scaling of the parameters and the degree of multimodality of the within-model conditionals of the target distribution.
@@ -59,4 +58,4 @@ For a quick tour of the library, check out the :ref:`tutorial`.
 
 To compile and run example programs that use the AutoMix library, see :ref:`compile`.
 
-For a description of the output files with statistics information, see :ref:`output`.
+For a description of the full public API with statistics information, see :ref:`api`.
