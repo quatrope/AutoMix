@@ -15,10 +15,9 @@ AutoMix
    tutorial
    compilation
    api
-   user
    license
 
-The AutoMix package is a C program for Unix-like systems, implementing the automatic Reversible Jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis (included in `docs/thesis`).
+The AutoMix package is a C program for Unix-like systems, implementing the automatic Reversible Jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis (included in ``docs/thesis``).
 
 While the original AutoMix is highly useful, the fact that it can only be used as an executable can limit its applicability.
 **LibAutoMix makes the core algorithms of Source Extractor available as a library of stand-alone functions and data structures.**
@@ -29,7 +28,7 @@ What is Reversible Jump MCMC?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Reversible Jump Markov Chain Monte Carlo (RJMCMC) extends the standard MCMC sampler to include a
-discrete random variable `k` that represents the index of a *model*.
+discrete random variable ``k`` that represents the index of a *model*.
 So, instead of sampling from the usual parameter space of a given distribution,
 RJMCMC will also sample across different models (distributions).
 
@@ -56,6 +55,6 @@ Where to go from here?
 
 For a quick tour of the library, check out the :ref:`tutorial`.
 
-To compile and run example programs that use the AutoMix library, see :ref:`compile`.
+To compile your program against the AutoMix library see :ref:`compile`.
 
 For a description of the full public API with statistics information, see :ref:`api`.
