@@ -34,10 +34,10 @@ be a published paper in the not too distant future.  */
 #ifndef __AutoMix__AutoMix_h__
 #define __AutoMix__AutoMix_h__
 
-#define AUTOMIX_MAJOR_VERSION 1
-#define AUTOMIX_MINOR_VERSION 4
+#define AUTOMIX_MAJOR_VERSION 2
+#define AUTOMIX_MINOR_VERSION 0
 #define AUTOMIX_REVISION 0
-#define AUTOMIX_VERSION "1.3"
+#define AUTOMIX_VERSION "2.0"
 
 #include <time.h>
 
