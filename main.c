@@ -11,7 +11,7 @@
 void usage(char *invocation);
 void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
                         int *nsweep2, unsigned long *seed, int *doperm,
-                        int *adapt, int *mode, int *dof);
+                        int *adapt, int *mode, int *dof, int *nburn);
 // wrapper function to fit with AutoMix
 double logposterior(int model_k, int mdim, double *x) {
   double lpost = 0;
@@ -45,14 +45,18 @@ int main(int argc, char *argv[]) {
   // fname ~ f ~ filename base (default = "output")
   char *const fname_default = "output";
   char *fname = fname_default;
+  // -1 is a flag for undefined
+  int nburn = -1;
 
   // Override defaults if user supplies command line options
   parse_cmdline_args(argc, argv, &fname, &nsweep, &nsweep2, &seed, &doperm,
-                     &adapt, &mode, &dof);
+                     &adapt, &mode, &dof, &nburn);
   sdrni(&seed);
-  int nburn = nsweep / 10;
-  if (nburn < 10000) {
-    nburn = 10000;
+  if (nburn == -1) {
+    nburn = nsweep / 10;
+    if (nburn < 10000) {
+      nburn = 10000;
+    }
   }
 
   // Initialize the AutoMix sampler
@@ -114,6 +118,8 @@ void usage(char *invocation) {
   printf(
       "-t int: 0 if Normal random variables used in RWM and RJ moves, "
       "otherwise specify integer degrees of freedom of student t variables.\n");
+  printf("-b int: Number of samples to burn. If not specified it defaults to "
+         "max between 10,000 and N/10.\n");
   printf("-f string: filename base.\n");
   printf("-h, --help: Print this help and exit.");
   printf(
@@ -122,7 +128,7 @@ void usage(char *invocation) {
 
 void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
                         int *nsweep2, unsigned long *seed, int *doperm,
-                        int *adapt, int *mode, int *dof) {
+                        int *adapt, int *mode, int *dof, int *nburn) {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-f")) {
       *fname = argv[++i];
@@ -155,6 +161,14 @@ void parse_cmdline_args(int argc, char *argv[], char **fname, int *nsweep,
       continue;
     } else if (!strcmp(argv[i], "-t")) {
       *dof = atoi(argv[++i]);
+      continue;
+    } else if (!strcmp(argv[i], "-b")) {
+      *nburn = atoi(argv[++i]);
+      if (*nburn < 0) {
+        printf("Error: Negative value for burn samples.\n");
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
+      }
       continue;
     } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
       usage(argv[0]);

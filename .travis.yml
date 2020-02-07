@@ -15,7 +15,7 @@ script:
   - make clean
   - rm output_*.data myout*.data
   - make DEBUG=1
-  - ./amtoy1 -N 1000
+  - ./amtoy1 -b 0 -N 1000
   - test -f output_mix.data
   - make clean
   - clang-format main.c | diff - main.c
