@@ -51,7 +51,7 @@ int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2,
                       int NUM_FITMIX_MAX);
 void freeCondProbStats(condProbStats *cpstats, proposalDist jd);
 void initChain(chainState *ch, proposalDist jd, double **initRWM,
-               targetFunc logposterior);
+               targetDist logposterior);
 void freeChain(chainState *ch);
 void initRunStats(runStats *st, int nsweep, proposalDist jd);
 void freeRunStats(runStats st, proposalDist jd);
@@ -59,14 +59,14 @@ void freeRunStats(runStats st, proposalDist jd);
 // Helper functions
 void rwm_within_model(int k1, int mdim, int nsweep2, condProbStats *cpstats,
                       double *sig_k, int dof, double **samples,
-                      targetFunc logpost, double *initRWM);
+                      targetDist logpost, double *initRWM);
 void fit_mixture_from_samples(int model_k, proposalDist jd, double **samples,
                               int nsamples, condProbStats *cpstats,
                               int NUM_MIX_COMPS_MAX, int NUM_FITMIX_MAX);
 void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples);
 void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
                           proposalDist jd, int dof, runStats *st,
-                          targetFunc logpost);
+                          targetDist logpost);
 
 /***********************************************************************
  *                                                                      *
@@ -189,7 +189,7 @@ void estimate_conditional_probs(amSampler *am, int nsweep2) {
 }
 
 int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                  targetFunc logposterior, double *initRWM) {
+                  targetDist logposterior, double *initRWM) {
   // Proposal Distribution must be initialized immediately
   if (nmodels < 0) {
     printf("Error: negative number of models.\n");
@@ -415,7 +415,7 @@ void freeRunStats(runStats st, proposalDist jd) {
 }
 
 void initChain(chainState *ch, proposalDist jd, double **initRWM,
-               targetFunc logposterior) {
+               targetDist logposterior) {
   if (ch->isInitialized) {
     return;
   }
@@ -568,7 +568,7 @@ void freeProposalDist(proposalDist jd) {
 
 void rwm_within_model(int model_k, int mdim, int nsweep2,
                       condProbStats *cpstats, double *sig_k, int dof,
-                      double **samples, targetFunc logpost, double *initRWM) {
+                      double **samples, targetDist logpost, double *initRWM) {
   // --- Section 5.2.1 - RWM Within Model (Stage 1) -------
   int nsweepr = max(nsweep2, 10000 * mdim);
   int nburn = nsweepr / 10;
@@ -1028,7 +1028,7 @@ void fit_autorj(int model_k, proposalDist jd, double **samples, int nsamples) {
 
 void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
                           proposalDist jd, int dof, runStats *st,
-                          targetFunc logpost) {
+                          targetDist logpost) {
   int Lkmax = jd.nMixComps[0];
   for (int k1 = 1; k1 < jd.nmodels; k1++) {
     Lkmax = max(Lkmax, jd.nMixComps[k1]);

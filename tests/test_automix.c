@@ -27,7 +27,7 @@ void init_normal_gamma(int model_k, double *xp);
 void init_normal_beta(int model_k, double *xp);
 
 int test_setUp(amSampler *am, int models, int *model_dims,
-               targetFunc logposterior, double *initRWM);
+               targetDist logposterior, double *initRWM);
 int test_sampler(amSampler *am, double true_mean, double true_sigma,
                  double lower, double upper);
 int test_dist_params(amSampler *am, double true_param1, double true_param2);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
 }
 
 int test_setUp(amSampler *amp, int nmodels, int *model_dims,
-               targetFunc logposterior, double *initRWM) {
+               targetDist logposterior, double *initRWM) {
   initAMSampler(amp, nmodels, model_dims, logposterior, initRWM);
   int ncond_prob_sweeps = 100000; // 1E5
   estimate_conditional_probs(amp, ncond_prob_sweeps);
