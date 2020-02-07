@@ -9,13 +9,13 @@ Functions:
 All public functions require as a first argument a pointer to :c:type:`amSampler` structure.
 
 .. c:function:: int initAMSampler(amSampler *am, int nmodels, int *model_dims,
-                targetFunc logpost, double *initRWM);
+                targetDist logpost, double *initRWM);
 
     To initialize :c:type:`amSampler` you need to provide:
 
      * the number of models in `nmodels`;
      * the dimensions for each model in `model_dims`;
-     * the logarithm of the target distribution (or posterior distribution in a Bayesian analysis) in logpost (see :c:type:`targetFunc`);
+     * the logarithm of the target distribution (or posterior distribution in a Bayesian analysis) in logpost (see :c:type:`targetDist`);
      * and an array with initial conditions for each model in `initRWM`.
 
     `initRWM` is a flattened array, with the initial values in contiguous order for each model.
@@ -264,13 +264,13 @@ C struct's
 Typedef's and Enum's
 --------------------
 
-.. c:type:: targetFunc
+.. c:type:: targetDist
 
-    targetFunc is the prototype of the log-posterior function that must be passed to :c:type:`amSampler` upon initialization.
+    targetDist is the prototype of the log-posterior function that must be passed to :c:type:`amSampler` upon initialization.
 
     .. code-block:: c
 
-      typedef double (*targetFunc)(int model_k, double *x);
+      typedef double (*targetDist)(int model_k, double *x);
 
 .. c:type:: bool
 
