@@ -51,7 +51,7 @@ libautomix.so: $(LIBOBJS)
 tutorial: $(EXMP_DIR)/tutorial.c libautomix.so
 	$(CC) $(CFLAGS) -o $@ $< -L./ -lautomix $(LIBS) $(INC_FLAGS)
 
-test: tests/main.c libautomix.so
+test: tests/test_automix.c libautomix.so
 	$(CC) $< -L./ -lautomix -lm -I$(LIB_DIR) -o $@
 
 ###### EXAMPLE PROGRAMS ############

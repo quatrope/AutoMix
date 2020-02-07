@@ -23,4 +23,4 @@ script:
   - clang-format src/user_examples/logwrite.c | diff - src/user_examples/logwrite.c
   - clang-format src/user_examples/logwrite.h | diff - src/user_examples/logwrite.h
   - clang-format src/user_examples/tutorial.c | diff - src/user_examples/tutorial.c
-  - clang-format tests/main.c | diff - tests/main.c
+  - clang-format tests/test_automix.c | diff - tests/test_automix.c
