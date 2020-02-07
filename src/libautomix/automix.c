@@ -83,7 +83,7 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
   runStats *st = &(am->st);
   // Start here main sample
   int xr_i = 0;
-  ch->isBurning = 0;
+  ch->isBurning = false;
   for (unsigned long sweep_init = ch->sweep_i;
        ch->sweep_i < sweep_init + nsweep; ch->sweep_i++) {
     // for (int sweep = 1; sweep <= nsweep; sweep++) {
@@ -135,7 +135,7 @@ void burn_samples(amSampler *am, int nburn) {
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;
   runStats *st = &(am->st);
-  ch->isBurning = 1;
+  ch->isBurning = true;
   for (unsigned long sweep_init = ch->sweep_i; ch->sweep_i < sweep_init + nburn;
        ch->sweep_i++) {
     // Every 10 sweeps to block RWM
@@ -222,12 +222,12 @@ int initAMSampler(amSampler *am, int nmodels, int *model_dims,
     }
   }
   // Set all structs as un-initialized
-  (&(am->cpstats))->isInitialized = 0;
-  (&(am->ch))->isInitialized = 0;
-  (&(am->st))->isInitialized = 0;
+  (&(am->cpstats))->isInitialized = false;
+  (&(am->ch))->isInitialized = false;
+  (&(am->st))->isInitialized = false;
   // Set default values
-  am->doAdapt = 1;
-  am->doPerm = 0;
+  am->doAdapt = true;
+  am->doPerm = false;
   am->student_T_dof = 0;
   am->am_mixfit = FIGUEREIDO_MIX_FIT;
   return EXIT_SUCCESS;
@@ -288,7 +288,7 @@ int initCondProbStats(condProbStats *cpstats, proposalDist jd, int nsweeps2,
     cpstats->fitmix_lpn[i] = (double *)malloc(NUM_FITMIX_MAX * sizeof(double));
     cpstats->fitmix_Lkk[i] = (int *)malloc(NUM_FITMIX_MAX * sizeof(int));
   }
-  cpstats->isInitialized = 1;
+  cpstats->isInitialized = true;
   return EXIT_SUCCESS;
 }
 
@@ -345,7 +345,7 @@ void freeCondProbStats(condProbStats *cpstats, proposalDist jd) {
   if (cpstats->fitmix_Lkk != NULL) {
     free(cpstats->fitmix_Lkk);
   }
-  cpstats->isInitialized = 0;
+  cpstats->isInitialized = false;
 }
 
 void initRunStats(runStats *st, int nsweep, proposalDist jd) {
@@ -439,7 +439,7 @@ void initChain(chainState *ch, proposalDist jd, double **initRWM,
   ch->reinit = 0;
   ch->pkllim = 1.0 / 10.0;
   ch->sweep_i = 1;
-  ch->isInitialized = 1;
+  ch->isInitialized = true;
 }
 
 void freeChain(chainState *ch) {
@@ -452,7 +452,7 @@ void freeChain(chainState *ch) {
   if (ch->pk != NULL) {
     free(ch->pk);
   }
-  ch->isInitialized = 0;
+  ch->isInitialized = false;
 }
 
 int initProposalDist(proposalDist *jd, int nmodels, int *model_dims,
@@ -519,7 +519,7 @@ int initProposalDist(proposalDist *jd, int nmodels, int *model_dims,
     jd->sig[k] = (double *)malloc(mdim * sizeof(double));
   }
 
-  jd->isInitialized = 1;
+  jd->isInitialized = true;
   return EXIT_SUCCESS;
 }
 

@@ -44,6 +44,8 @@ be a published paper in the not too distant future.  */
 typedef double (*targetDist)(int model_k, double *x);
 // C does not have a bool type but int is just as good
 typedef int bool;
+#define true 1
+#define false 0
 // Enum to specify whether using Figuereido or AutoRJ in conditional
 // probs estimation.
 typedef enum { FIGUEREIDO_MIX_FIT = 0, AUTORJ_MIX_FIT } automix_mix_fit;
