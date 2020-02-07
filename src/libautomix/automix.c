@@ -76,6 +76,9 @@ void reversible_jump_move(bool doPerm, bool doAdapt, chainState *ch,
 
 void rjmcmc_samples(amSampler *am, int nsweep) {
   clock_t starttime = clock();
+  if (!(&(am->cpstats))->isInitialized) {
+    estimate_conditional_probs(am, 100000);
+  }
   initChain(&(am->ch), am->jd, am->initRWM, am->logposterior);
   initRunStats(&(am->st), nsweep, am->jd);
   chainState *ch = &(am->ch);
@@ -131,6 +134,9 @@ void rjmcmc_samples(amSampler *am, int nsweep) {
 
 void burn_samples(amSampler *am, int nburn) {
   clock_t starttime = clock();
+  if (!(&(am->cpstats))->isInitialized) {
+    estimate_conditional_probs(am, 100000);
+  }
   initChain(&(am->ch), am->jd, am->initRWM, am->logposterior);
   chainState *ch = &(am->ch);
   proposalDist jd = am->jd;

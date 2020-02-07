@@ -19,7 +19,6 @@ int main() {
   double initRWM[] = {0.5, 0.5, 2.0, 2.0, 9.0, 2.0};
   amSampler am;
   initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
-  estimate_conditional_probs(&am, 100000);
   burn_samples(&am, 10000);
   int nsweeps = 100000;
   rjmcmc_samples(&am, nsweeps);

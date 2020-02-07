@@ -135,7 +135,6 @@ Below is an exanple of a minimal call to generate 1,000 samples from a given pro
     double initRWM[] = {0.5, 0.5, 2.0, 2.0, 9.0, 2.0};
     amSampler am;
     initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
-    estimate_conditional_probs(&am, 100000);
     burn_samples(&am, 10000);
     int nsweeps = 100000;
     rjmcmc_samples(&am, nsweeps);
@@ -207,15 +206,6 @@ Once all of the above is defined for our problem we can init our :c:type:`amSamp
 
   amSampler am;
   initAMSampler(&am, nmodels, model_dims, logposterior, initRWM);
-
-The next step is to estimate the conditional probabilities for our posterior model to
-create a Proposal Distribution with a multi-modal Normal mixture:
-
-.. code-block:: c
-
-  estimate_conditional_probs(&am, 100000);
-
-We just need to pass the automix sampler struct and the number of sweeps we want for the estimation.
 
 It is recommended to "burn" some initial samples to let the MCMC chain achieve convergence.
 We do this with the following line:
