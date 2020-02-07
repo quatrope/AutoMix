@@ -13,33 +13,33 @@ All public functions require as a first argument a pointer to :c:type:`amSampler
 
     To initialize :c:type:`amSampler` you need to provide:
 
-     * the number of models in `nmodels`;
-     * the dimensions for each model in `model_dims`;
-     * the logarithm of the target distribution (or posterior distribution in a Bayesian analysis) in logpost (see :c:type:`targetDist`);
-     * and an array with initial conditions for each model in `initRWM`.
+     * the number of models in ``nmodels``;
+     * the dimensions for each model in ``model_dims``;
+     * the logarithm of the target distribution (or posterior distribution in a Bayesian analysis) in ``logpost`` (see :c:type:`targetDist`);
+     * and an array with initial conditions for each model in ``initRWM``.
 
-    `initRWM` is a flattened array, with the initial values in contiguous order for each model.
-    If `initRWM` is passed as `NULL`, then the initial values are randomly selected from a uniform distribution in [0, 1).
+    ``initRWM`` is a flattened array, with the initial values in contiguous order for each model.
+    If ``initRWM`` is passed as ``NULL``, then the initial values are randomly selected from a uniform distribution in [0, 1).
 
     initAMSampler allocates necessary memory for most array in the rest of the structures.
 
 .. c:function:: void freeAMSampler(amSampler *am);
 
-    Once you finish working with :c:type:`amSampler`, you should free the memory with a call to `freeAMSampler`.
+    Once you finish working with :c:type:`amSampler`, you should free the memory with a call to :c:func:`freeAMSampler`.
 
-.. c:function:: void estimate_conditional_probs(amSampler *am, int nsweep2);
+.. c:function:: void estimate_conditional_probs(amSampler *am, int nsweeps);
 
-    Before running RJMCMC sweeps, you need to call :c:func:`estimate_conditional_probs` to
-    estimate the conditional probabilities of your models, to adjust for an appropriate proposal distribution.
+    Estimate the conditional probabilities of the models, to adjust for an appropriate proposal distribution.
+    **If it is not explicitely called by the user**, it will be implicitely called by either :c:func:`burn_samples` or :c:func:`rjmcmc_samples` prior to drawing samples. If the call is implicit, the number of sweeps ``nsweeps`` defaults to 100,000.
 
-    The statistics collected during the :c:func:`estimate_conditional_probs` calls, are stored in the :c:member:`cpstats` member inside the :c:type:`amSampler` struct.
+    In all cases, the statistics collected during the :c:func:`estimate_conditional_probs` calls, are stored in the :c:member:`cpstats` member inside the :c:type:`amSampler` struct.
     For a full description of :c:member:`cpstats`, see :c:type:`condProbStats`.
 
-.. c:function:: void burn_samples(amSampler *am, int nburn);
+.. c:function:: void burn_samples(amSampler *am, int nsweeps);
 
     It is advised to burn some samples at the begining of a RJMCMC run to let the Markov chain converge.
 
-.. c:function:: void rjmcmc_samples(amSampler *am, int nsweep);
+.. c:function:: void rjmcmc_samples(amSampler *am, int nsweeps);
 
     This is the function that will provide the RJMCMC samples.
 
@@ -225,7 +225,7 @@ C struct's
 
   .. c:member:: current_model_k
 
-    The current model `k` in the chain.
+    The current model index ``k`` in the chain.
 
   .. c:member:: mdim
 
@@ -266,7 +266,7 @@ Typedef's and Enum's
 
 .. c:type:: targetDist
 
-    targetDist is the prototype of the log-posterior function that must be passed to :c:type:`amSampler` upon initialization.
+    The prototype of the log-posterior function that must be passed to :c:type:`amSampler` upon initialization.
 
     .. code-block:: c
 
@@ -274,11 +274,14 @@ Typedef's and Enum's
 
 .. c:type:: bool
 
-    bool is a typedef for int. C does not have a bool type but int is just as good.
+    A typedef for int. C does not have a bool type but int is just as good.
+    ``true`` and ``false`` are also defined for compatibility with C++.
 
     .. code-block:: c
 
       typedef int bool;
+      #define true 1
+      #define false 0
 
 .. c:type:: automix_mix_fit
 
