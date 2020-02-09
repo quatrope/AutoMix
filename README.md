@@ -55,7 +55,6 @@ Nevertheless, below is an example for a simple 1D Normal distribution sampler.
       double initRWM[] = {0.5, 0.5};
       amSampler am;
       initAMSampler(&am, nmodels, model_dims, logp_normal_sampler, initRWM);
-      estimate_conditional_probs(&am, 100000);
       burn_samples(&am, 10000);
       int nsweeps = 100000;
       rjmcmc_samples(&am, nsweeps);
