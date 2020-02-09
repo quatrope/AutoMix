@@ -35,9 +35,9 @@ be a published paper in the not too distant future.  */
 #define __AutoMix__AutoMix_h__
 
 #define AUTOMIX_MAJOR_VERSION 2
-#define AUTOMIX_MINOR_VERSION 0
+#define AUTOMIX_MINOR_VERSION 1
 #define AUTOMIX_REVISION 0
-#define AUTOMIX_VERSION "2.0"
+#define AUTOMIX_VERSION "2.1"
 
 #include <time.h>
 
