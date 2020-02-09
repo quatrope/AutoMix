@@ -9,7 +9,7 @@ script:
   - sudo make install; sudo ldconfig
   - make clean; make amtoy1; ./amtoy1 -f myout
   - test -f myout_mix.data
-  - ./amtoy1 -m 1 -N 1000 -f myout
+  - ./amtoy1 -m 1 -N 1000 -b 100 -f myout
   - test -f myout_k.data
   - rm myout*.data; rm libautomix.so
   - make clean; make amtoy1 DEBUG=1; ./amtoy1 -N 1000
