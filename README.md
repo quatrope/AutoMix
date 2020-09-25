@@ -1,6 +1,7 @@
 [![Build Status](https://travis-ci.org/quatrope/AutoMix.svg?branch=master)](https://travis-ci.org/quatrope/AutoMix)
 [![Documentation Status](https://readthedocs.org/projects/automix/badge/?version=latest)](https://automix.readthedocs.io/en/latest/?badge=latest)
 ![Style Format](https://img.shields.io/badge/style-clang--format-success)
+[![CodeFactor](https://www.codefactor.io/repository/github/quatrope/automix/badge/master)](https://www.codefactor.io/repository/github/quatrope/automix/overview/master)
 
 # AutoMix
 
