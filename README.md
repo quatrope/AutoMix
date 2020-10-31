@@ -13,7 +13,7 @@ _Check the original README.txt for license information._
 The AutoMix package is a C program for Unix-like systems, implementing the automatic Reversible Jump MCMC sampler of the same name described in Chapters 4, 5, and 6 of David Hastie's Ph.D. thesis (included in `docs/thesis`).
 
 While the original AutoMix is highly useful, the fact that it can only be used as an executable can limit its applicability.
-**LibAutoMix makes the core algorithms of Source Extractor available as a library of stand-alone functions and data structures.**
+**LibAutoMix makes the core algorithms of the AutoMix program available as a library of stand-alone functions and data structures.**
 The code is completely derived from the original AutoMix code base and aims to produce results compatible with it whenever possible.
 LibAutoMix is a C library with no dependencies outside the standard library.
 
